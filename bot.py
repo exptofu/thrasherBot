@@ -19,6 +19,9 @@ BACK_DAYS = int(os.environ.get("EBIRD_BACK_DAYS", "14"))
 POLL_MINUTES = int(os.environ.get("POLL_MINUTES", "15"))
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
+DISCORD_CHANNEL_MOVE_DELAY_SECONDS = float(
+    os.environ.get("DISCORD_CHANNEL_MOVE_DELAY_SECONDS", "1")
+)
 MAX_RETRIES = 5
 SCHEMA_VERSION = 2
 
@@ -288,6 +291,7 @@ async def ensure_region_forums(channel: discord.ForumChannel):
             read_message_history=True,
         ),
     }
+    moves_applied = 0
     for group, regions in REGION_GROUPS.items():
         category = categories.get(group)
         if category is None:
@@ -341,8 +345,13 @@ async def ensure_region_forums(channel: discord.ForumChannel):
             for region in ordered_regions:
                 forum = forums[region]
                 text = text_channels[f"{region}-banter"]
+                if moves_applied:
+                    await asyncio.sleep(DISCORD_CHANNEL_MOVE_DELAY_SECONDS)
                 await forum.move(end=True, category=category)
+                moves_applied += 1
+                await asyncio.sleep(DISCORD_CHANNEL_MOVE_DELAY_SECONDS)
                 await text.move(after=forum)
+                moves_applied += 1
 
 
 async def get_rba_thread(channel: discord.ForumChannel, region: str):
