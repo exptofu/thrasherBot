@@ -27,6 +27,67 @@ HEADERS = {"x-ebirdapitoken": EBIRD_KEY}
 
 log = logging.getLogger("thrasherbot")
 
+# Region slug -> eBird county names. Slugs are the forum tag and discussion forum names.
+REGIONS = {
+    "fulton": ["Fulton"],
+    "dekalb": ["DeKalb"],
+    "gwinnett": ["Gwinnett"],
+    "cobb": ["Cobb"],
+    "cherokee-forsyth": ["Cherokee", "Forsyth"],
+    "chatham": ["Chatham"],
+    "glynn-camden": ["Glynn", "Camden"],
+    "clarke-oconee": ["Clarke", "Oconee"],
+    "metro-atlanta-south": [
+        "Clayton", "Henry", "Fayette", "Coweta", "Spalding", "Butts", "Douglas", "Paulding",
+    ],
+    "metro-atlanta-east": ["Hall", "Barrow", "Walton", "Newton", "Rockdale"],
+    "northeast-mountains": [
+        "Rabun", "Habersham", "Stephens", "Franklin", "Hart", "Banks", "Jackson", "Towns",
+        "Union",
+    ],
+    "north-central-mountains": ["Fannin", "Gilmer", "Pickens", "Lumpkin", "Dawson", "White"],
+    "northwest-georgia": [
+        "Floyd", "Bartow", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield",
+        "Murray", "Gordon", "Polk", "Haralson",
+    ],
+    "west-georgia": [
+        "Troup", "Harris", "Muscogee", "Carroll", "Heard", "Meriwether", "Talbot",
+        "Chattahoochee", "Marion", "Taylor", "Upson", "Pike",
+    ],
+    "central-georgia": [
+        "Bibb", "Houston", "Baldwin", "Jones", "Putnam", "Peach", "Crawford", "Monroe",
+        "Lamar", "Twiggs", "Wilkinson", "Jasper", "Bleckley", "Pulaski", "Dooly", "Macon",
+        "Laurens", "Dodge", "Telfair", "Johnson", "Hancock", "Treutlen", "Wheeler",
+    ],
+    "southwest-georgia": [
+        "Dougherty", "Lee", "Decatur", "Grady", "Mitchell", "Baker", "Calhoun", "Clay",
+        "Early", "Miller", "Seminole", "Randolph", "Quitman", "Terrell", "Schley", "Sumter",
+        "Webster", "Stewart",
+    ],
+    "south-central-georgia": [
+        "Lowndes", "Brooks", "Thomas", "Tift", "Colquitt", "Cook", "Berrien", "Irwin",
+        "Ben Hill", "Echols", "Lanier", "Turner", "Worth", "Crisp", "Wilcox",
+    ],
+    "southeast-georgia": [
+        "Ware", "Clinch", "Charlton", "Appling", "Bulloch", "Coffee", "Atkinson", "Bacon",
+        "Brantley", "Pierce", "Wayne", "Jeff Davis", "Tattnall", "Toombs", "Evans",
+        "Candler", "Emanuel", "Jenkins", "Montgomery",
+    ],
+    "coastal-georgia-other": ["Liberty", "McIntosh", "Bryan", "Effingham", "Long"],
+    "east-georgia": [
+        "Burke", "Jefferson", "Washington", "Wilkes", "Lincoln", "McDuffie", "Warren",
+        "Glascock", "Taliaferro", "Greene", "Oglethorpe", "Madison", "Elbert", "Screven",
+        "Morgan", "Richmond", "Columbia",
+    ],
+}
+COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
+rba_threads: dict[str, int] = {}
+
+
+def region_of(o: dict) -> str | None:
+    name = o.get("subnational2Name", "").lower().removesuffix(" county")
+    return COUNTY_REGION.get(name)
+
 db = sqlite3.connect(DB_PATH)
 if db.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
     db.executescript("DROP TABLE IF EXISTS sightings; DROP TABLE IF EXISTS posts;")
@@ -182,6 +243,73 @@ def scope_of(o: dict) -> str:
     return "county:" + o.get("subnational2Code", o.get("subnational2Name", "unknown"))
 
 
+async def ensure_region_tags(channel: discord.ForumChannel):
+    have = {t.name for t in channel.available_tags}
+    missing = [n for n in REGIONS if n not in have]
+    if missing:
+        await channel.edit(
+            available_tags=[*channel.available_tags, *(discord.ForumTag(name=n) for n in missing)]
+        )
+
+
+async def ensure_region_forums(channel: discord.ForumChannel):
+    """Create any missing region forum: members can reply but only the bot starts posts."""
+    guild = channel.guild
+    existing = {f.name for f in guild.forums}
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(
+            send_messages=False, send_messages_in_threads=True
+        ),
+        guild.me: discord.PermissionOverwrite(send_messages=True, manage_threads=True),
+    }
+    for region in REGIONS:
+        if region not in existing:
+            await guild.create_forum(
+                region,
+                category=channel.category,
+                overwrites=overwrites,
+                topic=f"New sightings and discussion for {region}",
+            )
+
+
+async def get_rba_thread(channel: discord.ForumChannel, region: str):
+    """Find or create the <region>_rba post in the region's discussion forum."""
+    forum = discord.utils.get(channel.guild.forums, name=region)
+    if not forum:
+        log.warning("No forum channel named %s; skipping RBA message", region)
+        return None
+    name = f"{region}_rba"
+    thread = await get_thread(client, rba_threads[region]) if region in rba_threads else None
+    if not thread:
+        thread = discord.utils.get(forum.threads, name=name)
+    if not thread:
+        async for t in forum.archived_threads(limit=None):
+            if t.name == name:
+                thread = t
+                break
+    if not thread:
+        thread = (
+            await forum.create_thread(name=name, content="New sightings for this region.")
+        ).thread
+    rba_threads[region] = thread.id
+    return thread
+
+
+async def notify_rba(channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
+    try:
+        rba = await get_rba_thread(channel, region)
+        if not rba:
+            return
+        if rba.archived:
+            await rba.edit(archived=False)
+        await rba.send(
+            f"New: [{o['comName']}]({post.jump_url}) - {o.get('subnational2Name', 'Unknown')} "
+            f"County, {o['locName']} ({o['obsDt'][:10]})"
+        )
+    except discord.HTTPException:
+        log.exception("Failed to post RBA message for %s", region)
+
+
 def post_title(o: dict) -> str:
     county = o.get("subnational2Name", "Unknown")
     title = f"[{county}] {o['comName']} ({o['obsDt'][:10]})"
@@ -223,8 +351,11 @@ async def send_group(
             await thread.edit(archived=False)
         message = await thread.send(embed=embed)
     else:
+        first = min(members, key=lambda m: m["obsDt"])
+        region = region_of(first)
+        tag = discord.utils.get(channel.available_tags, name=region) if region else None
         created = await channel.create_thread(
-            name=post_title(min(members, key=lambda m: m["obsDt"])), embed=embed
+            name=post_title(first), embed=embed, applied_tags=[tag] if tag else []
         )
         message = created.message
         db.execute(
@@ -235,6 +366,8 @@ async def send_group(
         (species, checklist_id, scope, message.id),
     )
     db.commit()
+    if not thread and region:
+        await notify_rba(channel, region, created.thread, first)
 
 
 async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict) -> dict:
@@ -385,6 +518,8 @@ REQUIRED_PERMS = discord.Permissions(
     send_messages=True,
     send_messages_in_threads=True,
     read_message_history=True,
+    manage_channels=True,
+    manage_threads=True,
 )
 
 
@@ -413,6 +548,15 @@ class Bot(discord.Client):
             )
             await self.close()
             return
+
+        try:
+            await ensure_region_tags(channel)
+        except discord.HTTPException:
+            log.exception("Could not create region tags; the bot needs Manage Channels")
+        try:
+            await ensure_region_forums(channel)
+        except discord.HTTPException:
+            log.exception("Could not create region forums; the bot needs Manage Channels")
 
         if not poll.is_running():
             poll.start()
