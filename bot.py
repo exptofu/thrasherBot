@@ -80,6 +80,23 @@ REGIONS = {
         "Morgan", "Richmond", "Columbia",
     ],
 }
+# Region slugs -> geographic categories for discussion and banter channels.
+REGION_GROUPS = {
+    "Metro Atlanta": [
+        "fulton", "dekalb", "gwinnett", "cobb", "cherokee-forsyth",
+        "metro-atlanta-south", "metro-atlanta-east",
+    ],
+    "North Georgia": [
+        "northeast-mountains", "north-central-mountains", "northwest-georgia",
+    ],
+    "Central Georgia": [
+        "clarke-oconee", "west-georgia", "central-georgia", "east-georgia",
+    ],
+    "South Georgia": ["southwest-georgia", "south-central-georgia"],
+    "Coastal Georgia": [
+        "chatham", "glynn-camden", "coastal-georgia-other", "southeast-georgia",
+    ],
+}
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
 rba_threads: dict[str, int] = {}
 
@@ -253,23 +270,54 @@ async def ensure_region_tags(channel: discord.ForumChannel):
 
 
 async def ensure_region_forums(channel: discord.ForumChannel):
-    """Create any missing region forum: members can reply but only the bot starts posts."""
+    """Create and group region discussion forums and their general-chat channels."""
     guild = channel.guild
-    existing = {f.name for f in guild.forums}
-    overwrites = {
+    forums = {forum.name: forum for forum in guild.forums}
+    text_channels = {text.name: text for text in guild.text_channels}
+    categories = {category.name: category for category in guild.categories}
+    forum_overwrites = {
         guild.default_role: discord.PermissionOverwrite(
             send_messages=False, send_messages_in_threads=True
         ),
         guild.me: discord.PermissionOverwrite(send_messages=True, manage_threads=True),
     }
-    for region in REGIONS:
-        if region not in existing:
-            await guild.create_forum(
-                region,
-                category=channel.category,
-                overwrites=overwrites,
-                topic=f"New sightings and discussion for {region}",
-            )
+    text_overwrites = {
+        guild.default_role: discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+        ),
+    }
+    for group, regions in REGION_GROUPS.items():
+        category = categories.get(group)
+        if category is None:
+            category = await guild.create_category(group)
+            categories[group] = category
+        for region in regions:
+            forum = forums.get(region)
+            if forum is None:
+                forum = await guild.create_forum(
+                    region,
+                    category=category,
+                    overwrites=forum_overwrites,
+                    topic=f"New sightings and discussion for {region}",
+                )
+                forums[region] = forum
+            elif forum.category_id != category.id:
+                await forum.edit(category=category)
+
+            text_name = f"{region}-banter"
+            text = text_channels.get(text_name)
+            if text is None:
+                text = await guild.create_text_channel(
+                    text_name,
+                    category=category,
+                    overwrites=text_overwrites,
+                    topic=f"General discussion for {region}",
+                )
+                text_channels[text_name] = text
+            elif text.category_id != category.id:
+                await text.edit(category=category)
 
 
 async def get_rba_thread(channel: discord.ForumChannel, region: str):

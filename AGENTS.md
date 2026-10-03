@@ -1,7 +1,7 @@
 # Project guidance
 
 - `bot.py` polls eBird for notable sightings and posts grouped sightings to a Discord forum; SQLite stores state.
-- `REGIONS` in `bot.py` maps every Georgia county to one of at most 20 regions (Discord's forum tag limit); each region is a forum tag and a discussion forum with a `<region>_rba` post. Keep all 159 counties assigned once, and update `COLORS` in `georgia_map.py` when regions change.
+- `REGIONS` in `bot.py` maps every Georgia county to one of at most 20 regions (Discord's forum tag limit); each region is a forum tag, a discussion forum with a `<region>_rba` post, and a `<region>-banter` text channel. `REGION_GROUPS` assigns every region exactly once to a broad Discord category; keep the groups in sync when regions change. Keep all 159 counties assigned once, and update `COLORS` in `georgia_map.py` when regions change.
 - `georgia_map.py` renders `georgia_regions.svg` using only the standard library; it reads `REGIONS` from `bot.py` by parsing it, so keep `REGIONS` a plain literal.
 - Keep changes focused and follow the existing single-file structure unless a feature clearly needs a separate module.
 - Read configuration from environment variables. Never commit credentials; update `.env.example` when configuration changes.
