@@ -107,17 +107,20 @@ def format_sighting(members: list[dict]) -> discord.Embed:
     else:
         status, color = "Unreviewed", discord.Color.orange()
 
-    embed = discord.Embed(
-        title=o["comName"],
-        description=f"*{o['sciName']}*",
-        url=f"https://ebird.org/checklist/{o['subId']}",
-        color=color,
-    )
     author = o.get("userDisplayName", "Unknown")
     others = len(members) - 1
     if others:
         author += f" + {others} other{'s' if others > 1 else ''}"
-    embed.set_author(name=author)
+
+    embed = discord.Embed(
+        title=o["comName"],
+        description=(
+            f"*{o['sciName']}*\n"
+            f"[View checklist](https://ebird.org/checklist/{o['subId']})\n"
+            f"Observer: {author}"
+        ),
+        color=color,
+    )
 
     embed.add_field(name="Count", value=str(o.get("howMany", "X")))
     embed.add_field(name="Date", value=o["obsDt"])
@@ -169,10 +172,10 @@ def scope_of(o: dict) -> str:
 
 def post_title(o: dict) -> str:
     county = o.get("subnational2Name", "Unknown")
-    prefix = f"[{county}]"
+    title = f"[{county}] {o['comName']} ({o['obsDt'][:10]})"
     if o["locId"] in hotspots:
-        prefix += f"[{o['locName']}]"
-    return f"{prefix} {o['comName']} ({o['obsDt'][:10]})"[:100]
+        title += f" @ {o['locName']}"
+    return title[:100]
 
 
 async def send_group(
@@ -238,6 +241,28 @@ async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict)
     }
 
 
+async def process_sighting(channel: discord.ForumChannel, o: dict):
+    species, checklist_id = o["speciesCode"], o["checklistId"]
+    scope = scope_of(o)
+    previous = [
+        json.loads(r[0])
+        for r in db.execute(
+            "SELECT data FROM sightings WHERE species_code=? AND checklist_id=?",
+            (species, checklist_id),
+        )
+    ]
+    try:
+        await send_group(client, channel, species, checklist_id, scope, previous + [o])
+    except discord.HTTPException:
+        log.exception("Failed to post %s %s", species, checklist_id)
+        return
+    db.execute(
+        "INSERT OR IGNORE INTO sightings VALUES (?,?,?,?,?)",
+        (o["subId"], species, checklist_id, scope, json.dumps(o)),
+    )
+    db.commit()
+
+
 @tasks.loop(minutes=POLL_MINUTES)
 async def poll():
     channel = client.get_channel(CHANNEL_ID) or await client.fetch_channel(CHANNEL_ID)
@@ -257,45 +282,27 @@ async def poll():
                 for r in db.execute("SELECT sub_id, species_code FROM sightings")
             }
 
-            cache: dict = {}
-            new: dict[tuple, dict] = {}
-            for o in sorted(obs, key=lambda o: o["obsDt"]):
+            # checklistId is only known after the lookup, so order by subId; later
+            # observers of a shared checklist edit the message already posted.
+            todo = {}
+            for o in sorted(obs, key=lambda o: sub_num(o["subId"])):
                 k = (o["subId"], o["speciesCode"])
-                if k in known or k in new:
-                    continue
+                if k not in known:
+                    todo.setdefault(k, o)
+            log.info("%d new sightings to process", len(todo))
+
+            cache: dict = {}
+            for i, (k, o) in enumerate(todo.items(), 1):
+                log.info("Checklist %d/%d: %s (%s)", i, len(todo), k[0], o["comName"])
                 try:
-                    new[k] = await attach_checklist(session, o, cache)
+                    o = await attach_checklist(session, o, cache)
                 except aiohttp.ClientError:
                     log.exception("Checklist lookup failed for %s; will retry", k)
+                    continue
+                await process_sighting(channel, o)
     except aiohttp.ClientError:
         log.exception("eBird request failed")
         return
-
-    groups: dict[tuple, list[dict]] = {}
-    for o in new.values():
-        groups.setdefault((o["speciesCode"], o["checklistId"]), []).append(o)
-
-    for (species, checklist_id), added in groups.items():
-        scope = scope_of(added[0])
-        previous = [
-            json.loads(r[0])
-            for r in db.execute(
-                "SELECT data FROM sightings WHERE species_code=? AND checklist_id=?",
-                (species, checklist_id),
-            )
-        ]
-        try:
-            await send_group(client, channel, species, checklist_id, scope, previous + added)
-        except discord.HTTPException:
-            log.exception("Failed to post %s %s", species, checklist_id)
-            continue
-        for o in added:
-            db.execute(
-                "INSERT OR IGNORE INTO sightings VALUES (?,?,?,?,?)",
-                (o["subId"], species, checklist_id, scope, json.dumps(o)),
-            )
-        db.commit()
-        await asyncio.sleep(1)
 
     # Purge records that dropped off the API, then groups/posts with no sightings left.
     for sub_id, species in known - current:
