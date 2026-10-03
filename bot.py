@@ -316,8 +316,7 @@ async def update_existing_sightings(
     return known
 
 
-@tasks.loop(minutes=POLL_MINUTES)
-async def poll():
+async def poll_once():
     channel = client.get_channel(CHANNEL_ID) or await client.fetch_channel(CHANNEL_ID)
     try:
         async with aiohttp.ClientSession() as session:
@@ -372,6 +371,15 @@ async def poll():
     db.commit()
 
 
+@tasks.loop(minutes=POLL_MINUTES)
+async def poll():
+    log.info("Polling cycle started")
+    try:
+        await poll_once()
+    finally:
+        log.info("Polling cycle completed")
+
+
 REQUIRED_PERMS = discord.Permissions(
     view_channel=True,
     send_messages=True,
@@ -413,5 +421,9 @@ class Bot(discord.Client):
 client = Bot(intents=discord.Intents.default())
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     client.run(DISCORD_TOKEN)
