@@ -30,7 +30,7 @@ Checklist counts are summed from the 159-county Checklist Leaders board in `2026
 | Northeast Georgia | Upper Piedmont Lakes | 10 | 865,116 | 5,354 | 6.19 |
 | West Georgia | West Central Piedmont | 8 | 776,140 | 4,094 | 5.27 |
 | Central Georgia | South Atlanta Piedmont | 15 | 1,277,426 | 6,806 | 5.33 |
-| South Georgia | Southwest Georgia | 31 | 678,173 | 6,617 | 9.76 |
+| Southwest Georgia | Southwest Georgia | 31 | 678,173 | 6,617 | 9.76 |
 | Central Georgia | West Sandhills & Fall Line | 16 | 224,301 | 1,585 | 7.07 |
 | East Georgia | East Sandhills | 22 | 452,072 | 2,828 | 6.26 |
 | East Georgia | Upper Savannah | 4 | 63,700 | 653 | 10.25 |
@@ -44,7 +44,7 @@ County membership is defined in `georgia_map.py`. Macon County is assigned to Ma
 
 - The five Metro Atlanta counties plus Glynn County produce 44,722 checklists, about 40.1% of the statewide total. DeKalb, Fulton, and Cobb are the top three counties in the saved leaderboard; Glynn also remains a major checklist center. These remain standalone regions, while their parent groups are now geographic.
 - Restoring Columbus gives its six-county region 1,929 checklists. Muscogee contributes 1,367, about 70.9% of that region's total, supporting its role as the anchor.
-- Geographic group totals (checklists / per 1,000 residents) are Metro Atlanta 37,975 / 9.53, North Georgia 13,385 / 13.85, Northeast Georgia 12,191 / 11.54, West Georgia 6,023 / 5.76, Central Georgia 13,451 / 6.68, East Georgia 5,322 / 5.97, South Georgia 6,617 / 9.76, and Coastal Georgia 16,677 / 24.95.
+- Geographic group totals (checklists / per 1,000 residents) are Metro Atlanta 37,975 / 9.53, North Georgia 13,385 / 13.85, Northeast Georgia 12,191 / 11.54, West Georgia 6,023 / 5.76, Central Georgia 13,451 / 6.68, East Georgia 5,322 / 5.97, Southwest Georgia 6,617 / 9.76, and Coastal Georgia 16,677 / 24.95.
 - Checklist volume remains uneven within and between the geographic groups: North Georgia Mountains has the largest region total at 13,385, while Upper Savannah has 653. The group labels describe geography, not workload tiers.
 - Region-level rates range from 4.90 per 1,000 in Augusta Area to 77.02 in Glynn County. Athens Area (35.75) and Mid-Coast Georgia (23.34) are also above the statewide rate; these are regional activity differences, not group criteria.
 - County-level 2025 population estimates and rates are joined in `county_info.html`; the population values come from the 2025 estimate column in the source county table. Rates can change with new checklist snapshots or population estimates.
