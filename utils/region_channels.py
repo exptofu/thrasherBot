@@ -27,15 +27,28 @@ def load_region_config() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
     return config["REGIONS"], config["REGION_GROUPS"]
 
 
+async def _on(target: str, coro):
+    """Await coro, recording which Discord target failed on any HTTP error."""
+    try:
+        return await coro
+    except discord.HTTPException as error:
+        if not hasattr(error, "target"):
+            error.target = target
+        raise
+
+
 async def ensure_region_tags(channel: discord.ForumChannel, regions: dict[str, list[str]]):
     have = {tag.name for tag in channel.available_tags}
     missing = [region for region in regions if region not in have]
     if missing:
-        await channel.edit(
-            available_tags=[
-                *channel.available_tags,
-                *(discord.ForumTag(name=region) for region in missing),
-            ]
+        await _on(
+            f"alert forum #{channel.name} ({channel.id}): adding tags",
+            channel.edit(
+                available_tags=[
+                    *channel.available_tags,
+                    *(discord.ForumTag(name=region) for region in missing),
+                ]
+            ),
         )
 
 
@@ -53,35 +66,53 @@ async def ensure_region_forums(
     for group, regions in region_groups.items():
         category = categories.get(group)
         if category is None:
-            category = await guild.create_category(group)
+            category = await _on(f"creating category '{group}'", guild.create_category(group))
             categories[group] = category
         ordered_regions = sorted(regions)
         for region in ordered_regions:
             forum = forums.get(region)
             if forum is None:
-                forum = await guild.create_forum(
-                    region,
-                    category=category,
-                    topic=f"New sightings and discussion for {region}",
+                forum = await _on(
+                    f"creating forum '{region}' in category '{group}'",
+                    guild.create_forum(
+                        region,
+                        category=category,
+                        topic=f"New sightings and discussion for {region}",
+                    ),
                 )
-                forum = await forum.edit(sync_permissions=True) or forum
+                forum = await _on(
+                    f"forum #{region} ({forum.id}): syncing permissions",
+                    forum.edit(sync_permissions=True),
+                ) or forum
                 forums[region] = forum
             elif forum.category_id != category.id or not forum.permissions_synced:
-                forum = await forum.edit(category=category, sync_permissions=True) or forum
+                forum = await _on(
+                    f"forum #{region} ({forum.id}): moving/syncing to category '{group}'",
+                    forum.edit(category=category, sync_permissions=True),
+                ) or forum
                 forums[region] = forum
 
             text_name = f"{region}-banter"
             text = text_channels.get(text_name)
             if text is None:
-                text = await guild.create_text_channel(
-                    text_name,
-                    category=category,
-                    topic=f"General discussion for {region}",
+                text = await _on(
+                    f"creating text channel '{text_name}' in category '{group}'",
+                    guild.create_text_channel(
+                        text_name,
+                        category=category,
+                        topic=f"General discussion for {region}",
+                    ),
                 )
-                text = await text.edit(sync_permissions=True) or text
+                text = await _on(
+                    f"channel #{text_name} ({text.id}): syncing permissions",
+                    text.edit(sync_permissions=True),
+                ) or text
                 text_channels[text_name] = text
             elif text.category_id != category.id or not text.permissions_synced:
-                text = await text.edit(category=category, sync_permissions=True) or text
+                text = await _on(
+                    f"channel #{text_name} ({text.id}): moving/syncing to category '{group}'",
+                    text.edit(category=category, sync_permissions=True),
+                ) or text
                 text_channels[text_name] = text
 
         expected_names = [
@@ -105,10 +136,16 @@ async def ensure_region_forums(
                 text = text_channels[f"{region}-banter"]
                 if moves_applied:
                     await asyncio.sleep(move_delay_seconds)
-                await forum.move(end=True, category=category)
+                await _on(
+                    f"forum #{region} ({forum.id}): reordering",
+                    forum.move(end=True, category=category),
+                )
                 moves_applied += 1
                 await asyncio.sleep(move_delay_seconds)
-                await text.move(after=forum)
+                await _on(
+                    f"channel #{region}-banter ({text.id}): reordering",
+                    text.move(after=forum),
+                )
                 moves_applied += 1
 
 
@@ -153,7 +190,10 @@ async def main() -> int:
             try:
                 alert_forum = (
                     self.get_channel(alert_forum_id)
-                    or await self.fetch_channel(alert_forum_id)
+                    or await _on(
+                        f"alert forum ({alert_forum_id}): fetching",
+                        self.fetch_channel(alert_forum_id),
+                    )
                 )
                 if not isinstance(alert_forum, discord.ForumChannel):
                     print(f"Channel {alert_forum_id} is not a forum channel.")
@@ -185,6 +225,14 @@ async def main() -> int:
                 print("Regional tags, channels, category permissions, and ordering are up to date.")
             except discord.HTTPException as error:
                 print(f"Regional setup failed: {error}")
+                print(f"Failed target: {getattr(error, 'target', 'unknown')}")
+                if error.code == 50001:
+                    print(
+                        "The bot lacks channel-level access (View Channel, Manage Channels, "
+                        "Manage Permissions) on the alert forum or an existing region "
+                        "category/forum/banter channel. Check overwrites that deny the bot "
+                        "or its role, or grant it Administrator."
+                    )
                 self.exit_code = 1
             finally:
                 await self.close()
