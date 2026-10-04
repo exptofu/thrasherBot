@@ -52,8 +52,8 @@ def load_county_overrides(
         if slug not in by_county:
             raise ValueError(f"COUNTY_OVERRIDES county '{county}' is not in any region")
         names = result.setdefault(by_county[slug], [])
-        if f"{slug}_rarities" not in names:
-            names.append(f"{slug}_rarities")
+        if f"{slug}-rarities" not in names:
+            names.append(f"{slug}-rarities")
     fully_overridden = {
         region for region, counties in regions.items()
         if counties and {county_slug(c) for c in counties} <= {county_slug(c) for c in overrides}
@@ -93,11 +93,11 @@ def channel_specs(
     specs = []
     if region not in fully_overridden:
         specs += [
-            (f"{region}_rarities", f"Rarity sightings and discussion for {region}"),
+            (f"{region}-rarities", f"Rarity sightings and discussion for {region}"),
             (f"{region}-banter", f"General discussion for {region}"),
         ]
     for rarities in county_channels.get(region, []):
-        county = rarities.removesuffix("_rarities")
+        county = rarities.removesuffix("-rarities")
         specs += [
             (rarities, f"Rarity sightings for {county}"),
             (f"{county}-banter", f"General discussion for {county}"),

@@ -89,7 +89,7 @@ REGION_GROUPS = {
 }
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
 
-# eBird county names whose rarities go to their own <county>_rarities channel instead of the region's.
+# eBird county names whose rarities go to their own <county>-rarities channel instead of the region's.
 COUNTY_OVERRIDES = [
     "Clarke", "Oconee", "Oglethorpe",
     "Richmond", "Columbia",
@@ -104,8 +104,8 @@ def county_slug(county: str) -> str:
 def rarities_channel_name(o: dict, region: str) -> str:
     county = county_slug(o.get("subnational2Name", ""))
     if county in {county_slug(c) for c in COUNTY_OVERRIDES}:
-        return f"{county}_rarities"
-    return f"{region}_rarities"
+        return f"{county}-rarities"
+    return f"{region}-rarities"
 
 
 def region_of(o: dict) -> str | None:
