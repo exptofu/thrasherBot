@@ -8,6 +8,7 @@ import aiohttp
 import discord
 from discord.ext import tasks
 from dotenv import load_dotenv
+from utils.region_channels import ensure_region_forums, ensure_region_tags
 
 load_dotenv()
 
@@ -251,84 +252,6 @@ def scope_of(o: dict) -> str:
     if is_hotspot(o):
         return o["locId"]
     return "county:" + o.get("subnational2Code", o.get("subnational2Name", "unknown"))
-
-
-async def ensure_region_tags(channel: discord.ForumChannel):
-    have = {t.name for t in channel.available_tags}
-    missing = [n for n in REGIONS if n not in have]
-    if missing:
-        await channel.edit(
-            available_tags=[*channel.available_tags, *(discord.ForumTag(name=n) for n in missing)]
-        )
-
-
-async def ensure_region_forums(channel: discord.ForumChannel):
-    """Create and group region discussion forums and their general-chat channels."""
-    guild = channel.guild
-    forums = {forum.name: forum for forum in guild.forums}
-    text_channels = {text.name: text for text in guild.text_channels}
-    categories = {category.name: category for category in guild.categories}
-    moves_applied = 0
-    for group, regions in REGION_GROUPS.items():
-        category = categories.get(group)
-        if category is None:
-            category = await guild.create_category(group)
-            categories[group] = category
-        ordered_regions = sorted(regions)
-        for region in ordered_regions:
-            forum = forums.get(region)
-            if forum is None:
-                forum = await guild.create_forum(
-                    region,
-                    category=category,
-                    topic=f"New sightings and discussion for {region}",
-                )
-                forum = await forum.edit(sync_permissions=True) or forum
-                forums[region] = forum
-            elif forum.category_id != category.id or not forum.permissions_synced:
-                forum = await forum.edit(category=category, sync_permissions=True) or forum
-                forums[region] = forum
-
-            text_name = f"{region}-banter"
-            text = text_channels.get(text_name)
-            if text is None:
-                text = await guild.create_text_channel(
-                    text_name,
-                    category=category,
-                    topic=f"General discussion for {region}",
-                )
-                text = await text.edit(sync_permissions=True) or text
-                text_channels[text_name] = text
-            elif text.category_id != category.id or not text.permissions_synced:
-                text = await text.edit(category=category, sync_permissions=True) or text
-                text_channels[text_name] = text
-
-        expected_names = [
-            name
-            for region in ordered_regions
-            for name in (region, f"{region}-banter")
-        ]
-        expected_set = set(expected_names)
-        current_names = [
-            text.name
-            for text in sorted(guild.channels, key=lambda ch: (ch.position, ch.id))
-            if text.category_id == category.id and text.name in expected_set
-        ]
-        pairs_are_adjacent = all(
-            text_channels[f"{region}-banter"].position == forums[region].position + 1
-            for region in ordered_regions
-        )
-        if current_names != expected_names or not pairs_are_adjacent:
-            for region in ordered_regions:
-                forum = forums[region]
-                text = text_channels[f"{region}-banter"]
-                if moves_applied:
-                    await asyncio.sleep(DISCORD_CHANNEL_MOVE_DELAY_SECONDS)
-                await forum.move(end=True, category=category)
-                moves_applied += 1
-                await asyncio.sleep(DISCORD_CHANNEL_MOVE_DELAY_SECONDS)
-                await text.move(after=forum)
-                moves_applied += 1
 
 
 async def get_rba_thread(channel: discord.ForumChannel, region: str):
@@ -610,11 +533,13 @@ class Bot(discord.Client):
             return
 
         try:
-            await ensure_region_tags(channel)
+            await ensure_region_tags(channel, REGIONS)
         except discord.HTTPException:
             log.exception("Could not create region tags; the bot needs Manage Channels")
         try:
-            await ensure_region_forums(channel)
+            await ensure_region_forums(
+                channel, REGION_GROUPS, DISCORD_CHANNEL_MOVE_DELAY_SECONDS
+            )
         except discord.HTTPException:
             log.exception(
                 "Could not sync regional channels; the bot needs Manage Channels and "

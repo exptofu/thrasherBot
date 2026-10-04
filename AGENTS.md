@@ -2,9 +2,9 @@
 
 - `bot.py` polls eBird for notable sightings and posts grouped sightings to a Discord forum; SQLite stores state.
 - `REGIONS` in `bot.py` maps every Georgia county to one of at most 20 regions (Discord's forum tag limit); each region is a forum tag, a discussion forum with a `<region>_rba` post, and a `<region>-banter` text channel. `REGION_GROUPS` assigns every region exactly once to a broad Discord category; keep the groups in sync when regions change. Keep all 159 counties assigned once, and update `COLORS` in `georgia_map.py` when regions change.
-- `georgia_map.py` renders `georgia_regions.svg` using only the standard library. Its `REGIONS`/`REGION_GROUPS` currently match `bot.py`; keep both definitions in sync. Startup adds missing forum tags and creates or moves region channels by exact slug, but does not delete obsolete tags or channels. See `docs/regions.md` for the migration behavior.
+- `georgia_map.py` renders `georgia_regions.svg` using only the standard library. Its `REGIONS`/`REGION_GROUPS` currently match `bot.py`; keep both definitions in sync. `utils/region_channels.py` handles startup tag setup and regional channel creation, permission syncing, and ordering. Startup does not delete obsolete tags or channels. `utils/sync_category_permissions.py` is a preview-first temporary utility; it syncs all categorized guild channels except the forum ID in `DISCORD_CHANNEL_ID`. See `docs/regions.md` for migration behavior.
 - Keep changes focused and follow the existing single-file structure unless a feature clearly needs a separate module.
 - Read configuration from environment variables. Never commit credentials; update `.env.example` when configuration changes.
 - Preserve API request pacing/retries and take care with SQLite schema changes, since the database may contain live bot state.
 - Dependencies belong in `requirements.txt`. Avoid adding a dependency for behavior the standard library already handles.
-- There is no test suite yet. For Python edits, run `python -m py_compile bot.py georgia_map.py` and add or run a focused behavior check when practical.
+- There is no test suite yet. For Python edits, run `python -m py_compile bot.py utils/region_channels.py utils/sync_category_permissions.py georgia_map.py` and add or run a focused behavior check when practical.
