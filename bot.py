@@ -548,8 +548,8 @@ async def nickname_command(interaction: discord.Interaction, nickname: app_comma
 
 
 class Bot(discord.Client):
-    def __init__(self):
-        super().__init__(intents=discord.Intents.default())
+    def __init__(self, *, intents: discord.Intents):
+        super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
         self.tree.add_command(nickname_command)
         self.commands_synced = False
