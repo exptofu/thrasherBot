@@ -543,12 +543,24 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
             await member.add_roles(role, reason="User set their server nickname")
             role_added = True
         await member.edit(nick=nickname, reason="User changed their server nickname")
-    except discord.Forbidden:
-        message = (
-            "The member role was assigned, but the bot could not change your nickname."
-            if role_added
-            else "The bot could not assign the member role. Check its role permissions and hierarchy."
+    except discord.Forbidden as error:
+        log.warning(
+            "Discord denied nickname update for member %s in guild %s: %s",
+            member.id, guild.id, error,
         )
+        if role_added and member.id == guild.owner_id:
+            message = (
+                "The member role is in place, but Discord does not allow the bot to change the "
+                "server owner's nickname. Please update it yourself in the server."
+            )
+        elif role_added:
+            message = (
+                "The member role is in place, but Discord rejected the nickname change. "
+                "Ask an admin to verify the bot has Manage Nicknames and its highest role "
+                "is above yours."
+            )
+        else:
+            message = "The bot could not assign the member role. Check its role permissions and hierarchy."
         await interaction.followup.send(message, ephemeral=True)
         return
     except discord.HTTPException:
