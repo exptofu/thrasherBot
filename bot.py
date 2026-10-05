@@ -27,74 +27,52 @@ HEADERS = {"x-ebirdapitoken": EBIRD_KEY}
 
 log = logging.getLogger("thrasherbot")
 
-# Region slug -> eBird county names. Slugs are the forum tag and discussion forum names.
+# Region slug -> eBird county names. Slugs are also forum tags and channel prefixes.
 REGIONS = {
-    "dekalb": ["DeKalb"],
-    "cobb": ["Cobb"],
-    "fulton": ["Fulton"],
-    "gwinnett": ["Gwinnett"],
-    "cherokee": ["Cherokee"],
-    "glynn": ["Glynn"],
-    "columbus-fall-line": ["Muscogee", "Harris", "Chattahoochee", "Marion", "Talbot", "Taylor"],
-    "athens-metro": ["Clarke", "Oconee", "Oglethorpe"],
-    "augusta-metro": ["Richmond", "Columbia"],
-    "macon-expanded": [
-        "Bibb", "Houston", "Jones", "Peach", "Crawford", "Twiggs", "Wilkinson", "Monroe",
-        "Baldwin", "Macon",
+    "greater-athens-area": ["Barrow", "Walton", "Greene", "Morgan", "Oconee", "Oglethorpe", "Clarke", "Jackson", "Madison"],
+    "greater-savannah-area": ["Chatham", "Bryan", "Liberty", "Effingham"],
+    "gwinnett-county": ["Gwinnett"],
+    "metro-atlanta-north": ["Cobb", "Forsyth", "Douglas", "Cherokee", "Hall", "Bartow", "Paulding"],
+    "dekalb-county": ["DeKalb"],
+    "metro-atlanta-south": ["Coweta", "Henry", "Rockdale", "Newton", "Clayton", "Fayette"],
+    "macon": ["Bibb"],
+    "fall-line-sandhills": [
+        "Spalding", "Pike", "Upson", "Lamar", "Monroe", "Crawford", "Peach", "Houston", "Twiggs",
+        "Jones", "Wilkinson", "Baldwin", "Butts", "Jasper", "Putnam", "Hancock", "Washington",
+        "Dodge", "Pulaski", "Bleckley", "Laurens", "Johnson", "Taylor", "Macon", "Dooly", "Talbot",
+        "Marion", "Schley", "Taliaferro", "Warren", "Glascock", "Emanuel",
     ],
-    "chatham-effingham": ["Chatham", "Effingham"],
-    "colonial-coast": ["McIntosh", "Camden", "Bryan", "Liberty"],
-    "north-georgia": [
-        "Rabun", "Habersham", "Lumpkin", "Fannin", "Union", "Towns", "White", "Dawson",
-        "Gilmer", "Pickens", "Floyd", "Bartow", "Whitfield", "Catoosa", "Gordon", "Chattooga",
-        "Dade", "Walker", "Polk", "Murray",
+    "west-piedmont": ["Carroll", "Heard", "Troup", "Meriwether", "Stewart", "Haralson", "Polk"],
+    "north-georgia-mountains": [
+        "Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray", "Gilmer",
+        "Pickens", "Dawson", "Union", "Fannin", "Lumpkin", "White", "Towns", "Rabun", "Habersham",
     ],
-    "upper-piedmont": [
-        "Hall", "Forsyth", "Barrow", "Jackson", "Madison", "Franklin", "Banks", "Hart",
-        "Elbert", "Stephens",
+    "inland-coastal-plain": [
+        "Irwin", "Ben Hill", "Lee", "Terrell", "Sumter", "Calhoun", "Webster", "Worth", "Crisp",
+        "Colquitt", "Grady", "Thomas", "Brooks", "Lowndes", "Echols", "Clinch", "Charlton", "Ware",
+        "Berrien", "Cook", "Lanier", "Atkinson", "Turner", "Tift", "Coffee", "Wilcox", "Telfair",
+        "Wheeler", "Jeff Davis", "Appling", "Bacon", "Pierce", "Decatur", "Mitchell", "Baker", "Miller",
+        "Seminole", "Early", "Clay", "Quitman", "Randolph", "Dougherty", "Toombs", "Montgomery",
+        "Treutlen", "Tattnall", "Evans", "Candler", "Bulloch", "Screven",
     ],
-    "west-central": ["Coweta", "Carroll", "Paulding", "Haralson", "Douglas", "Heard", "Troup", "Meriwether"],
-    "south-atlanta": [
-        "Clayton", "Fayette", "Henry", "Rockdale", "Newton", "Walton", "Morgan", "Greene",
-        "Putnam", "Jasper", "Spalding", "Butts", "Lamar", "Pike", "Upson",
-    ],
-    "early-wiregrass": [
-        "Early", "Decatur", "Thomas", "Sumter", "Dougherty", "Lee", "Worth", "Terrell",
-        "Schley", "Webster", "Stewart", "Quitman", "Randolph", "Clay", "Calhoun", "Seminole",
-        "Miller", "Baker", "Grady", "Mitchell", "Crisp", "Dooly", "Wilcox", "Turner", "Tift",
-        "Brooks", "Cook", "Lowndes", "Berrien", "Colquitt", "Lanier",
-    ],
-    "west-sandhills": [
-        "Laurens", "Washington", "Hancock", "Warren", "Taliaferro", "Glascock", "Jefferson",
-        "Johnson", "Emanuel", "Bleckley", "Dodge", "Pulaski", "Telfair", "Wheeler", "Ben Hill",
-        "Irwin",
-    ],
-    "east-sandhills": [
-        "Charlton", "Bulloch", "Ware", "Pierce", "Brantley", "Clinch", "Atkinson", "Coffee",
-        "Jeff Davis", "Appling", "Bacon", "Treutlen", "Montgomery", "Toombs", "Candler",
-        "Jenkins", "Screven", "Tattnall", "Evans", "Long", "Wayne", "Echols",
-    ],
-    "upper-savannah": ["Burke", "McDuffie", "Lincoln", "Wilkes"],
+    "broad-river-watershed": ["Elbert", "Hart", "Stephens", "Franklin", "Banks"],
+    "columbus-area": ["Harris", "Muscogee", "Chattahoochee"],
+    "golden-isles": ["Wayne", "Long", "McIntosh", "Glynn", "Brantley", "Camden"],
+    "greater-augusta-area": ["Jenkins", "Burke", "Jefferson", "Richmond", "McDuffie", "Columbia", "Lincoln", "Wilkes"],
+    "fulton-county": ["Fulton"],
 }
-# Region slugs -> geographic categories for discussion and banter channels.
 REGION_GROUPS = {
-    "Metro Atlanta": ["dekalb", "fulton", "cobb", "gwinnett", "cherokee"],
-    "North Georgia": ["north-georgia"],
-    "Northeast Georgia": ["upper-piedmont", "athens-metro"],
-    "West Georgia": ["columbus-fall-line", "west-central"],
-    "Central Georgia": ["macon-expanded", "south-atlanta", "west-sandhills"],
-    "East Georgia": ["augusta-metro", "east-sandhills", "upper-savannah"],
-    "Southwest Georgia": ["early-wiregrass"],
-    "Coastal Georgia": ["glynn", "chatham-effingham", "colonial-coast"],
+    "Metro Atlanta": ["metro-atlanta-north", "metro-atlanta-south", "fulton-county", "dekalb-county", "gwinnett-county"],
+    "Southeast Georgia": ["golden-isles"],
+    "Savannah Area": ["greater-savannah-area"],
+    "Athens Area": ["greater-athens-area"],
+    "Augusta Area": ["greater-augusta-area"],
+    "Central Georgia": ["macon", "fall-line-sandhills"],
+    "West Georgia": ["west-piedmont", "columbus-area"],
+    "North Georgia": ["north-georgia-mountains", "broad-river-watershed"],
+    "South Georgia": ["inland-coastal-plain"],
 }
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
-
-# eBird county names whose rarities go to their own <county>-rarities channel instead of the region's.
-COUNTY_OVERRIDES = [
-    "Clarke", "Oconee", "Oglethorpe",
-    "Richmond", "Columbia",
-    "Chatham", "Effingham",
-]
 
 
 STATEWIDE_CHANNEL = "state-wide-rarities"
@@ -120,11 +98,8 @@ def county_slug(county: str) -> str:
     return county.lower().removesuffix(" county").replace(" ", "-")
 
 
-def rarities_channel_name(o: dict, region: str) -> str:
-    county = county_slug(o.get("subnational2Name", ""))
-    if county in {county_slug(c) for c in COUNTY_OVERRIDES}:
-        return f"{county}-rarities"
-    return f"{region}-rarities"
+def region_chat_channel_name(region: str) -> str:
+    return f"{region}-chat"
 
 
 def region_of(o: dict) -> str | None:
@@ -286,23 +261,23 @@ def scope_of(o: dict) -> str:
     return "county:" + o.get("subnational2Code", o.get("subnational2Name", "unknown"))
 
 
-async def notify_rarities(channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
-    """Link the new sighting post in the county's override channel or the region's rarities channel."""
-    names = [rarities_channel_name(o, region)]
+async def notify_region_chat(channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
+    """Link the new sighting post in its region chat and, for rare birds, statewide chat."""
+    names = [region_chat_channel_name(region)]
     if normalize_species(o["comName"]) in RARE_BIRDS:
         names.append(STATEWIDE_CHANNEL)
     for name in names:
-        rarities = discord.utils.get(channel.guild.text_channels, name=name)
-        if not rarities:
+        text_channel = discord.utils.get(channel.guild.text_channels, name=name)
+        if not text_channel:
             log.warning("No text channel named %s; skipping notification", name)
             continue
         try:
             county = o.get("subnational2Name", "Unknown")
-            await rarities.send(
+            await text_channel.send(
                 f"[{county}] [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
             )
         except discord.HTTPException:
-            log.exception("Failed to post rarities message to %s", name)
+            log.exception("Failed to post sighting link to %s", name)
 
 
 def post_title(o: dict) -> str:
@@ -362,7 +337,7 @@ async def send_group(
     )
     db.commit()
     if not thread and region:
-        await notify_rarities(channel, region, created.thread, first)
+        await notify_region_chat(channel, region, created.thread, first)
 
 
 async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict) -> dict:

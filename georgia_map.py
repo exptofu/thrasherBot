@@ -1,6 +1,4 @@
-"""Render georgia_regions.svg: proposed categories (top) and regions (bottom) defined below.
-
-The proposal is a preview only; bot.py REGIONS/REGION_GROUPS are not read or changed.
+"""Render georgia_regions.svg from the region/category layout used by the bot.
 
 Stdlib only. County outlines come from the public plotly/datasets GeoJSON (Census data).
 Usage: python georgia_map.py [output.svg]
@@ -18,109 +16,85 @@ MAP_WIDTH = 620
 PAD = 40
 LEGEND_WIDTH = 380
 
-# Proposed regions: 20 total.
+# Keep these county assignments and categories synchronized with bot.py.
 REGIONS = {
-    "dekalb": ["DeKalb"],
-    "fulton": ["Fulton"],
-    "cobb": ["Cobb"],
-    "gwinnett": ["Gwinnett"],
-    "cherokee": ["Cherokee"],
-    "glynn": ["Glynn"],
-    "columbus-fall-line": ["Muscogee", "Harris", "Chattahoochee", "Marion", "Talbot", "Taylor"],
-    "athens-metro": ["Clarke", "Oconee", "Oglethorpe"],
-    "augusta-metro": ["Richmond", "Columbia"],
-    "macon-expanded": [
-        "Bibb", "Houston", "Jones", "Peach", "Crawford", "Twiggs", "Wilkinson", "Monroe",
-        "Baldwin", "Macon",
+    "greater-athens-area": ["Barrow", "Walton", "Greene", "Morgan", "Oconee", "Oglethorpe", "Clarke", "Jackson", "Madison"],
+    "greater-savannah-area": ["Chatham", "Bryan", "Liberty", "Effingham"],
+    "gwinnett-county": ["Gwinnett"],
+    "metro-atlanta-north": ["Cobb", "Forsyth", "Douglas", "Cherokee", "Hall", "Bartow", "Paulding"],
+    "dekalb-county": ["DeKalb"],
+    "metro-atlanta-south": ["Coweta", "Henry", "Rockdale", "Newton", "Clayton", "Fayette"],
+    "macon": ["Bibb"],
+    "fall-line-sandhills": [
+        "Spalding", "Pike", "Upson", "Lamar", "Monroe", "Crawford", "Peach", "Houston", "Twiggs",
+        "Jones", "Wilkinson", "Baldwin", "Butts", "Jasper", "Putnam", "Hancock", "Washington",
+        "Dodge", "Pulaski", "Bleckley", "Laurens", "Johnson", "Taylor", "Macon", "Dooly", "Talbot",
+        "Marion", "Schley", "Taliaferro", "Warren", "Glascock", "Emanuel",
     ],
-    "chatham-effingham": ["Chatham", "Effingham"],
-    "colonial-coast": ["McIntosh", "Camden", "Bryan", "Liberty"],
-    "north-georgia": [
-        "Rabun", "Habersham", "Lumpkin", "Fannin", "Union", "Towns", "White", "Dawson",
-        "Gilmer", "Pickens", "Floyd", "Bartow", "Whitfield", "Catoosa", "Gordon", "Chattooga",
-        "Dade", "Walker", "Polk", "Murray",
+    "west-piedmont": ["Carroll", "Heard", "Troup", "Meriwether", "Stewart", "Haralson", "Polk"],
+    "north-georgia-mountains": [
+        "Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray", "Gilmer",
+        "Pickens", "Dawson", "Union", "Fannin", "Lumpkin", "White", "Towns", "Rabun", "Habersham",
     ],
-    "upper-piedmont": [
-        "Hall", "Forsyth", "Barrow", "Jackson", "Madison", "Franklin", "Banks", "Hart",
-        "Elbert", "Stephens",
+    "inland-coastal-plain": [
+        "Irwin", "Ben Hill", "Lee", "Terrell", "Sumter", "Calhoun", "Webster", "Worth", "Crisp",
+        "Colquitt", "Grady", "Thomas", "Brooks", "Lowndes", "Echols", "Clinch", "Charlton", "Ware",
+        "Berrien", "Cook", "Lanier", "Atkinson", "Turner", "Tift", "Coffee", "Wilcox", "Telfair",
+        "Wheeler", "Jeff Davis", "Appling", "Bacon", "Pierce", "Decatur", "Mitchell", "Baker", "Miller",
+        "Seminole", "Early", "Clay", "Quitman", "Randolph", "Dougherty", "Toombs", "Montgomery",
+        "Treutlen", "Tattnall", "Evans", "Candler", "Bulloch", "Screven",
     ],
-    "west-central": ["Coweta", "Carroll", "Paulding", "Haralson", "Douglas", "Heard", "Troup", "Meriwether"],
-    "south-atlanta": [
-        "Clayton", "Fayette", "Henry", "Rockdale", "Newton", "Walton", "Morgan", "Greene",
-        "Putnam", "Jasper", "Spalding", "Butts", "Lamar", "Pike", "Upson",
-    ],
-    "early-wiregrass": [
-        "Early", "Decatur", "Thomas", "Sumter", "Dougherty", "Lee", "Worth", "Terrell",
-        "Schley", "Webster", "Stewart", "Quitman", "Randolph", "Clay", "Calhoun", "Seminole",
-        "Miller", "Baker", "Grady", "Mitchell", "Crisp", "Dooly", "Wilcox", "Turner", "Tift",
-        "Brooks", "Cook", "Lowndes", "Berrien", "Colquitt", "Lanier",
-    ],
-    "west-sandhills": [
-        "Laurens", "Washington", "Hancock", "Warren", "Taliaferro", "Glascock", "Jefferson",
-        "Johnson", "Emanuel", "Bleckley", "Dodge", "Pulaski", "Telfair", "Wheeler", "Ben Hill",
-        "Irwin",
-    ],
-    "east-sandhills": [
-        "Charlton", "Bulloch", "Ware", "Pierce", "Brantley", "Clinch", "Atkinson", "Coffee",
-        "Jeff Davis", "Appling", "Bacon", "Treutlen", "Montgomery", "Toombs", "Candler",
-        "Jenkins", "Screven", "Tattnall", "Evans", "Long", "Wayne", "Echols",
-    ],
-    "upper-savannah": ["Burke", "McDuffie", "Lincoln", "Wilkes"],
+    "broad-river-watershed": ["Elbert", "Hart", "Stephens", "Franklin", "Banks"],
+    "columbus-area": ["Harris", "Muscogee", "Chattahoochee"],
+    "golden-isles": ["Wayne", "Long", "McIntosh", "Glynn", "Brantley", "Camden"],
+    "greater-augusta-area": ["Jenkins", "Burke", "Jefferson", "Richmond", "McDuffie", "Columbia", "Lincoln", "Wilkes"],
+    "fulton-county": ["Fulton"],
 }
 
 REGION_LABELS = {
-    "dekalb": "DeKalb County",
-    "fulton": "Fulton County",
-    "cobb": "Cobb County",
-    "gwinnett": "Gwinnett County",
-    "cherokee": "Cherokee County",
-    "glynn": "Glynn County",
-    "columbus-fall-line": "Columbus-Fall Line",
-    "athens-metro": "Athens Area",
-    "augusta-metro": "Augusta Area",
-    "macon-expanded": "Macon Area",
-    "chatham-effingham": "Chatham-Effingham Coast",
-    "colonial-coast": "Mid-Coast Georgia",
-    "north-georgia": "North Georgia Mountains",
-    "upper-piedmont": "Upper Piedmont Lakes",
-    "west-central": "West Central Piedmont",
-    "south-atlanta": "South Atlanta Piedmont",
-    "early-wiregrass": "Southwest Georgia",
-    "west-sandhills": "West Sandhills & Fall Line",
-    "east-sandhills": "East Sandhills",
-    "upper-savannah": "Upper Savannah",
+    "greater-athens-area": "Greater Athens Area",
+    "greater-savannah-area": "Greater Savannah Area",
+    "gwinnett-county": "Gwinnett County",
+    "metro-atlanta-north": "Metro Atlanta North",
+    "dekalb-county": "Dekalb County",
+    "metro-atlanta-south": "Metro Atlanta South",
+    "macon": "Macon",
+    "fall-line-sandhills": "Fall Line Sandhills",
+    "west-piedmont": "West Piedmont",
+    "north-georgia-mountains": "North Georgia Mountains",
+    "inland-coastal-plain": "Inland Coastal Plain",
+    "broad-river-watershed": "Broad River Watershed",
+    "columbus-area": "Columbus Area",
+    "golden-isles": "Golden Isles",
+    "greater-augusta-area": "Greater Augusta Area",
+    "fulton-county": "Fulton County",
 }
 
 REGION_GROUPS = {
-    "Metro Atlanta": ["dekalb", "fulton", "cobb", "gwinnett", "cherokee"],
-    "North Georgia": ["north-georgia"],
-    "Northeast Georgia": ["upper-piedmont", "athens-metro"],
-    "West Georgia": ["columbus-fall-line", "west-central"],
-    "Central Georgia": ["macon-expanded", "south-atlanta", "west-sandhills"],
-    "East Georgia": ["augusta-metro", "east-sandhills", "upper-savannah"],
-    "Southwest Georgia": ["early-wiregrass"],
-    "Coastal Georgia": ["glynn", "chatham-effingham", "colonial-coast"],
+    "Metro Atlanta": ["metro-atlanta-north", "metro-atlanta-south", "fulton-county", "dekalb-county", "gwinnett-county"],
+    "Southeast Georgia": ["golden-isles"],
+    "Savannah Area": ["greater-savannah-area"],
+    "Athens Area": ["greater-athens-area"],
+    "Augusta Area": ["greater-augusta-area"],
+    "Central Georgia": ["macon", "fall-line-sandhills"],
+    "West Georgia": ["west-piedmont", "columbus-area"],
+    "North Georgia": ["north-georgia-mountains", "broad-river-watershed"],
+    "South Georgia": ["inland-coastal-plain"],
 }
 
 COLORS = {
-    "dekalb": "#fffac8", "fulton": "#aaffc3", "cobb": "#ffe119", "gwinnett": "#3cb44b",
-    "cherokee": "#4363d8", "glynn": "#00ff00", "columbus-fall-line": "#f032e6",
-    "athens-metro": "#fabed4", "augusta-metro": "#f58231", "macon-expanded": "#bfef45",
-    "chatham-effingham": "#a9a9a9", "colonial-coast": "#00ffff", "north-georgia": "#42d4f4",
-    "upper-piedmont": "#e6194B", "west-central": "#469990", "south-atlanta": "#660033",
-    "early-wiregrass": "#9A6324", "west-sandhills": "#000075", "east-sandhills": "#911eb4",
-    "upper-savannah": "#e6beff",
+    "greater-athens-area": "#b8323c", "greater-savannah-area": "#2878a0", "gwinnett-county": "#b39b00",
+    "metro-atlanta-north": "#4f8f3a", "dekalb-county": "#707070", "metro-atlanta-south": "#8c4824",
+    "macon": "#08786e", "fall-line-sandhills": "#c45b00", "west-piedmont": "#17605c",
+    "north-georgia-mountains": "#4e9b8d", "inland-coastal-plain": "#82609f",
+    "broad-river-watershed": "#365f9e", "columbus-area": "#ad4f8c", "golden-isles": "#b8860b",
+    "greater-augusta-area": "#79518d", "fulton-county": "#bd7745",
 }
 
 GROUP_COLORS = {
-    "Metro Atlanta": "#d95f02",
-    "North Georgia": "#1b9e77",
-    "Northeast Georgia": "#7570b3",
-    "West Georgia": "#e7298a",
-    "Central Georgia": "#66a61e",
-    "East Georgia": "#e6ab02",
-    "Southwest Georgia": "#a6761d",
-    "Coastal Georgia": "#1f78b4",
+    "Metro Atlanta": "#ba4c00", "Southeast Georgia": "#137b5e", "Savannah Area": "#5d55a8",
+    "Athens Area": "#c81d78", "Augusta Area": "#548c17", "Central Georgia": "#b38300",
+    "West Georgia": "#8b5b1a", "North Georgia": "#176c99", "South Georgia": "#69934a",
 }
 
 
