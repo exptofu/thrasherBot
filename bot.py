@@ -24,7 +24,7 @@ MAX_RETRIES = 5
 SCHEMA_VERSION = 2
 WELCOME_CHANNEL = "rules-and-info"
 WELCOME_MESSAGE = (
-    "Welcome to the Thrasher birding community! To fully join the server, click "
+    "Welcome to the Georgia Birding discord! To fully join the server, click "
     "**Set Nickname** below and enter your full name. The bot will set your server "
     "nickname and assign the member role."
 )
