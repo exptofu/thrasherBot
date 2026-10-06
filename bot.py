@@ -24,9 +24,28 @@ MAX_RETRIES = 5
 SCHEMA_VERSION = 2
 WELCOME_CHANNEL = "rules-and-info"
 WELCOME_MESSAGE = (
-    "Welcome to the Georgia Birding discord! To fully join the server, click "
-    "**Set Nickname** below and enter your full name. The bot will set your server "
-    "nickname and assign the member role."
+    "# Welcome to the Georgia Birding discord!\n\nAll members are required to adhere to the "
+    "following rules, as to maintain the ease of use of this server as a resource for all "
+    "Georgia birders. Posts that do not adhere to these rules may be removed at an admin's "
+    "discretion. Repeated violations may result in temporary suspension or removal from the "
+    "server.\n\n"
+    ":one: Be respectful! The Georgia birding community is large and diverse, so please "
+    "consider the language you are using so as to not be offensive.\n"
+    ":two: Stay On Topic: Before making a post, always double check that you’ve selected "
+    "the appropriate channel.\n"
+    ":three: Posts related to advertising, marketing, solicitation, membership drives, or "
+    "petitions are not acceptable. Limited exceptions may be made by moderators for relevant "
+    "birding events, conservation initiatives, or announcements from Birds Georgia and trusted "
+    "partners within the Georgia birding community.\n"
+    ":four: We expect all members to model the American Birding Association’s Code of Ethics "
+    "- Respect and promote birds and their environment; Respect and promote the birding "
+    "community and its individual members; Respect and promote the law and the rights of "
+    "others. ([https://www.aba.org/aba-code-of-birding-ethics/](https://www.aba.org/aba-code-of-birding-ethics/))\n"
+    ":five: We require users to share your full name (first and last) as your display name "
+    "(aka nickname). Integrity, safety and transparency are an important part of birding and "
+    "using a false or misleading identity is contrary to that requirement.\n"
+    ":six: Members fully join by clicking the Agree button below and submitting their proper "
+    "name (no name abbreviations, pseudonyms, etc.)."
 )
 NICKNAME_BUTTON_ID = "thrasher:set_nickname"
 
@@ -518,7 +537,8 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
         log.warning("Nickname command rejected empty value for user %s in guild %s", member.id, guild.id)
         await interaction.response.send_message("Enter your full name to set your nickname.", ephemeral=True)
         return
-    if " " not in nickname or nickname.split() != nickname.split():
+    parts = nickname.split()
+    if len(parts) < 2:
         log.warning("Nickname command rejected malformed value for user %s in guild %s: %r", member.id, guild.id, nickname)
         await interaction.response.send_message("Please enter your full name with at least one space in between.", ephemeral=True)
         return
@@ -611,7 +631,7 @@ class NicknameView(discord.ui.View):
         super().__init__(timeout=None)
 
     @discord.ui.button(
-        label="Set Nickname",
+        label="I agree",
         style=discord.ButtonStyle.primary,
         custom_id=NICKNAME_BUTTON_ID,
     )
