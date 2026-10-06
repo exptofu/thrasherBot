@@ -73,6 +73,77 @@ def category_channel_specs(category: str, regions: list[str]) -> list[tuple[str,
     return specs
 
 
+def rba_guidelines_for_regions(regions: list[str]) -> str:
+    bullets = "\n".join(f"* {name.replace('-', ' ').title()}" for name in sorted(regions))
+    return (
+        "This is the rare bird alert page for the following regions:\n"
+        f"{bullets}\n\n"
+        "Birds marked in eBird as R (rare) are suitable for posting in this forum. If you are unsure, please post your sighting in a more regional chat.\n\n"
+        "All posts should be titled: Species Name-Site Location Name (County)-Month/Day/Year\n\n"
+        "Posts should include the full species name, location including county, and any other pertinent information.\n\n"
+        "All replies and follow up comments are welcome, but MUST BE IN THE FORUM topic or may be deleted by an admin or moderator.\n\n"
+        "You can manage notifications on individual topics. By default, notifications are set to @mentions."
+    )
+
+
+async def ensure_pinned_rba_guidelines(guild: discord.Guild, region_groups: dict[str, list[str]]) -> None:
+    """Create or update only the bot-owned pinned guidance thread in each category RBA forum."""
+    bot_user_id = guild.me.id if guild.me else None
+    for category, regions in region_groups.items():
+        forum_name = f"{channel_slug(category)}-rba"
+        forum = discord.utils.get(guild.channels, name=forum_name)
+        if not isinstance(forum, discord.ForumChannel):
+            continue
+        title = "‼️READ BEFORE POSTING - Guidelines"
+        content = rba_guidelines_for_regions(regions)
+        try:
+            existing = None
+            async for thread in forum.archived_threads(limit=100):
+                if getattr(thread, "owner_id", None) == bot_user_id:
+                    existing = thread
+                    break
+            if existing is None:
+                for thread in getattr(forum, "threads", []):
+                    if getattr(thread, "owner_id", None) == bot_user_id and thread.name == title:
+                        existing = thread
+                        break
+            if existing is None:
+                created = await forum.create_thread(name=title, content=content)
+                edit_method = getattr(created, "edit", None)
+                if callable(edit_method):
+                    try:
+                        await edit_method(pinned=True)
+                    except discord.HTTPException as error:
+                        print(f"Guidance thread created for {forum_name}, but pinning failed: {error}")
+                continue
+            await existing.edit(name=title)
+            if getattr(existing, "pinned", False) is False:
+                try:
+                    await existing.edit(pinned=True)
+                except discord.HTTPException as error:
+                    print(f"Guidance thread in {forum_name} was found but could not be pinned: {error}")
+            starter_message = getattr(existing, "starter_message", None)
+            if starter_message is None:
+                try:
+                    starter_message = await existing.fetch_message(existing.id)
+                except (AttributeError, discord.HTTPException):
+                    starter_message = None
+            if starter_message is not None:
+                try:
+                    await starter_message.edit(content=content)
+                except discord.HTTPException as error:
+                    print(f"Guidance post content update failed for {forum_name}: {error}")
+            else:
+                print(
+                    f"Guidance thread already exists for {forum_name}, but its starter message could not be loaded; "
+                    "skipping duplicate post creation."
+                )
+        except discord.HTTPException as error:
+            print(f"Skipping pinned guidance setup for {forum_name}: {error}")
+        except Exception as error:  # pragma: no cover - safeguard for unexpected SDK edge cases.
+            print(f"Unexpected error while handling {forum_name}: {error!r}")
+
+
 async def ensure_region_channels(
     channel: discord.ForumChannel,
     region_groups: dict[str, list[str]],
@@ -168,14 +239,117 @@ async def ensure_region_channels(
                 moves_applied += 1
 
 
+def preview_category_plan(region_groups: dict[str, list[str]]) -> None:
+    """Print categories and channel names that would be created or reordered."""
+    print("Planned categories and channels:")
+    for category, regions in region_groups.items():
+        print(f"- Category: {category}")
+        for name, _, is_forum in category_channel_specs(category, regions):
+            kind = "forum" if is_forum else "text"
+            print(f"  - {kind}: {name}")
+
+
+def planned_channel_names(region_groups: dict[str, list[str]]) -> list[str]:
+    planned = []
+    for category, regions in region_groups.items():
+        if category not in planned:
+            planned.append(category)
+        planned.extend(name for name, _, _ in category_channel_specs(category, regions))
+    return planned
+
+
+async def diff_live_channels(guild: discord.Guild, region_groups: dict[str, list[str]]) -> None:
+    """Print any category/channel names that are missing or extra compared to the planned setup."""
+    planned_names = planned_channel_names(region_groups)
+    planned_set = set(planned_names)
+    live = {
+        item.name
+        for item in guild.channels
+        if isinstance(item, (discord.CategoryChannel, discord.TextChannel, discord.ForumChannel))
+    }
+    missing = [name for name in planned_names if name not in live]
+    extra = sorted(live - planned_set)
+    print("Discord vs planned region setup:")
+    if missing:
+        print("Missing in Discord:")
+        for name in missing:
+            print(f"  - {name}")
+    else:
+        print("Missing in Discord: none")
+    if extra:
+        print("Extra in Discord:")
+        for name in extra:
+            print(f"  - {name}")
+    else:
+        print("Extra in Discord: none")
+
+
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Create and order regional Discord channels.")
     parser.add_argument(
         "--apply", action="store_true", help="Apply the region setup to Discord"
     )
+    parser.add_argument(
+        "--diff", action="store_true", help="Compare the live guild to the planned region setup without changing anything"
+    )
     args = parser.parse_args()
-    if not args.apply:
-        parser.error("This job changes Discord channels; pass --apply to run it.")
+
+    try:
+        regions, region_groups = load_region_config()
+    except (OSError, SyntaxError, ValueError) as error:
+        parser.error(f"Could not load region definitions from georgia_map.py: {error}")
+
+    if not args.apply and not args.diff:
+        preview_category_plan(region_groups)
+        print("Preview only; no Discord changes were made. Pass --apply to create and reorder the channels.")
+        return 0
+
+    if args.diff:
+        load_dotenv(ROOT / ".env")
+        token = os.getenv("DISCORD_TOKEN")
+        if not token:
+            parser.error("DISCORD_TOKEN is missing; set it in .env")
+        try:
+            alert_forum_id = int(os.environ["DISCORD_CHANNEL_ID"])
+        except (KeyError, ValueError):
+            parser.error("DISCORD_CHANNEL_ID must be set in .env")
+
+        class DiffClient(discord.Client):
+            def __init__(self):
+                super().__init__(intents=discord.Intents.default())
+                self.exit_code = 0
+                self.setup_started = False
+
+            async def on_ready(self):
+                if self.setup_started:
+                    return
+                self.setup_started = True
+                try:
+                    alert_forum = (
+                        self.get_channel(alert_forum_id)
+                        or await _on(
+                            f"alert forum ({alert_forum_id}): fetching",
+                            self.fetch_channel(alert_forum_id),
+                        )
+                    )
+                    if not isinstance(alert_forum, discord.ForumChannel):
+                        print(f"Channel {alert_forum_id} is not a forum channel.")
+                        self.exit_code = 1
+                        return
+                    await diff_live_channels(alert_forum.guild, region_groups)
+                except discord.HTTPException as error:
+                    print(f"Discord diff failed: {error}")
+                    self.exit_code = 1
+                finally:
+                    await self.close()
+
+        client = DiffClient()
+        try:
+            await client.start(token)
+        except discord.LoginFailure:
+            print("Discord rejected DISCORD_TOKEN.")
+            return 1
+        return client.exit_code
 
     load_dotenv(ROOT / ".env")
     token = os.getenv("DISCORD_TOKEN")
@@ -188,11 +362,6 @@ async def main() -> int:
         parser.error("DISCORD_CHANNEL_ID and a valid move delay must be set in .env")
     if move_delay < 0:
         parser.error("DISCORD_CHANNEL_MOVE_DELAY_SECONDS cannot be negative")
-
-    try:
-        regions, region_groups = load_region_config()
-    except (OSError, SyntaxError, ValueError) as error:
-        parser.error(f"Could not load region definitions from bot.py: {error}")
 
     class RegionSetupClient(discord.Client):
         def __init__(self):
@@ -241,7 +410,9 @@ async def main() -> int:
                 await ensure_region_channels(
                     alert_forum, region_groups, move_delay
                 )
-                print("Regional tags, channels, category permissions, and ordering are up to date.")
+                print('Finished ordering')
+                await ensure_pinned_rba_guidelines(alert_forum.guild, region_groups)
+                print("Regional tags, channels, category permissions, ordering, and pinned guidance posts are up to date.")
             except ValueError as error:
                 print(f"Regional setup failed: {error}")
                 self.exit_code = 1
