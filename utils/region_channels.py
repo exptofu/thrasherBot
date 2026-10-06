@@ -11,10 +11,11 @@ from dotenv import load_dotenv
 
 
 ROOT = Path(__file__).resolve().parent.parent
+MAP_CONFIG_PATH = ROOT / "georgia_map.py"
 
 
-def _literal_assignments(names: set[str]) -> dict:
-    tree = ast.parse((ROOT / "bot.py").read_text(encoding="utf-8"))
+def _literal_assignments(names: set[str], source_path: Path) -> dict:
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
     found = {}
     for node in tree.body:
         if (isinstance(node, ast.Assign) and len(node.targets) == 1
@@ -22,13 +23,13 @@ def _literal_assignments(names: set[str]) -> dict:
                 and node.targets[0].id in names):
             found[node.targets[0].id] = ast.literal_eval(node.value)
     if set(found) != names:
-        raise ValueError(f"bot.py must define literal {', '.join(sorted(names))}")
+        raise ValueError(f"{source_path.name} must define literal {', '.join(sorted(names))}")
     return found
 
 
 def load_region_config() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
-    """Read literal region definitions from bot.py without importing the bot."""
-    config = _literal_assignments({"REGIONS", "REGION_GROUPS"})
+    """Read the canonical region definitions from georgia_map.py without importing the bot."""
+    config = _literal_assignments({"REGIONS", "REGION_GROUPS"}, MAP_CONFIG_PATH)
     return config["REGIONS"], config["REGION_GROUPS"]
 
 
@@ -46,16 +47,17 @@ async def _on(target: str, coro):
         raise
 
 
-async def ensure_region_tags(channel: discord.ForumChannel, regions: dict[str, list[str]]):
+async def ensure_region_tags(channel: discord.ForumChannel, region_groups: dict[str, list[str]]):
+    """Create category tags for the alert forum while leaving the region chat routing unchanged."""
     have = {tag.name for tag in channel.available_tags}
-    missing = [region for region in regions if region not in have]
+    missing = [category for category in region_groups if category not in have]
     if missing:
         await _on(
             f"alert forum #{channel.name} ({channel.id}): adding tags",
             channel.edit(
                 available_tags=[
                     *channel.available_tags,
-                    *(discord.ForumTag(name=region) for region in missing),
+                    *(discord.ForumTag(name=category) for category in missing),
                 ]
             ),
         )
@@ -235,7 +237,7 @@ async def main() -> int:
                     self.exit_code = 1
                     return
 
-                await ensure_region_tags(alert_forum, regions)
+                await ensure_region_tags(alert_forum, region_groups)
                 await ensure_region_channels(
                     alert_forum, region_groups, move_delay
                 )
