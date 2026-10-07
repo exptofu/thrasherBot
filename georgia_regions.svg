@@ -190,6 +190,7 @@
 <text x="102.8" y="99.8" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="bold" fill="#fff" stroke="#000" stroke-width="4" stroke-linejoin="round" paint-order="stroke">Ridge and Valleys</text>
 <text x="520.7" y="421.9" text-anchor="middle" dominant-baseline="central" font-size="12" font-weight="bold" fill="#fff" stroke="#000" stroke-width="4" stroke-linejoin="round" paint-order="stroke">Greater Statesboro</text>
 
+<text x="520" y="40" font-size="13" font-weight="bold" fill="#fff">RBA Areas</text>
 <rect x="520" y="52" width="18" height="18" fill="#1a6aa3" stroke="#fff" stroke-width="1"/>
 <text x="544" y="65" font-size="12" fill="#fff">North Georgia</text>
 <rect x="520" y="74" width="18" height="18" fill="#ba5e74" stroke="#fff" stroke-width="1"/>
