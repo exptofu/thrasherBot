@@ -222,7 +222,10 @@ def format_sighting(members: list[dict]) -> discord.Embed:
         embed.add_field(name="County", value=o["subnational2Name"])
     embed.add_field(
         name="Map",
-        value=f"[Open map](https://maps.google.com/?q={o['lat']},{o['lng']})",
+        value=(
+            f"[Google Maps](https://maps.google.com/?q={o['lat']},{o['lng']}) | "
+            f"[Apple Maps](https://maps.apple.com/?ll={o['lat']},{o['lng']})"
+        ),
     )
 
     checklist_comment = format_comments(members, "subComments", "Unknown")
