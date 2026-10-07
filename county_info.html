@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Georgia county-level 2026 YTD eBird checklist counts with current region context.">
+<title>Georgia County YTD Checklist Counts</title>
+<style>
+:root { color-scheme: light; --ink: #1d2c28; --muted: #56635d; --line: #d8e0d9; --paper: #f5f7f3; --white: #fff; --green: #145c45; --mint: #e4f0e9; --amber: #f2ca67; }
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); background: var(--paper); font: 15px/1.5 "Segoe UI", Arial, sans-serif; }
+header { padding: 36px max(24px, calc((100vw - 1240px) / 2)) 28px; background: var(--green); color: #fff; border-bottom: 5px solid var(--amber); }
+.eyebrow { margin: 0 0 8px; color: #d5e8dc; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+h1 { margin: 0; max-width: 760px; font: 700 34px/1.12 Georgia, "Times New Roman", serif; }
+.dek { margin: 12px 0 0; max-width: 760px; color: #e1eee6; }
+main { width: min(1240px, calc(100% - 40px)); margin: 0 auto; padding: 24px 0 56px; }
+.snapshot { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 0 34px; border-block: 1px solid var(--line); background: var(--white); }
+.stat { padding: 18px 22px; border-right: 1px solid var(--line); }
+.stat:last-child { border-right: 0; }
+.stat strong { display: block; color: var(--green); font: 700 28px/1.1 Georgia, "Times New Roman", serif; font-variant-numeric: tabular-nums; }
+.stat span { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; }
+section { margin-top: 34px; }
+h2 { margin: 0 0 12px; font: 700 22px/1.2 Georgia, "Times New Roman", serif; }
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); background: var(--white); }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+caption { padding: 12px 14px; text-align: left; color: var(--muted); font-size: 13px; }
+th, td { padding: 10px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+thead th { position: sticky; top: 0; z-index: 1; color: #fff; background: #30453c; font-size: 12px; white-space: nowrap; }
+tbody tr:nth-child(even) { background: #f3f7f3; }
+tbody tr:hover { background: var(--mint); }
+tbody tr:last-child > * { border-bottom: 0; }
+tbody th { font-weight: 650; white-space: nowrap; }
+.numeric { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.strong-number { color: var(--green); font-weight: 750; }
+.category-label { display: block; margin-bottom: 2px; color: var(--muted); font-size: 11px; }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin: 0 0 12px; }
+.toolbar label { display: flex; align-items: center; gap: 10px; width: min(460px, 100%); color: var(--muted); font-size: 13px; }
+input { width: 100%; min-width: 0; padding: 9px 11px; border: 1px solid #9caaa0; border-radius: 3px; color: var(--ink); background: var(--white); font: inherit; }
+input:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+#row-status { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.empty { display: none; padding: 18px; color: var(--muted); text-align: center; }
+footer { margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; }
+a { color: var(--green); }
+@media (max-width: 680px) {
+  header { padding: 28px 20px 23px; } h1 { font-size: 29px; } main { width: calc(100% - 28px); padding-top: 18px; }
+  .stats { grid-template-columns: 1fr; } .stat { display: flex; align-items: baseline; justify-content: space-between; gap: 14px; padding: 13px 16px; border-right: 0; border-bottom: 1px solid var(--line); } .stat:last-child { border-bottom: 0; } .stat strong { font-size: 23px; } .stat span { text-align: right; }
+  .toolbar { align-items: flex-start; flex-direction: column; } table { min-width: 780px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <p class="eyebrow">Georgia | eBird | 2026 YTD</p>
+  <h1>County checklist counts</h1>
+  <p class="dek">A county-by-county view of the saved checklist leaderboard, joined with population estimates and the current regional layout.</p>
+</header>
+<main>
+  <p class="snapshot">Leaderboard snapshot: October 3, 2026. Checklist totals reflect year-to-date activity in the saved source.</p>
+  <section class="stats" aria-label="Statewide summary">
+    <div class="stat"><strong>111,641</strong><span>YTD checklists</span></div>
+    <div class="stat"><strong>11,302,748</strong><span>2025 population estimates</span></div>
+    <div class="stat"><strong>9.88</strong><span>YTD checklists per 1,000 residents</span></div>
+  </section>
+  <section aria-labelledby="categories-title">
+    <h2 id="categories-title">Category totals</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Category</th><th class="numeric" scope="col">Counties</th><th class="numeric" scope="col">Population estimate</th><th class="numeric" scope="col">YTD checklists</th><th class="numeric" scope="col">Per 1,000</th></tr></thead>
+      <tbody><tr><th scope="row">Metro Atlanta</th><td class="numeric">5</td><td class="numeric">3,983,902</td><td class="numeric">37,975</td><td class="numeric">9.53</td></tr>
+<tr><th scope="row">North Georgia</th><td class="numeric">20</td><td class="numeric">966,385</td><td class="numeric">13,385</td><td class="numeric">13.85</td></tr>
+<tr><th scope="row">Northeast Georgia</th><td class="numeric">13</td><td class="numeric">1,056,345</td><td class="numeric">12,191</td><td class="numeric">11.54</td></tr>
+<tr><th scope="row">West Georgia</th><td class="numeric">14</td><td class="numeric">1,045,259</td><td class="numeric">6,023</td><td class="numeric">5.76</td></tr>
+<tr><th scope="row">Central Georgia</th><td class="numeric">41</td><td class="numeric">2,012,806</td><td class="numeric">13,451</td><td class="numeric">6.68</td></tr>
+<tr><th scope="row">East Georgia</th><td class="numeric">28</td><td class="numeric">891,520</td><td class="numeric">5,322</td><td class="numeric">5.97</td></tr>
+<tr><th scope="row">Southwest Georgia</th><td class="numeric">31</td><td class="numeric">678,173</td><td class="numeric">6,617</td><td class="numeric">9.76</td></tr>
+<tr><th scope="row">Coastal Georgia</th><td class="numeric">7</td><td class="numeric">668,358</td><td class="numeric">16,677</td><td class="numeric">24.95</td></tr></tbody>
+    </table></div>
+  </section>
+  <section aria-labelledby="regions-title">
+    <h2 id="regions-title">Region totals</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th scope="col">Category / region</th><th class="numeric" scope="col">Counties</th><th class="numeric" scope="col">Population estimate</th><th class="numeric" scope="col">YTD checklists</th><th class="numeric" scope="col">Per 1,000</th></tr></thead>
+      <tbody><tr><td><span class="category-label">Metro Atlanta</span><strong>DeKalb County</strong></td><td class="numeric">1</td><td class="numeric">774,394</td><td class="numeric">11,582</td><td class="numeric">14.96</td></tr>
+<tr><td><span class="category-label">Metro Atlanta</span><strong>Fulton County</strong></td><td class="numeric">1</td><td class="numeric">1,098,791</td><td class="numeric">10,126</td><td class="numeric">9.22</td></tr>
+<tr><td><span class="category-label">Metro Atlanta</span><strong>Cobb County</strong></td><td class="numeric">1</td><td class="numeric">793,345</td><td class="numeric">8,562</td><td class="numeric">10.79</td></tr>
+<tr><td><span class="category-label">Metro Atlanta</span><strong>Gwinnett County</strong></td><td class="numeric">1</td><td class="numeric">1,018,099</td><td class="numeric">5,201</td><td class="numeric">5.11</td></tr>
+<tr><td><span class="category-label">Metro Atlanta</span><strong>Cherokee County</strong></td><td class="numeric">1</td><td class="numeric">299,273</td><td class="numeric">2,504</td><td class="numeric">8.37</td></tr>
+<tr><td><span class="category-label">North Georgia</span><strong>North Georgia Mountains</strong></td><td class="numeric">20</td><td class="numeric">966,385</td><td class="numeric">13,385</td><td class="numeric">13.85</td></tr>
+<tr><td><span class="category-label">Northeast Georgia</span><strong>Upper Piedmont Lakes</strong></td><td class="numeric">10</td><td class="numeric">865,116</td><td class="numeric">5,354</td><td class="numeric">6.19</td></tr>
+<tr><td><span class="category-label">Northeast Georgia</span><strong>Athens Area</strong></td><td class="numeric">3</td><td class="numeric">191,229</td><td class="numeric">6,837</td><td class="numeric">35.75</td></tr>
+<tr><td><span class="category-label">West Georgia</span><strong>Columbus-Fall Line</strong></td><td class="numeric">6</td><td class="numeric">269,119</td><td class="numeric">1,929</td><td class="numeric">7.17</td></tr>
+<tr><td><span class="category-label">West Georgia</span><strong>West Central Piedmont</strong></td><td class="numeric">8</td><td class="numeric">776,140</td><td class="numeric">4,094</td><td class="numeric">5.27</td></tr>
+<tr><td><span class="category-label">Central Georgia</span><strong>Macon Area</strong></td><td class="numeric">10</td><td class="numeric">511,079</td><td class="numeric">5,060</td><td class="numeric">9.90</td></tr>
+<tr><td><span class="category-label">Central Georgia</span><strong>South Atlanta Piedmont</strong></td><td class="numeric">15</td><td class="numeric">1,277,426</td><td class="numeric">6,806</td><td class="numeric">5.33</td></tr>
+<tr><td><span class="category-label">Central Georgia</span><strong>West Sandhills &amp; Fall Line</strong></td><td class="numeric">16</td><td class="numeric">224,301</td><td class="numeric">1,585</td><td class="numeric">7.07</td></tr>
+<tr><td><span class="category-label">East Georgia</span><strong>Augusta Area</strong></td><td class="numeric">2</td><td class="numeric">375,748</td><td class="numeric">1,841</td><td class="numeric">4.90</td></tr>
+<tr><td><span class="category-label">East Georgia</span><strong>East Sandhills</strong></td><td class="numeric">22</td><td class="numeric">452,072</td><td class="numeric">2,828</td><td class="numeric">6.26</td></tr>
+<tr><td><span class="category-label">East Georgia</span><strong>Upper Savannah</strong></td><td class="numeric">4</td><td class="numeric">63,700</td><td class="numeric">653</td><td class="numeric">10.25</td></tr>
+<tr><td><span class="category-label">Southwest Georgia</span><strong>Southwest Georgia</strong></td><td class="numeric">31</td><td class="numeric">678,173</td><td class="numeric">6,617</td><td class="numeric">9.76</td></tr>
+<tr><td><span class="category-label">Coastal Georgia</span><strong>Glynn County</strong></td><td class="numeric">1</td><td class="numeric">87,599</td><td class="numeric">6,747</td><td class="numeric">77.02</td></tr>
+<tr><td><span class="category-label">Coastal Georgia</span><strong>Chatham-Effingham Coast</strong></td><td class="numeric">2</td><td class="numeric">386,252</td><td class="numeric">5,391</td><td class="numeric">13.96</td></tr>
+<tr><td><span class="category-label">Coastal Georgia</span><strong>Mid-Coast Georgia</strong></td><td class="numeric">4</td><td class="numeric">194,507</td><td class="numeric">4,539</td><td class="numeric">23.34</td></tr></tbody>
+    </table></div>
+  </section>
+  <section aria-labelledby="counties-title">
+    <h2 id="counties-title">County counts</h2>
+    <div class="toolbar"><label for="county-filter">Filter by county or region <input id="county-filter" type="search" autocomplete="off" placeholder="Start typing a county or region"></label><output id="row-status" role="status" aria-live="polite">Showing 159 of 159 counties</output></div>
+    <div class="table-wrap"><table id="county-table">
+      <caption>Counties ranked by YTD checklist count. Per-capita rate = checklists / 2025 population estimate x 1,000.</caption>
+      <thead><tr><th class="numeric" scope="col">Rank</th><th scope="col">County</th><th class="numeric" scope="col">FIPS</th><th class="numeric" scope="col">YTD checklists</th><th class="numeric" scope="col">2025 population</th><th class="numeric" scope="col">Per 1,000</th><th scope="col">Current region</th></tr></thead>
+      <tbody><tr><td class="numeric">1</td><th scope="row">DeKalb</th><td class="numeric">089</td><td class="numeric strong-number">11,582</td><td class="numeric">774,394</td><td class="numeric">14.96</td><td>DeKalb County</td></tr>
+<tr><td class="numeric">2</td><th scope="row">Fulton</th><td class="numeric">121</td><td class="numeric strong-number">10,126</td><td class="numeric">1,098,791</td><td class="numeric">9.22</td><td>Fulton County</td></tr>
+<tr><td class="numeric">3</td><th scope="row">Cobb</th><td class="numeric">067</td><td class="numeric strong-number">8,562</td><td class="numeric">793,345</td><td class="numeric">10.79</td><td>Cobb County</td></tr>
+<tr><td class="numeric">4</td><th scope="row">Glynn</th><td class="numeric">127</td><td class="numeric strong-number">6,747</td><td class="numeric">87,599</td><td class="numeric">77.02</td><td>Glynn County</td></tr>
+<tr><td class="numeric">5</td><th scope="row">Chatham</th><td class="numeric">051</td><td class="numeric strong-number">5,217</td><td class="numeric">311,855</td><td class="numeric">16.73</td><td>Chatham-Effingham Coast</td></tr>
+<tr><td class="numeric">6</td><th scope="row">Gwinnett</th><td class="numeric">135</td><td class="numeric strong-number">5,201</td><td class="numeric">1,018,099</td><td class="numeric">5.11</td><td>Gwinnett County</td></tr>
+<tr><td class="numeric">7</td><th scope="row">Clarke</th><td class="numeric">059</td><td class="numeric strong-number">4,869</td><td class="numeric">129,921</td><td class="numeric">37.48</td><td>Athens Area</td></tr>
+<tr><td class="numeric">8</td><th scope="row">Cherokee</th><td class="numeric">057</td><td class="numeric strong-number">2,504</td><td class="numeric">299,273</td><td class="numeric">8.37</td><td>Cherokee County</td></tr>
+<tr><td class="numeric">9</td><th scope="row">McIntosh</th><td class="numeric">191</td><td class="numeric strong-number">1,857</td><td class="numeric">11,989</td><td class="numeric">154.89</td><td>Mid-Coast Georgia</td></tr>
+<tr><td class="numeric">10</td><th scope="row">Bibb</th><td class="numeric">021</td><td class="numeric strong-number">1,855</td><td class="numeric">157,556</td><td class="numeric">11.77</td><td>Macon Area</td></tr>
+<tr><td class="numeric">11</td><th scope="row">Muscogee</th><td class="numeric">215</td><td class="numeric strong-number">1,362</td><td class="numeric">202,171</td><td class="numeric">6.74</td><td>Columbus-Fall Line</td></tr>
+<tr><td class="numeric">12</td><th scope="row">Oconee</th><td class="numeric">219</td><td class="numeric strong-number">1,324</td><td class="numeric">44,893</td><td class="numeric">29.49</td><td>Athens Area</td></tr>
+<tr><td class="numeric">13</td><th scope="row">Camden</th><td class="numeric">039</td><td class="numeric strong-number">1,273</td><td class="numeric">60,143</td><td class="numeric">21.17</td><td>Mid-Coast Georgia</td></tr>
+<tr><td class="numeric">14</td><th scope="row">Hall</th><td class="numeric">139</td><td class="numeric strong-number">1,251</td><td class="numeric">226,568</td><td class="numeric">5.52</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">15</td><th scope="row">Forsyth</th><td class="numeric">117</td><td class="numeric strong-number">1,233</td><td class="numeric">282,805</td><td class="numeric">4.36</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">16</td><th scope="row">Coweta</th><td class="numeric">077</td><td class="numeric strong-number">1,216</td><td class="numeric">160,240</td><td class="numeric">7.59</td><td>West Central Piedmont</td></tr>
+<tr><td class="numeric">17</td><th scope="row">Bartow</th><td class="numeric">015</td><td class="numeric strong-number">1,136</td><td class="numeric">120,800</td><td class="numeric">9.40</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">18</td><th scope="row">Bryan</th><td class="numeric">029</td><td class="numeric strong-number">1,129</td><td class="numeric">52,062</td><td class="numeric">21.69</td><td>Mid-Coast Georgia</td></tr>
+<tr><td class="numeric">19</td><th scope="row">Rabun</th><td class="numeric">241</td><td class="numeric strong-number">1,114</td><td class="numeric">17,764</td><td class="numeric">62.71</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">20</td><th scope="row">Houston</th><td class="numeric">153</td><td class="numeric strong-number">1,097</td><td class="numeric">178,214</td><td class="numeric">6.16</td><td>Macon Area</td></tr>
+<tr><td class="numeric">21</td><th scope="row">Richmond</th><td class="numeric">245</td><td class="numeric strong-number">1,097</td><td class="numeric">206,559</td><td class="numeric">5.31</td><td>Augusta Area</td></tr>
+<tr><td class="numeric">22</td><th scope="row">Barrow</th><td class="numeric">013</td><td class="numeric strong-number">1,086</td><td class="numeric">99,773</td><td class="numeric">10.88</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">23</td><th scope="row">Fayette</th><td class="numeric">113</td><td class="numeric strong-number">1,066</td><td class="numeric">125,156</td><td class="numeric">8.52</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">24</td><th scope="row">Habersham</th><td class="numeric">137</td><td class="numeric strong-number">1,038</td><td class="numeric">50,416</td><td class="numeric">20.59</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">25</td><th scope="row">Floyd</th><td class="numeric">115</td><td class="numeric strong-number">1,010</td><td class="numeric">101,378</td><td class="numeric">9.96</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">26</td><th scope="row">Paulding</th><td class="numeric">223</td><td class="numeric strong-number">1,006</td><td class="numeric">190,996</td><td class="numeric">5.27</td><td>West Central Piedmont</td></tr>
+<tr><td class="numeric">27</td><th scope="row">Lowndes</th><td class="numeric">185</td><td class="numeric strong-number">997</td><td class="numeric">122,867</td><td class="numeric">8.11</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">28</td><th scope="row">Early</th><td class="numeric">099</td><td class="numeric strong-number">965</td><td class="numeric">10,455</td><td class="numeric">92.30</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">29</td><th scope="row">Clayton</th><td class="numeric">063</td><td class="numeric strong-number">904</td><td class="numeric">297,471</td><td class="numeric">3.04</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">30</td><th scope="row">Lumpkin</th><td class="numeric">187</td><td class="numeric strong-number">865</td><td class="numeric">36,178</td><td class="numeric">23.91</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">31</td><th scope="row">Carroll</th><td class="numeric">045</td><td class="numeric strong-number">814</td><td class="numeric">131,036</td><td class="numeric">6.21</td><td>West Central Piedmont</td></tr>
+<tr><td class="numeric">32</td><th scope="row">Fannin</th><td class="numeric">111</td><td class="numeric strong-number">806</td><td class="numeric">26,111</td><td class="numeric">30.87</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">33</td><th scope="row">Whitfield</th><td class="numeric">313</td><td class="numeric strong-number">776</td><td class="numeric">106,212</td><td class="numeric">7.31</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">34</td><th scope="row">Union</th><td class="numeric">291</td><td class="numeric strong-number">767</td><td class="numeric">27,859</td><td class="numeric">27.53</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">35</td><th scope="row">Columbia</th><td class="numeric">073</td><td class="numeric strong-number">744</td><td class="numeric">169,189</td><td class="numeric">4.40</td><td>Augusta Area</td></tr>
+<tr><td class="numeric">36</td><th scope="row">Decatur</th><td class="numeric">087</td><td class="numeric strong-number">739</td><td class="numeric">29,432</td><td class="numeric">25.11</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">37</td><th scope="row">Jones</th><td class="numeric">169</td><td class="numeric strong-number">668</td><td class="numeric">29,171</td><td class="numeric">22.90</td><td>Macon Area</td></tr>
+<tr><td class="numeric">38</td><th scope="row">Catoosa</th><td class="numeric">047</td><td class="numeric strong-number">659</td><td class="numeric">69,628</td><td class="numeric">9.46</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">39</td><th scope="row">Dawson</th><td class="numeric">085</td><td class="numeric strong-number">657</td><td class="numeric">35,365</td><td class="numeric">18.58</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">40</td><th scope="row">Gilmer</th><td class="numeric">123</td><td class="numeric strong-number">646</td><td class="numeric">33,894</td><td class="numeric">19.06</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">41</td><th scope="row">Oglethorpe</th><td class="numeric">221</td><td class="numeric strong-number">644</td><td class="numeric">16,415</td><td class="numeric">39.23</td><td>Athens Area</td></tr>
+<tr><td class="numeric">42</td><th scope="row">Thomas</th><td class="numeric">275</td><td class="numeric strong-number">639</td><td class="numeric">46,368</td><td class="numeric">13.78</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">43</td><th scope="row">Pickens</th><td class="numeric">227</td><td class="numeric strong-number">634</td><td class="numeric">37,167</td><td class="numeric">17.06</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">44</td><th scope="row">Henry</th><td class="numeric">151</td><td class="numeric strong-number">632</td><td class="numeric">264,922</td><td class="numeric">2.39</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">45</td><th scope="row">Jackson</th><td class="numeric">157</td><td class="numeric strong-number">612</td><td class="numeric">99,265</td><td class="numeric">6.17</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">46</td><th scope="row">Sumter</th><td class="numeric">261</td><td class="numeric strong-number">610</td><td class="numeric">28,801</td><td class="numeric">21.18</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">47</td><th scope="row">Gordon</th><td class="numeric">129</td><td class="numeric strong-number">555</td><td class="numeric">61,701</td><td class="numeric">8.99</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">48</td><th scope="row">Newton</th><td class="numeric">217</td><td class="numeric strong-number">554</td><td class="numeric">125,583</td><td class="numeric">4.41</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">49</td><th scope="row">Charlton</th><td class="numeric">049</td><td class="numeric strong-number">539</td><td class="numeric">13,121</td><td class="numeric">41.08</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">50</td><th scope="row">Rockdale</th><td class="numeric">247</td><td class="numeric strong-number">535</td><td class="numeric">98,416</td><td class="numeric">5.44</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">51</td><th scope="row">Monroe</th><td class="numeric">207</td><td class="numeric strong-number">531</td><td class="numeric">32,023</td><td class="numeric">16.58</td><td>Macon Area</td></tr>
+<tr><td class="numeric">52</td><th scope="row">Chattooga</th><td class="numeric">055</td><td class="numeric strong-number">519</td><td class="numeric">25,300</td><td class="numeric">20.51</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">53</td><th scope="row">Laurens</th><td class="numeric">175</td><td class="numeric strong-number">507</td><td class="numeric">51,041</td><td class="numeric">9.93</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">54</td><th scope="row">Greene</th><td class="numeric">133</td><td class="numeric strong-number">497</td><td class="numeric">21,367</td><td class="numeric">23.26</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">55</td><th scope="row">Towns</th><td class="numeric">281</td><td class="numeric strong-number">486</td><td class="numeric">13,285</td><td class="numeric">36.58</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">56</td><th scope="row">Bulloch</th><td class="numeric">031</td><td class="numeric strong-number">482</td><td class="numeric">86,949</td><td class="numeric">5.54</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">57</td><th scope="row">Walton</th><td class="numeric">297</td><td class="numeric strong-number">478</td><td class="numeric">112,696</td><td class="numeric">4.24</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">58</td><th scope="row">Douglas</th><td class="numeric">097</td><td class="numeric strong-number">468</td><td class="numeric">154,293</td><td class="numeric">3.03</td><td>West Central Piedmont</td></tr>
+<tr><td class="numeric">59</td><th scope="row">Jasper</th><td class="numeric">159</td><td class="numeric strong-number">428</td><td class="numeric">17,632</td><td class="numeric">24.27</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">60</td><th scope="row">Morgan</th><td class="numeric">211</td><td class="numeric strong-number">422</td><td class="numeric">22,095</td><td class="numeric">19.10</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">61</td><th scope="row">Madison</th><td class="numeric">195</td><td class="numeric strong-number">394</td><td class="numeric">32,919</td><td class="numeric">11.97</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">62</td><th scope="row">Clinch</th><td class="numeric">065</td><td class="numeric strong-number">385</td><td class="numeric">6,847</td><td class="numeric">56.23</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">63</td><th scope="row">White</th><td class="numeric">311</td><td class="numeric strong-number">383</td><td class="numeric">29,802</td><td class="numeric">12.85</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">64</td><th scope="row">Troup</th><td class="numeric">285</td><td class="numeric strong-number">379</td><td class="numeric">72,844</td><td class="numeric">5.20</td><td>West Central Piedmont</td></tr>
+<tr><td class="numeric">65</td><th scope="row">Murray</th><td class="numeric">213</td><td class="numeric strong-number">372</td><td class="numeric">41,607</td><td class="numeric">8.94</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">66</td><th scope="row">Dade</th><td class="numeric">083</td><td class="numeric strong-number">354</td><td class="numeric">16,154</td><td class="numeric">21.91</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">67</td><th scope="row">Walker</th><td class="numeric">295</td><td class="numeric strong-number">351</td><td class="numeric">70,250</td><td class="numeric">5.00</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">68</td><th scope="row">Brooks</th><td class="numeric">027</td><td class="numeric strong-number">342</td><td class="numeric">16,101</td><td class="numeric">21.24</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">69</td><th scope="row">Lamar</th><td class="numeric">171</td><td class="numeric strong-number">342</td><td class="numeric">20,941</td><td class="numeric">16.33</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">70</td><th scope="row">Baldwin</th><td class="numeric">009</td><td class="numeric strong-number">341</td><td class="numeric">44,029</td><td class="numeric">7.74</td><td>Macon Area</td></tr>
+<tr><td class="numeric">71</td><th scope="row">Ware</th><td class="numeric">299</td><td class="numeric strong-number">325</td><td class="numeric">36,906</td><td class="numeric">8.81</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">72</td><th scope="row">Harris</th><td class="numeric">145</td><td class="numeric strong-number">324</td><td class="numeric">37,280</td><td class="numeric">8.69</td><td>Columbus-Fall Line</td></tr>
+<tr><td class="numeric">73</td><th scope="row">Stephens</th><td class="numeric">257</td><td class="numeric strong-number">311</td><td class="numeric">27,854</td><td class="numeric">11.17</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">74</td><th scope="row">Burke</th><td class="numeric">033</td><td class="numeric strong-number">295</td><td class="numeric">24,408</td><td class="numeric">12.09</td><td>Upper Savannah</td></tr>
+<tr><td class="numeric">75</td><th scope="row">Tift</th><td class="numeric">277</td><td class="numeric strong-number">289</td><td class="numeric">42,254</td><td class="numeric">6.84</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">76</td><th scope="row">Liberty</th><td class="numeric">179</td><td class="numeric strong-number">280</td><td class="numeric">70,313</td><td class="numeric">3.98</td><td>Mid-Coast Georgia</td></tr>
+<tr><td class="numeric">77</td><th scope="row">Macon</th><td class="numeric">193</td><td class="numeric strong-number">276</td><td class="numeric">11,756</td><td class="numeric">23.48</td><td>Macon Area</td></tr>
+<tr><td class="numeric">78</td><th scope="row">Butts</th><td class="numeric">035</td><td class="numeric strong-number">263</td><td class="numeric">27,218</td><td class="numeric">9.66</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">79</td><th scope="row">Polk</th><td class="numeric">233</td><td class="numeric strong-number">257</td><td class="numeric">45,514</td><td class="numeric">5.65</td><td>North Georgia Mountains</td></tr>
+<tr><td class="numeric">80</td><th scope="row">Hart</th><td class="numeric">147</td><td class="numeric strong-number">216</td><td class="numeric">28,639</td><td class="numeric">7.54</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">81</td><th scope="row">Upson</th><td class="numeric">293</td><td class="numeric strong-number">212</td><td class="numeric">28,500</td><td class="numeric">7.44</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">82</td><th scope="row">Dougherty</th><td class="numeric">095</td><td class="numeric strong-number">200</td><td class="numeric">82,616</td><td class="numeric">2.42</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">83</td><th scope="row">Grady</th><td class="numeric">131</td><td class="numeric strong-number">198</td><td class="numeric">26,590</td><td class="numeric">7.45</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">84</td><th scope="row">Putnam</th><td class="numeric">237</td><td class="numeric strong-number">193</td><td class="numeric">23,722</td><td class="numeric">8.14</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">85</td><th scope="row">Baker</th><td class="numeric">007</td><td class="numeric strong-number">190</td><td class="numeric">2,725</td><td class="numeric">69.72</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">86</td><th scope="row">Effingham</th><td class="numeric">103</td><td class="numeric strong-number">174</td><td class="numeric">74,397</td><td class="numeric">2.34</td><td>Chatham-Effingham Coast</td></tr>
+<tr><td class="numeric">87</td><th scope="row">McDuffie</th><td class="numeric">189</td><td class="numeric strong-number">172</td><td class="numeric">21,640</td><td class="numeric">7.95</td><td>Upper Savannah</td></tr>
+<tr><td class="numeric">88</td><th scope="row">Cook</th><td class="numeric">075</td><td class="numeric strong-number">163</td><td class="numeric">18,232</td><td class="numeric">8.94</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">89</td><th scope="row">Jefferson</th><td class="numeric">163</td><td class="numeric strong-number">163</td><td class="numeric">15,011</td><td class="numeric">10.86</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">90</td><th scope="row">Dooly</th><td class="numeric">093</td><td class="numeric strong-number">161</td><td class="numeric">11,156</td><td class="numeric">14.43</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">91</td><th scope="row">Pike</th><td class="numeric">231</td><td class="numeric strong-number">155</td><td class="numeric">20,932</td><td class="numeric">7.40</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">92</td><th scope="row">Berrien</th><td class="numeric">019</td><td class="numeric strong-number">152</td><td class="numeric">18,932</td><td class="numeric">8.03</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">93</td><th scope="row">Jeff Davis</th><td class="numeric">161</td><td class="numeric strong-number">134</td><td class="numeric">15,219</td><td class="numeric">8.80</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">94</td><th scope="row">Coffee</th><td class="numeric">069</td><td class="numeric strong-number">133</td><td class="numeric">44,407</td><td class="numeric">3.00</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">95</td><th scope="row">Stewart</th><td class="numeric">259</td><td class="numeric strong-number">131</td><td class="numeric">4,631</td><td class="numeric">28.29</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">96</td><th scope="row">Colquitt</th><td class="numeric">071</td><td class="numeric strong-number">130</td><td class="numeric">47,438</td><td class="numeric">2.74</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">97</td><th scope="row">Tattnall</th><td class="numeric">267</td><td class="numeric strong-number">129</td><td class="numeric">24,376</td><td class="numeric">5.29</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">98</td><th scope="row">Spalding</th><td class="numeric">255</td><td class="numeric strong-number">125</td><td class="numeric">70,775</td><td class="numeric">1.77</td><td>South Atlanta Piedmont</td></tr>
+<tr><td class="numeric">99</td><th scope="row">Lee</th><td class="numeric">177</td><td class="numeric strong-number">123</td><td class="numeric">34,179</td><td class="numeric">3.60</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">100</td><th scope="row">Emanuel</th><td class="numeric">107</td><td class="numeric strong-number">121</td><td class="numeric">23,147</td><td class="numeric">5.23</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">101</td><th scope="row">Telfair</th><td class="numeric">271</td><td class="numeric strong-number">114</td><td class="numeric">11,195</td><td class="numeric">10.18</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">102</td><th scope="row">Franklin</th><td class="numeric">119</td><td class="numeric strong-number">111</td><td class="numeric">25,948</td><td class="numeric">4.28</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">103</td><th scope="row">Wayne</th><td class="numeric">305</td><td class="numeric strong-number">111</td><td class="numeric">32,481</td><td class="numeric">3.42</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">104</td><th scope="row">Haralson</th><td class="numeric">143</td><td class="numeric strong-number">109</td><td class="numeric">33,066</td><td class="numeric">3.30</td><td>West Central Piedmont</td></tr>
+<tr><td class="numeric">105</td><th scope="row">Washington</th><td class="numeric">303</td><td class="numeric strong-number">106</td><td class="numeric">19,453</td><td class="numeric">5.45</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">106</td><th scope="row">Crawford</th><td class="numeric">079</td><td class="numeric strong-number">104</td><td class="numeric">12,206</td><td class="numeric">8.52</td><td>Macon Area</td></tr>
+<tr><td class="numeric">107</td><th scope="row">Twiggs</th><td class="numeric">289</td><td class="numeric strong-number">101</td><td class="numeric">7,597</td><td class="numeric">13.29</td><td>Macon Area</td></tr>
+<tr><td class="numeric">108</td><th scope="row">Lincoln</th><td class="numeric">181</td><td class="numeric strong-number">99</td><td class="numeric">8,112</td><td class="numeric">12.20</td><td>Upper Savannah</td></tr>
+<tr><td class="numeric">109</td><th scope="row">Meriwether</th><td class="numeric">199</td><td class="numeric strong-number">87</td><td class="numeric">21,516</td><td class="numeric">4.04</td><td>West Central Piedmont</td></tr>
+<tr><td class="numeric">110</td><th scope="row">Wilkes</th><td class="numeric">317</td><td class="numeric strong-number">87</td><td class="numeric">9,540</td><td class="numeric">9.12</td><td>Upper Savannah</td></tr>
+<tr><td class="numeric">111</td><th scope="row">Taylor</th><td class="numeric">269</td><td class="numeric strong-number">86</td><td class="numeric">7,818</td><td class="numeric">11.00</td><td>Columbus-Fall Line</td></tr>
+<tr><td class="numeric">112</td><th scope="row">Talbot</th><td class="numeric">263</td><td class="numeric strong-number">85</td><td class="numeric">5,709</td><td class="numeric">14.89</td><td>Columbus-Fall Line</td></tr>
+<tr><td class="numeric">113</td><th scope="row">Crisp</th><td class="numeric">081</td><td class="numeric strong-number">82</td><td class="numeric">19,237</td><td class="numeric">4.26</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">114</td><th scope="row">Hancock</th><td class="numeric">141</td><td class="numeric strong-number">81</td><td class="numeric">8,682</td><td class="numeric">9.33</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">115</td><th scope="row">Irwin</th><td class="numeric">155</td><td class="numeric strong-number">81</td><td class="numeric">9,020</td><td class="numeric">8.98</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">116</td><th scope="row">Toombs</th><td class="numeric">279</td><td class="numeric strong-number">81</td><td class="numeric">27,545</td><td class="numeric">2.94</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">117</td><th scope="row">Pulaski</th><td class="numeric">235</td><td class="numeric strong-number">74</td><td class="numeric">10,172</td><td class="numeric">7.27</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">118</td><th scope="row">Banks</th><td class="numeric">011</td><td class="numeric strong-number">71</td><td class="numeric">21,273</td><td class="numeric">3.34</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">119</td><th scope="row">Elbert</th><td class="numeric">105</td><td class="numeric strong-number">69</td><td class="numeric">20,072</td><td class="numeric">3.44</td><td>Upper Piedmont Lakes</td></tr>
+<tr><td class="numeric">120</td><th scope="row">Jenkins</th><td class="numeric">165</td><td class="numeric strong-number">65</td><td class="numeric">8,843</td><td class="numeric">7.35</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">121</td><th scope="row">Clay</th><td class="numeric">061</td><td class="numeric strong-number">59</td><td class="numeric">2,815</td><td class="numeric">20.96</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">122</td><th scope="row">Wheeler</th><td class="numeric">309</td><td class="numeric strong-number">59</td><td class="numeric">7,570</td><td class="numeric">7.79</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">123</td><th scope="row">Seminole</th><td class="numeric">253</td><td class="numeric strong-number">58</td><td class="numeric">9,162</td><td class="numeric">6.33</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">124</td><th scope="row">Pierce</th><td class="numeric">229</td><td class="numeric strong-number">56</td><td class="numeric">20,764</td><td class="numeric">2.70</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">125</td><th scope="row">Warren</th><td class="numeric">301</td><td class="numeric strong-number">56</td><td class="numeric">5,269</td><td class="numeric">10.63</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">126</td><th scope="row">Candler</th><td class="numeric">043</td><td class="numeric strong-number">52</td><td class="numeric">11,275</td><td class="numeric">4.61</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">127</td><th scope="row">Screven</th><td class="numeric">251</td><td class="numeric strong-number">52</td><td class="numeric">14,408</td><td class="numeric">3.61</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">128</td><th scope="row">Brantley</th><td class="numeric">025</td><td class="numeric strong-number">51</td><td class="numeric">18,936</td><td class="numeric">2.69</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">129</td><th scope="row">Johnson</th><td class="numeric">167</td><td class="numeric strong-number">51</td><td class="numeric">9,310</td><td class="numeric">5.48</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">130</td><th scope="row">Calhoun</th><td class="numeric">037</td><td class="numeric strong-number">49</td><td class="numeric">5,413</td><td class="numeric">9.05</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">131</td><th scope="row">Miller</th><td class="numeric">201</td><td class="numeric strong-number">48</td><td class="numeric">5,812</td><td class="numeric">8.26</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">132</td><th scope="row">Webster</th><td class="numeric">307</td><td class="numeric strong-number">48</td><td class="numeric">2,369</td><td class="numeric">20.26</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">133</td><th scope="row">Wilkinson</th><td class="numeric">319</td><td class="numeric strong-number">47</td><td class="numeric">8,650</td><td class="numeric">5.43</td><td>Macon Area</td></tr>
+<tr><td class="numeric">134</td><th scope="row">Chattahoochee</th><td class="numeric">053</td><td class="numeric strong-number">46</td><td class="numeric">8,465</td><td class="numeric">5.43</td><td>Columbus-Fall Line</td></tr>
+<tr><td class="numeric">135</td><th scope="row">Mitchell</th><td class="numeric">205</td><td class="numeric strong-number">45</td><td class="numeric">20,467</td><td class="numeric">2.20</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">136</td><th scope="row">Taliaferro</th><td class="numeric">265</td><td class="numeric strong-number">44</td><td class="numeric">1,662</td><td class="numeric">26.47</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">137</td><th scope="row">Appling</th><td class="numeric">001</td><td class="numeric strong-number">42</td><td class="numeric">19,100</td><td class="numeric">2.20</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">138</td><th scope="row">Evans</th><td class="numeric">109</td><td class="numeric strong-number">42</td><td class="numeric">11,028</td><td class="numeric">3.81</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">139</td><th scope="row">Peach</th><td class="numeric">225</td><td class="numeric strong-number">40</td><td class="numeric">29,877</td><td class="numeric">1.34</td><td>Macon Area</td></tr>
+<tr><td class="numeric">140</td><th scope="row">Glascock</th><td class="numeric">125</td><td class="numeric strong-number">38</td><td class="numeric">3,141</td><td class="numeric">12.10</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">141</td><th scope="row">Dodge</th><td class="numeric">091</td><td class="numeric strong-number">37</td><td class="numeric">19,663</td><td class="numeric">1.88</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">142</td><th scope="row">Turner</th><td class="numeric">287</td><td class="numeric strong-number">36</td><td class="numeric">8,983</td><td class="numeric">4.01</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">143</td><th scope="row">Treutlen</th><td class="numeric">283</td><td class="numeric strong-number">33</td><td class="numeric">6,466</td><td class="numeric">5.10</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">144</td><th scope="row">Randolph</th><td class="numeric">243</td><td class="numeric strong-number">30</td><td class="numeric">6,156</td><td class="numeric">4.87</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">145</td><th scope="row">Worth</th><td class="numeric">321</td><td class="numeric strong-number">29</td><td class="numeric">20,059</td><td class="numeric">1.45</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">146</td><th scope="row">Long</th><td class="numeric">183</td><td class="numeric strong-number">28</td><td class="numeric">21,557</td><td class="numeric">1.30</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">147</td><th scope="row">Ben Hill</th><td class="numeric">017</td><td class="numeric strong-number">27</td><td class="numeric">17,099</td><td class="numeric">1.58</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">148</td><th scope="row">Bleckley</th><td class="numeric">023</td><td class="numeric strong-number">26</td><td class="numeric">12,866</td><td class="numeric">2.02</td><td>West Sandhills &amp; Fall Line</td></tr>
+<tr><td class="numeric">149</td><th scope="row">Marion</th><td class="numeric">197</td><td class="numeric strong-number">26</td><td class="numeric">7,676</td><td class="numeric">3.39</td><td>Columbus-Fall Line</td></tr>
+<tr><td class="numeric">150</td><th scope="row">Bacon</th><td class="numeric">005</td><td class="numeric strong-number">25</td><td class="numeric">11,070</td><td class="numeric">2.26</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">151</td><th scope="row">Schley</th><td class="numeric">249</td><td class="numeric strong-number">24</td><td class="numeric">4,593</td><td class="numeric">5.23</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">152</td><th scope="row">Wilcox</th><td class="numeric">315</td><td class="numeric strong-number">24</td><td class="numeric">8,797</td><td class="numeric">2.73</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">153</td><th scope="row">Atkinson</th><td class="numeric">003</td><td class="numeric strong-number">23</td><td class="numeric">8,454</td><td class="numeric">2.72</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">154</td><th scope="row">Quitman</th><td class="numeric">239</td><td class="numeric strong-number">23</td><td class="numeric">2,254</td><td class="numeric">10.20</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">155</td><th scope="row">Echols</th><td class="numeric">101</td><td class="numeric strong-number">22</td><td class="numeric">3,685</td><td class="numeric">5.97</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">156</td><th scope="row">Terrell</th><td class="numeric">273</td><td class="numeric strong-number">19</td><td class="numeric">8,656</td><td class="numeric">2.20</td><td>Southwest Georgia</td></tr>
+<tr><td class="numeric">157</td><th scope="row">Montgomery</th><td class="numeric">209</td><td class="numeric strong-number">18</td><td class="numeric">8,635</td><td class="numeric">2.08</td><td>East Sandhills</td></tr>
+<tr><td class="numeric">158</td><th scope="row">Heard</th><td class="numeric">149</td><td class="numeric strong-number">15</td><td class="numeric">12,149</td><td class="numeric">1.23</td><td>West Central Piedmont</td></tr>
+<tr><td class="numeric">159</td><th scope="row">Lanier</th><td class="numeric">173</td><td class="numeric strong-number">14</td><td class="numeric">10,623</td><td class="numeric">1.32</td><td>Southwest Georgia</td></tr><tr id="empty-row" class="empty"><td colspan="7">No matching counties.</td></tr></tbody>
+    </table></div>
+  </section>
+  <footer><p>Checklist counts are extracted from the Checklist Leaders board in <a href="2026ytd_counts.html">2026ytd_counts.html</a>. Population figures are the 2025 estimates in the source county table, based on the <a href="https://en.wikipedia.org/wiki/List_of_counties_in_Georgia">Georgia county list</a>. County FIPS codes are included to make the join auditable. Region names follow the current bot layout in <a href="georgia_map.py">georgia_map.py</a>.</p></footer>
+</main>
+<script>
+const filter = document.getElementById("county-filter");
+const rows = Array.from(document.querySelectorAll("#county-table tbody tr:not(#empty-row)"));
+const status = document.getElementById("row-status");
+const empty = document.getElementById("empty-row");
+filter.addEventListener("input", () => {
+  const query = filter.value.trim().toLocaleLowerCase();
+  let visible = 0;
+  for (const row of rows) {
+    const matches = row.textContent.toLocaleLowerCase().includes(query);
+    row.hidden = !matches;
+    if (matches) visible += 1;
+  }
+  empty.style.display = visible ? "none" : "table-row";
+  status.textContent = `Showing ${visible} of ${rows.length} counties`;
+});
+</script>
+</body>
+</html>
