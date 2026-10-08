@@ -67,6 +67,8 @@ REGION_TO_CATEGORY = {
 }
 
 STATEWIDE_CHANNEL = "state-wide-rarities"
+MODERATOR_CHANNEL_NAME = os.environ.get("MODERATOR_CHANNEL_NAME", "moderator-only")
+RARE_CHECKLIST_ALERT_THRESHOLD = int(os.environ.get("RARE_CHECKLIST_ALERT_THRESHOLD", "4"))
 RARE_BIRDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rare_birds.txt")
 
 
@@ -124,6 +126,14 @@ db.executescript(
         scope TEXT NOT NULL,
         message_id INTEGER NOT NULL,
         PRIMARY KEY (species_code, checklist_id)
+    );
+    -- Rare checklists that need moderator release before posting to the main RBA forum.
+    CREATE TABLE IF NOT EXISTS review_queue (
+        checklist_id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        channel_id INTEGER NOT NULL,
+        message_id INTEGER,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
     PRAGMA user_version = {SCHEMA_VERSION};
     """
@@ -239,6 +249,65 @@ def format_sighting(members: list[dict]) -> discord.Embed:
             name="Observation comments", value=field_text(obs_comment_text), inline=False
         )
     return embed
+
+
+def format_flagged_checklist_embed(checklist_id: str, members: list[dict]) -> discord.Embed:
+    ordered = sorted(members, key=lambda m: sub_num(m["subId"]))
+    first = ordered[0]
+    species_names = sorted({m["comName"] for m in ordered if normalize_species(m["comName"]) in RARE_BIRDS})
+    species_text = "\n".join(f"• {name}" for name in species_names[:10])
+    if len(species_names) > 10:
+        species_text += f"\n… and {len(species_names) - 10} more"
+
+    embed = discord.Embed(
+        title="Rare checklist flagged for review",
+        description=(
+            f"This checklist has {len(ordered)} rare bird sighting(s) and must be released before it can be posted to the main RBA channel."
+            f"\n[View checklist](https://ebird.org/checklist/{first['subId']})"
+        ),
+        color=discord.Color.orange(),
+    )
+    if first.get("subnational2Name"):
+        embed.add_field(name="County", value=first["subnational2Name"])
+    embed.add_field(name="Date", value=first["obsDt"])
+    embed.add_field(name="Rare species", value=species_text or "Unknown", inline=False)
+    embed.add_field(name="Checklist ID", value=checklist_id, inline=False)
+    return embed
+
+
+class ChecklistReviewView(discord.ui.View):
+    def __init__(self, checklist_id: str):
+        super().__init__(timeout=None)
+        self.checklist_id = checklist_id
+
+    @discord.ui.button(
+        label="Release to main RBA",
+        style=discord.ButtonStyle.success,
+        custom_id="thrasher:release_checklist",
+    )
+    async def release_checklist(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not interaction.user.guild_permissions.manage_messages and not interaction.user.guild_permissions.administrator:
+            await interaction.response.send_message(
+                "Only moderators can release a flagged checklist.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        try:
+            await release_flagged_checklist(self.checklist_id)
+            if interaction.message is not None:
+                await interaction.message.edit(content=f"Checklist {self.checklist_id} released to the main RBA channel.", view=None)
+            await interaction.followup.send(
+                f"Checklist {self.checklist_id} has been resent to the main RBA channel.",
+                ephemeral=True,
+            )
+        except Exception:
+            log.exception("Failed to release flagged checklist %s", self.checklist_id)
+            await interaction.followup.send(
+                "The checklist could not be released right now. Please try again later.",
+                ephemeral=True,
+            )
 
 
 async def get_thread(client: discord.Client, thread_id: int):
@@ -373,6 +442,55 @@ async def process_sighting(channel: discord.ForumChannel, o: dict):
     db.commit()
 
 
+async def flag_checklist(channel: discord.ForumChannel, checklist_id: str, members: list[dict]):
+    if db.execute(
+        "SELECT 1 FROM review_queue WHERE checklist_id=?",
+        (checklist_id,),
+    ).fetchone():
+        return
+
+    moderator_channel = discord.utils.get(channel.guild.text_channels, name=MODERATOR_CHANNEL_NAME)
+    if moderator_channel is None:
+        log.warning("Moderator channel #%s was not found; checklist %s will remain unposted.", MODERATOR_CHANNEL_NAME, checklist_id)
+        return
+
+    embed = format_flagged_checklist_embed(checklist_id, members)
+    view = ChecklistReviewView(checklist_id)
+    try:
+        message = await moderator_channel.send(embed=embed, view=view)
+    except discord.HTTPException:
+        log.exception("Failed to post moderator review for checklist %s to #%s", checklist_id, MODERATOR_CHANNEL_NAME)
+        return
+
+    self.add_view(view, message_id=message.id)
+    db.execute(
+        "INSERT INTO review_queue (checklist_id, data, channel_id, message_id) VALUES (?,?,?,?)",
+        (checklist_id, json.dumps(members), moderator_channel.id, message.id),
+    )
+    db.commit()
+    log.info("Flagged checklist %s for moderator review; %s rare sightings", checklist_id, len(members))
+
+
+async def release_flagged_checklist(checklist_id: str):
+    row = db.execute(
+        "SELECT data FROM review_queue WHERE checklist_id=?",
+        (checklist_id,),
+    ).fetchone()
+    if row is None:
+        return
+
+    main_channel = client.get_channel(CHANNEL_ID) or await client.fetch_channel(CHANNEL_ID)
+    if not isinstance(main_channel, discord.ForumChannel):
+        raise TypeError(f"Channel {CHANNEL_ID} is not a forum channel")
+
+    members = json.loads(row[0])
+    for o in sorted(members, key=lambda m: (m["speciesCode"], sub_num(m["subId"]))):
+        await process_sighting(main_channel, o)
+
+    db.execute("DELETE FROM review_queue WHERE checklist_id=?", (checklist_id,))
+    db.commit()
+
+
 async def update_existing_sightings(
     channel: discord.ForumChannel, observations: list[dict]
 ) -> set[tuple[str, str]]:
@@ -438,6 +556,7 @@ async def poll_once():
             log.info("%d new sightings to process", len(todo))
 
             cache: dict = {}
+            pending: dict[str, list[dict]] = {}
             for i, (k, o) in enumerate(todo.items(), 1):
                 log.info("Checklist %d/%d: %s (%s)", i, len(todo), k[0], o["comName"])
                 try:
@@ -445,7 +564,15 @@ async def poll_once():
                 except aiohttp.ClientError:
                     log.exception("Checklist lookup failed for %s; will retry", k)
                     continue
-                await process_sighting(channel, o)
+                pending.setdefault(o["checklistId"], []).append(o)
+
+            for checklist_id, members in pending.items():
+                rare_members = [m for m in members if normalize_species(m["comName"]) in RARE_BIRDS]
+                if len(rare_members) > RARE_CHECKLIST_ALERT_THRESHOLD:
+                    await flag_checklist(channel, checklist_id, rare_members)
+                    continue
+                for o in members:
+                    await process_sighting(channel, o)
     except aiohttp.ClientError:
         log.exception("eBird request failed")
         return
@@ -616,6 +743,41 @@ class Bot(discord.Client):
         self.add_view(NicknameView())
         self.welcome_panel_ready = False
 
+    async def restore_review_queue(self):
+        rows = db.execute(
+            "SELECT checklist_id, channel_id, message_id FROM review_queue"
+        ).fetchall()
+        for checklist_id, channel_id, message_id in rows:
+            try:
+                channel = self.get_channel(channel_id) or await self.fetch_channel(channel_id)
+            except (discord.Forbidden, discord.NotFound):
+                log.warning("Could not access review channel %s for checklist %s", channel_id, checklist_id)
+                continue
+
+            if not isinstance(channel, (discord.TextChannel, discord.Thread, discord.ForumChannel)):
+                continue
+
+            try:
+                message = await channel.fetch_message(message_id)
+            except discord.NotFound:
+                log.warning(
+                    "Review message %s for checklist %s was deleted; removing stale queue entry",
+                    message_id,
+                    checklist_id,
+                )
+                db.execute("DELETE FROM review_queue WHERE checklist_id=?", (checklist_id,))
+                db.commit()
+                continue
+
+            view = ChecklistReviewView(checklist_id)
+            self.add_view(view, message_id=message.id)
+            try:
+                await message.edit(view=view)
+            except discord.HTTPException:
+                log.exception("Could not reattach review button to checklist %s message %s", checklist_id, message.id)
+                continue
+            log.info("Reattached review queue message for checklist %s", checklist_id)
+
     async def ensure_welcome_panel(self, guild: discord.Guild):
         channel = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL)
         if channel is None:
@@ -693,6 +855,8 @@ class Bot(discord.Client):
 
         if not self.welcome_panel_ready:
             self.welcome_panel_ready = await self.ensure_welcome_panel(channel.guild)
+
+        await self.restore_review_queue()
 
         if not poll.is_running():
             poll.start()
