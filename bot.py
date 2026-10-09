@@ -339,6 +339,10 @@ async def get_thread(client: discord.Client, thread_id: int):
         return None
 
 
+def unwrap_thread(result):
+    return getattr(result, "thread", result)
+
+
 def scope_of(o: dict) -> str:
     if is_hotspot(o):
         return o["locId"]
@@ -372,7 +376,7 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
                             name=thread_name,
                             content=f"eBird alerts for {region.replace('-', ' ').title()}"
                         )
-                        thread = created.thread
+                        thread = unwrap_thread(created)
                     except discord.HTTPException:
                         log.exception("Failed to create alert thread for %s in %s", region, forum_name)
                         thread = None
@@ -472,9 +476,12 @@ async def send_group(
         created = await channel.create_thread(
             name=post_title(first), embed=embed, applied_tags=[tag] if tag else []
         )
-        message = created.message
+        thread_obj = unwrap_thread(created)
+        message = created.message if hasattr(created, "message") else None
+        if message is None:
+            message = await thread_obj.send(embed=embed)
         db.execute(
-            "INSERT OR REPLACE INTO posts VALUES (?,?,?)", (species, scope, created.thread.id)
+            "INSERT OR REPLACE INTO posts VALUES (?,?,?)", (species, scope, thread_obj.id)
         )
     db.execute(
         "INSERT OR REPLACE INTO groups VALUES (?,?,?,?)",
