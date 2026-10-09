@@ -16,7 +16,7 @@
 
 ## Discord Channels
 
-The standalone `utils/region_channels.py` job creates and orders channels; it does not run on bot startup. It places the configured categories immediately after the existing `Discussions` category, following `REGION_GROUPS` order. Each category gets a `<category>-rba` forum for RBA discussion. Each region gets a `<region>-chat` text channel for discussion and bot sighting links. Within each category, channel order is category RBA followed by region chats alphabetically.
+The standalone `utils/region_channels.py` job creates and orders channels; it does not run on bot startup. It places the configured categories immediately after the existing `Discussions` category, following `REGION_GROUPS` order. For multi-region categories, the RBA forum is named `<category>-rba`; for categories with a single region, the RBA forum is named `<region>-rba` so the naming matches the region itself. Each region gets a `<region>-chat` text channel for discussion and bot sighting links. Within each category, channel order is category RBA followed by region chats alphabetically.
 
 Run the setup after reviewing the region and category configuration:
 

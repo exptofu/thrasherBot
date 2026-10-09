@@ -92,8 +92,22 @@ def county_slug(county: str) -> str:
     return county.lower().removesuffix(" county").replace(" ", "-")
 
 
+def channel_slug(name: str) -> str:
+    return name.lower().replace(" ", "-")
+
+
 def region_chat_channel_name(region: str) -> str:
     return f"{region}-chat"
+
+
+def rba_forum_name(category: str, regions: list[str]) -> str:
+    if len(regions) == 1:
+        return f"{channel_slug(regions[0])}-rba"
+    return f"{channel_slug(category)}-rba"
+
+
+def region_alert_thread_name(region: str) -> str:
+    return f"eBird RBA - {region.replace('-', ' ').title()}"
 
 
 def region_of(o: dict) -> str | None:
@@ -119,6 +133,12 @@ db.executescript(
         scope TEXT NOT NULL,
         thread_id INTEGER NOT NULL,
         PRIMARY KEY (species_code, scope)
+    );
+    -- One persistent alert thread per region's RBA forum.
+    CREATE TABLE IF NOT EXISTS region_alert_threads (
+        region TEXT PRIMARY KEY,
+        thread_id INTEGER NOT NULL,
+        message_id INTEGER
     );
     -- One message per species per (shared) checklist.
     CREATE TABLE IF NOT EXISTS groups (
@@ -325,23 +345,76 @@ def scope_of(o: dict) -> str:
     return "county:" + o.get("subnational2Code", o.get("subnational2Name", "unknown"))
 
 
-async def notify_region_chat(channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
-    """Link the new sighting post in its region chat and, for rare birds, statewide chat."""
-    names = [region_chat_channel_name(region)]
+async def notify_region_chat(client: discord.Client, channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
+    """Create or update a per-region alert post in the category RBA forum and, for rare birds, statewide chat."""
+    category = REGION_TO_CATEGORY.get(region)
+    if category:
+        forum_name = rba_forum_name(category, REGION_GROUPS.get(category, []))
+        target_forum = discord.utils.get(channel.guild.channels, name=forum_name)
+        if isinstance(target_forum, discord.ForumChannel):
+            thread_name = region_alert_thread_name(region)
+            row = db.execute(
+                "SELECT thread_id, message_id FROM region_alert_threads WHERE region=?",
+                (region,),
+            ).fetchone()
+            thread = await get_thread(client, row[0]) if row else None
+            if thread is None:
+                try:
+                    async for existing in target_forum.archived_threads(limit=100):
+                        if existing.name == thread_name:
+                            thread = existing
+                            break
+                except discord.HTTPException:
+                    thread = None
+                if thread is None:
+                    try:
+                        thread = await target_forum.create_thread(name=thread_name)
+                    except discord.HTTPException:
+                        log.exception("Failed to create alert thread for %s in %s", region, forum_name)
+                        thread = None
+            if thread is not None:
+                message_text = (
+                    f"[{o.get('subnational2Name', 'Unknown')}] [{o['comName']}]({post.jump_url}) - "
+                    f"{o['locName']} ({o['obsDt'][:10]})"
+                )
+                message_id = row[1] if row else None
+                updated = False
+                if message_id is not None:
+                    try:
+                        message = await thread.fetch_message(message_id)
+                        lines = [line.strip() for line in (message.content or "").splitlines() if line.strip()]
+                        if message_text not in lines:
+                            await message.edit(content="\n".join(lines + [message_text]))
+                            updated = True
+                        db.execute(
+                            "INSERT OR REPLACE INTO region_alert_threads VALUES (?, ?, ?)",
+                            (region, thread.id, message.id),
+                        )
+                        db.commit()
+                    except (discord.NotFound, discord.HTTPException):
+                        message_id = None
+                if not updated and message_id is None:
+                    try:
+                        message = await thread.send(message_text)
+                        db.execute(
+                            "INSERT OR REPLACE INTO region_alert_threads VALUES (?, ?, ?)",
+                            (region, thread.id, message.id),
+                        )
+                        db.commit()
+                    except discord.HTTPException:
+                        log.exception("Failed to post alert to %s", thread_name)
     if normalize_species(o["comName"]) in RARE_BIRDS:
-        names.append(STATEWIDE_CHANNEL)
-    for name in names:
-        text_channel = discord.utils.get(channel.guild.text_channels, name=name)
+        text_channel = discord.utils.get(channel.guild.text_channels, name=STATEWIDE_CHANNEL)
         if not text_channel:
-            log.warning("No text channel named %s; skipping notification", name)
-            continue
-        try:
-            county = o.get("subnational2Name", "Unknown")
-            await text_channel.send(
-                f"[{county}] [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
-            )
-        except discord.HTTPException:
-            log.exception("Failed to post sighting link to %s", name)
+            log.warning("No text channel named %s; skipping notification", STATEWIDE_CHANNEL)
+        else:
+            try:
+                county = o.get("subnational2Name", "Unknown")
+                await text_channel.send(
+                    f"[{county}] [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
+                )
+            except discord.HTTPException:
+                log.exception("Failed to post sighting link to %s", STATEWIDE_CHANNEL)
 
 
 def post_title(o: dict) -> str:
@@ -402,7 +475,7 @@ async def send_group(
     )
     db.commit()
     if not thread and region:
-        await notify_region_chat(channel, region, created.thread, first)
+        await notify_region_chat(client, channel, region, created.thread, first)
 
 
 async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict) -> dict:

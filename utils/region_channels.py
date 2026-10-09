@@ -63,9 +63,15 @@ async def ensure_region_tags(channel: discord.ForumChannel, region_groups: dict[
         )
 
 
+def rba_forum_name(category: str, regions: list[str]) -> str:
+    if len(regions) == 1:
+        return f"{channel_slug(regions[0])}-rba"
+    return f"{channel_slug(category)}-rba"
+
+
 def category_channel_specs(category: str, regions: list[str]) -> list[tuple[str, str, bool]]:
     """Channel (name, topic, is_forum) specs in category discussion order."""
-    specs = [(f"{channel_slug(category)}-rba", f"RBA discussion for {category}", True)]
+    specs = [(rba_forum_name(category, regions), f"RBA discussion for {category}", True)]
     specs.extend(
         (f"{region}-chat", f"General birding discussion for {region.replace('-', ' ')}", False)
         for region in sorted(regions)
@@ -90,7 +96,7 @@ async def ensure_pinned_rba_guidelines(guild: discord.Guild, region_groups: dict
     """Create or update only the bot-owned pinned guidance thread in each category RBA forum."""
     bot_user_id = guild.me.id if guild.me else None
     for category, regions in region_groups.items():
-        forum_name = f"{channel_slug(category)}-rba"
+        forum_name = rba_forum_name(category, regions)
         forum = discord.utils.get(guild.channels, name=forum_name)
         if not isinstance(forum, discord.ForumChannel):
             continue
