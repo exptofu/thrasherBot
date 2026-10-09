@@ -58,8 +58,8 @@ def find_georgia_coordinates(text: str) -> list[dict[str, str]]:
                 {
                     "original": match.group(0).strip(),
                     "decimal": f"{lat_str}, {lon_str}",
-                    "google_url": f"https://google.com{lat_str},{lon_str}",
-                    "apple_url": f"https://apple.com{lat_str},{lon_str}&ll={lat_str},{lon_str}",
+                    "google_url": f"https://maps.google.com/?q={lat_str},{lon_str}",
+                    "apple_url": f"https://maps.apple.com/?ll={lat_str},{lon_str}",
                 }
             )
 
@@ -69,7 +69,7 @@ def find_georgia_coordinates(text: str) -> list[dict[str, str]]:
 def build_georgia_coordinates_embed(message: discord.Message, found_coords: list[dict[str, str]]) -> discord.Embed:
     embed = discord.Embed(
         title="📍 Georgia Coordinates Detected",
-        description=f"Found {len(found_coords)} valid location match{'es' if len(found_coords) > 1 else ''} inside Georgia.",
+        # description=f"Found {len(found_coords)} valid location match{'es' if len(found_coords) > 1 else ''} inside Georgia.",
         color=discord.Color.teal(),
     )
 
@@ -77,7 +77,7 @@ def build_georgia_coordinates_embed(message: discord.Message, found_coords: list
         embed.add_field(
             name=f"Match #{idx}",
             value=f"**Original:** `{coord['original']}`\n"
-            f"**Decimals:** `{coord['decimal']}`\n"
+            # f"**Decimals:** `{coord['decimal']}`\n"
             f"[🌐 Google Maps]({coord['google_url']}) | [🍏 Apple Maps]({coord['apple_url']})",
             inline=False,
         )
