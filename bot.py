@@ -368,7 +368,10 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
                     thread = None
                 if thread is None:
                     try:
-                        thread = await target_forum.create_thread(name=thread_name)
+                        thread = await target_forum.create_thread(
+                            name=thread_name,
+                            content=f"eBird alerts for {region.replace('-', ' ').title()}"
+                        )
                     except discord.HTTPException:
                         log.exception("Failed to create alert thread for %s in %s", region, forum_name)
                         thread = None
@@ -635,6 +638,7 @@ async def poll_once():
 
             cache: dict = {}
             pending: dict[str, list[dict]] = {}
+            checklist_totals: dict[str, int] = {}
             for i, (k, o) in enumerate(todo.items(), 1):
                 log.info("Checklist %d/%d: %s (%s)", i, len(todo), k[0], o["comName"])
                 try:
@@ -642,15 +646,21 @@ async def poll_once():
                 except aiohttp.ClientError:
                     log.exception("Checklist lookup failed for %s; will retry", k)
                     continue
-                pending.setdefault(o["checklistId"], []).append(o)
 
-            for checklist_id, members in pending.items():
+                checklist_id = o["checklistId"]
+                pending.setdefault(checklist_id, []).append(o)
+                checklist_totals.setdefault(checklist_id, len(cache.get(o["subId"], {}).get("obs", [])))
+
+                if len(pending[checklist_id]) < checklist_totals[checklist_id]:
+                    continue
+
+                members = pending.pop(checklist_id)
                 rare_members = [m for m in members if normalize_species(m["comName"]) in RARE_BIRDS]
                 if len(rare_members) > RARE_CHECKLIST_ALERT_THRESHOLD:
                     await flag_checklist(channel, checklist_id, rare_members)
                     continue
-                for o in members:
-                    await process_sighting(channel, o)
+                for item in members:
+                    await process_sighting(channel, item)
     except aiohttp.ClientError:
         log.exception("eBird request failed")
         return
