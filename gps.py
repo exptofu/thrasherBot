@@ -59,7 +59,7 @@ def find_georgia_coordinates(text: str) -> list[dict[str, str]]:
                     "original": match.group(0).strip(),
                     "decimal": f"{lat_str}, {lon_str}",
                     "google_url": f"https://maps.google.com/?q={lat_str},{lon_str}",
-                    "apple_url": f"https://maps.apple.com/?ll={lat_str},{lon_str}",
+                    "apple_url": f"https://maps.apple.com/?q={lat_str},{lon_str}",
                 }
             )
 
