@@ -368,10 +368,11 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
                     thread = None
                 if thread is None:
                     try:
-                        thread = await target_forum.create_thread(
+                        created = await target_forum.create_thread(
                             name=thread_name,
                             content=f"eBird alerts for {region.replace('-', ' ').title()}"
                         )
+                        thread = created.thread
                     except discord.HTTPException:
                         log.exception("Failed to create alert thread for %s in %s", region, forum_name)
                         thread = None
