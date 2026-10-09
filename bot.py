@@ -455,13 +455,16 @@ async def send_group(
 
     if thread:
         if thread.archived:
+            log.info("Reopening thread %s for %s %s", thread.id, species, checklist_id)
             await thread.edit(archived=False)
+        log.info("Sending update to existing thread %s for %s %s", thread.id, species, checklist_id)
         message = await thread.send(embed=embed)
     else:
         first = min(members, key=lambda m: m["obsDt"])
         region = region_of(first)
         category = REGION_TO_CATEGORY.get(region) if region else None
         tag = discord.utils.get(channel.available_tags, name=category) if category else None
+        log.info("Creating new thread for %s %s in %s with tag %s (region=%s, category=%s)", species, checklist_id, channel.name, getattr(tag, "name", None), region, category)
         created = await channel.create_thread(
             name=post_title(first), embed=embed, applied_tags=[tag] if tag else []
         )
@@ -474,6 +477,7 @@ async def send_group(
         (species, checklist_id, scope, message.id),
     )
     db.commit()
+    log.info("Stored group %s %s in thread %s with message %s", species, checklist_id, getattr(created.thread if not thread else thread, "id", "?"), message.id)
     if not thread and region:
         await notify_region_chat(client, channel, region, created.thread, first)
 
