@@ -23,6 +23,7 @@ POLL_MINUTES = int(os.environ.get("POLL_MINUTES", "15"))
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
 PRUNE_OLD_SIGHTINGS = os.environ.get("PRUNE_OLD_SIGHTINGS", "true").strip().lower() not in {"0", "false", "no", "off"}
+VERBOSE_LOGGING = os.environ.get("VERBOSE_LOGGING", "false").strip().lower() not in {"0", "false", "no", "off"}
 MAX_RETRIES = 5
 SCHEMA_VERSION = 2
 WELCOME_CHANNEL = "rules-and-info"
@@ -67,7 +68,6 @@ REGION_TO_CATEGORY = {
     for region in regions
 }
 
-STATEWIDE_CHANNEL = "state-wide-rarities"
 MODERATOR_CHANNEL_NAME = os.environ.get("MODERATOR_CHANNEL_NAME", "moderator-only")
 RARE_CHECKLIST_ALERT_THRESHOLD = int(os.environ.get("RARE_CHECKLIST_ALERT_THRESHOLD", "4"))
 RARE_BIRDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rare_birds.txt")
@@ -351,7 +351,7 @@ def scope_of(o: dict) -> str:
 
 
 async def notify_region_chat(client: discord.Client, channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
-    """Create or update a per-region alert post in the category RBA forum and, for rare birds, statewide chat."""
+    """Create or update a per-region alert post in the category RBA forum."""
     category = REGION_TO_CATEGORY.get(region)
     if category:
         forum_name = rba_forum_name(category, REGION_GROUPS.get(category, []))
@@ -413,19 +413,6 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
                         db.commit()
                     except discord.HTTPException:
                         log.exception("Failed to post alert to %s", thread_name)
-    if normalize_species(o["comName"]) in RARE_BIRDS:
-        text_channel = discord.utils.get(channel.guild.text_channels, name=STATEWIDE_CHANNEL)
-        if not text_channel:
-            log.warning("No text channel named %s; skipping notification", STATEWIDE_CHANNEL)
-        else:
-            try:
-                county = o.get("subnational2Name", "Unknown")
-                location_name = o.get("locName", "Unknown location")
-                await text_channel.send(
-                    f"[{county}] [{o['comName']}]({post.jump_url}) - {location_name} ({o['obsDt'][:10]})"
-                )
-            except discord.HTTPException:
-                log.exception("Failed to post sighting link to %s", STATEWIDE_CHANNEL)
 
 
 def post_title(o: dict) -> str:
@@ -649,7 +636,8 @@ async def poll_once():
 
             cache: dict = {}
             for i, (k, o) in enumerate(todo.items(), 1):
-                log.info("Checklist %d/%d: %s (%s)", i, len(todo), k[0], o["comName"])
+                if VERBOSE_LOGGING:
+                    log.info("Checklist %d/%d: %s (%s)", i, len(todo), k[0], o["comName"])
                 try:
                     o = await attach_checklist(session, o, cache)
                 except aiohttp.ClientError:
@@ -958,7 +946,7 @@ client = Bot(intents=discord.Intents.default())
 
 if __name__ == "__main__":
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG if VERBOSE_LOGGING else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
