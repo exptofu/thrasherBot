@@ -953,7 +953,9 @@ class Bot(discord.Client):
             poll.start()
 
 
-client = Bot(intents=discord.Intents.default())
+intents = discord.Intents.default()
+intents.message_content = True
+client = Bot(intents=intents)
 
 if __name__ == "__main__":
     logging.basicConfig(
