@@ -352,7 +352,7 @@ def scope_of(o: dict) -> str:
 
 
 async def notify_region_chat(client: discord.Client, channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
-    """Create or update a per-region alert post in the category RBA forum."""
+    """Create a per-region alert thread and append each new alert as a message."""
     category = REGION_TO_CATEGORY.get(region)
     if category:
         forum_name = rba_forum_name(category, REGION_GROUPS.get(category, []))
@@ -388,32 +388,15 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
                     f"[{o.get('subnational2Name', 'Unknown')}] [{o['comName']}]({post.jump_url}) - "
                     f"{location_name} ({o['obsDt'][:10]})"
                 )
-                message_id = row[1] if row else None
-                updated = False
-                if message_id is not None:
-                    try:
-                        message = await thread.fetch_message(message_id)
-                        lines = [line.strip() for line in (message.content or "").splitlines() if line.strip()]
-                        if message_text not in lines:
-                            await message.edit(content="\n".join(lines + [message_text]))
-                            updated = True
-                        db.execute(
-                            "INSERT OR REPLACE INTO region_alert_threads VALUES (?, ?, ?)",
-                            (region, thread.id, message.id),
-                        )
-                        db.commit()
-                    except (discord.NotFound, discord.HTTPException):
-                        message_id = None
-                if not updated and message_id is None:
-                    try:
-                        message = await thread.send(message_text)
-                        db.execute(
-                            "INSERT OR REPLACE INTO region_alert_threads VALUES (?, ?, ?)",
-                            (region, thread.id, message.id),
-                        )
-                        db.commit()
-                    except discord.HTTPException:
-                        log.exception("Failed to post alert to %s", thread_name)
+                try:
+                    message = await thread.send(message_text)
+                    db.execute(
+                        "INSERT OR REPLACE INTO region_alert_threads VALUES (?, ?, ?)",
+                        (region, thread.id, message.id),
+                    )
+                    db.commit()
+                except discord.HTTPException:
+                    log.exception("Failed to post alert to %s", thread_name)
 
 
 def post_title(o: dict) -> str:
