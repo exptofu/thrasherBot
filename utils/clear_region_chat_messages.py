@@ -1,8 +1,8 @@
-"""Delete only the bot's own messages from regional chat channels and the alert forum.
+"""Delete only the bot's own alert threads from regional chat channels and all -rba forums.
 
-Preview first: run without --apply to list channels and message counts.
-Apply mode: deletes the bot's messages in text channels whose names end with "-chat"
-and in the Discord forum referenced by DISCORD_CHANNEL_ID.
+Preview first: run without --apply to list channels and alert thread counts.
+Apply mode: deletes the bot-owned forum threads whose names start with "eBird RBA"
+in text channels whose names end with "-chat" and every Discord forum whose name ends with "-rba".
 """
 
 import argparse
@@ -51,7 +51,9 @@ async def delete_bot_messages_in_channel(channel: discord.abc.Messageable, bot_i
                     print(f"    [http] could not delete message {message.id}: {exc}")
     except AttributeError:
         if isinstance(channel, discord.ForumChannel):
-            for thread in channel.threads:
+            for thread in getattr(channel, "threads", []):
+                if not thread.name.startswith("eBird RBA"):
+                    continue
                 deleted += await delete_bot_thread_if_owned(thread, bot_id, apply)
         else:
             raise
@@ -74,17 +76,18 @@ async def list_region_chat_messages(client: discord.Client, guild: discord.Guild
         total += 1
         deleted += await delete_bot_messages_in_channel(channel, bot_id, apply)
 
-    alert_forum_id = int(os.environ.get("DISCORD_CHANNEL_ID", "0"))
-    if alert_forum_id:
-        forum = guild.get_channel(alert_forum_id) or await client.fetch_channel(alert_forum_id)
-        if isinstance(forum, discord.ForumChannel):
-            total += 1
-            deleted += await delete_bot_messages_in_channel(forum, bot_id, apply)
+    for forum in guild.channels:
+        if not isinstance(forum, discord.ForumChannel):
+            continue
+        if not forum.name.endswith("-rba"):
+            continue
+        total += 1
+        deleted += await delete_bot_messages_in_channel(forum, bot_id, apply)
 
     if apply:
-        print(f"Deleted {deleted} bot messages across {total} checked channels/forums.")
+        print(f"Deleted {deleted} bot alert threads across {total} checked -rba forums.")
     else:
-        print(f"Preview complete: {total} channels/forums checked; no messages were deleted.")
+        print(f"Preview complete: {total} -rba forums checked; no threads were deleted.")
     return deleted
 
 
