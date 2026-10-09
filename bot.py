@@ -186,7 +186,25 @@ def is_hotspot(o: dict) -> bool:
     return o.get("locationPrivate") is False and bool(o.get("locId"))
 
 
-def format_comments(members: list[dict], field: str, unknown_name: str) -> str:
+def format_coordinate_links(text: str) -> str:
+    if not text:
+        return text
+
+    coords: list[str] = []
+    seen: set[str] = set()
+    for coord in find_georgia_coordinates(text):
+        decimal = coord["decimal"]
+        if decimal in seen:
+            continue
+        seen.add(decimal)
+        coords.append(f"{decimal} — [Google Maps]({coord['google_url']}) | [Apple Maps]({coord['apple_url']})")
+
+    if not coords:
+        return text
+    return text.rstrip() + "\n\nGPS: " + " | ".join(coords)
+
+
+def format_comments(members: list[dict], field: str, unknown_name: str, include_coordinates: bool = False) -> str:
     grouped: dict[str, tuple[str, list[str]]] = {}
     for member in members:
         comment = member.get(field)
@@ -205,11 +223,13 @@ def format_comments(members: list[dict], field: str, unknown_name: str) -> str:
     if not grouped:
         return ""
     if len(grouped) == 1:
-        return next(iter(grouped.values()))[0]
-    return "\n".join(
-        f"{names[0]}{' et al.' if len(names) > 1 else ''}: {comment}"
-        for comment, names in grouped.values()
-    )
+        text = next(iter(grouped.values()))[0]
+    else:
+        text = "\n".join(
+            f"{names[0]}{' et al.' if len(names) > 1 else ''}: {comment}"
+            for comment, names in grouped.values()
+        )
+    return format_coordinate_links(text) if include_coordinates else text
 
 
 def format_sighting(members: list[dict]) -> discord.Embed:
@@ -266,7 +286,7 @@ def format_sighting(members: list[dict]) -> discord.Embed:
         embed.add_field(
             name="Checklist comments", value=field_text(checklist_comment), inline=False
         )
-    obs_comment_text = format_comments(members, "obsComments", "?")
+    obs_comment_text = format_comments(members, "obsComments", "?", include_coordinates=True)
     if obs_comment_text:
         embed.add_field(
             name="Observation comments", value=field_text(obs_comment_text), inline=False
