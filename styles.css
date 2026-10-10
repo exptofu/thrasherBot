@@ -136,9 +136,31 @@ label {
   color: #1a1a1a;
   box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.08);
   margin-top: 15px;
-  width: 95%;
-  min-height: 220px;
-  resize: vertical;
+  width: 100%;
+  max-width: 100%;
+  min-height: 120px;
+  max-height: 24vh;
+  height: 120px;
+  resize: none;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+@media (max-width: 480px) {
+  .journal-container {
+    padding: 18px 14px;
+  }
+
+  .journal-output-box {
+    min-height: 100px;
+    max-height: 22vh;
+    height: 100px;
+    font-size: 13px;
+  }
+
+  .gps-input-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .gps-input-row {

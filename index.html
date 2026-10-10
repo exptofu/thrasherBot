@@ -202,6 +202,26 @@
         .replace(/\s+([A-Z])/g, ' $1');
     }
 
+    function slugify(value) {
+      return String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    function formatRegionSlug(regionSlug) {
+      return regionSlug ? `${regionSlug}-chat` : 'unknown-chat';
+    }
+
+    function formatAreaSlug(categoryName, regionSlug) {
+      const regionSlugs = REGION_GROUPS[categoryName] || [];
+      if (regionSlugs.length <= 1 && regionSlug) {
+        return `${regionSlug}-rba`;
+      }
+      return `${slugify(categoryName)}-rba`;
+    }
+
     function renderSuggestionsFromCountyList() {
       const counties = [...new Set((findCountyForPoint(latestLocation?.lat ?? 0, latestLocation?.lon ?? 0, Number.isFinite(latestLocation?.accuracy) ? latestLocation.accuracy : 5000) || []))].filter(Boolean);
       if (!counties.length) {
@@ -213,8 +233,9 @@
 
       return counties.map((county) => {
         const slug = COUNTY_TO_REGION[county.toLowerCase()];
-        const region = slug ? REGION_LABELS[slug] || slug : 'Unknown';
-        const category = COUNTY_TO_CATEGORY[county.toLowerCase()] || 'Unassigned';
+        const categoryName = COUNTY_TO_CATEGORY[county.toLowerCase()] || 'Unassigned';
+        const region = formatRegionSlug(slug);
+        const category = formatAreaSlug(categoryName, slug);
         return {
           county,
           region,
@@ -472,24 +493,19 @@
     function getSuggestedRegions(lat, lon, accuracyMeters = 5000) {
       const countyMatches = findCountyForPoint(lat, lon, accuracyMeters) || [];
       if (countyMatches.length > 0) {
-        const regionLabels = [...new Set(countyMatches
+        return [...new Set(countyMatches
           .map((county) => COUNTY_TO_REGION[county.toLowerCase()])
-          .filter(Boolean)
-          .map((slug) => REGION_LABELS[slug] || slug))];
-        return regionLabels.slice(0, 2);
+          .filter(Boolean))].slice(0, 2);
       }
 
       return [];
     }
 
-    function getSuggestedCategories(regionLabels) {
-      const regionNames = new Set(regionLabels);
+    function getSuggestedCategories(regionSlugs) {
+      const regionSet = new Set(regionSlugs || []);
       const categories = [];
       for (const [category, slugs] of Object.entries(REGION_GROUPS)) {
-        const categoryMatches = slugs.filter((slug) => {
-          const label = REGION_LABELS[slug];
-          return label && regionNames.has(label);
-        });
+        const categoryMatches = slugs.filter((slug) => regionSet.has(slug));
         if (categoryMatches.length > 0) {
           categories.push(category);
         }
@@ -510,8 +526,9 @@
 
       const rows = counties.map((county) => {
         const slug = COUNTY_TO_REGION[county.toLowerCase()];
-        const region = slug ? REGION_LABELS[slug] || slug : 'Unknown';
-        const category = COUNTY_TO_CATEGORY[county.toLowerCase()] || 'Unassigned';
+        const categoryName = COUNTY_TO_CATEGORY[county.toLowerCase()] || 'Unassigned';
+        const region = formatRegionSlug(slug);
+        const category = formatAreaSlug(categoryName, slug);
         return {
           county,
           region,
@@ -537,8 +554,8 @@
         <thead>
           <tr>
             <th>County</th>
-            <th>Post region</th>
-            <th>Category</th>
+            <th>Region</th>
+            <th>Area</th>
           </tr>
         </thead>
         <tbody></tbody>
@@ -574,16 +591,19 @@
 
     function buildSuggestionRows(regionSuggestions, categorySuggestions) {
       const byRegion = new Map();
-      for (const region of regionSuggestions) {
-        byRegion.set(region, categorySuggestions.filter((category) => {
-          const regionLabels = Object.entries(REGION_GROUPS)
-            .filter(([name]) => name === category)
-            .flatMap(([, slugs]) => slugs.map((slug) => REGION_LABELS[slug] || slug));
-          return regionLabels.includes(region);
-        }).join(', ') || '—');
+      for (const regionSlug of regionSuggestions) {
+        const matchingCategories = categorySuggestions.filter((category) => {
+          const regionSlugs = REGION_GROUPS[category] || [];
+          return regionSlugs.includes(regionSlug);
+        });
+        const category = matchingCategories[0] || '—';
+        byRegion.set(regionSlug, category);
       }
 
-      return [...byRegion.entries()].map(([region, category]) => ({ region, category }));
+      return [...byRegion.entries()].map(([regionSlug, categoryName]) => ({
+        region: formatRegionSlug(regionSlug),
+        category: categoryName === '—' ? '—' : formatAreaSlug(categoryName, regionSlug)
+      }));
     }
 
     async function updateSuggestedCountyMatches(location) {
@@ -642,7 +662,12 @@
       form.output.value = text;
       renderSuggestions(
         selectedCountyName
-          ? [{ county: selectedCountyName, region: regionSuggestions[0], category: categorySuggestions[0] || '—', selected: true }]
+          ? [{
+              county: selectedCountyName,
+              region: formatRegionSlug(regionSuggestions[0]),
+              category: formatAreaSlug(categorySuggestions[0], regionSuggestions[0]),
+              selected: true
+            }]
           : buildSuggestionRows(regionSuggestions, categorySuggestions).map((row) => ({ county: '—', region: row.region, category: row.category, selected: true }))
       );
     }
