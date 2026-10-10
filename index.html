@@ -35,18 +35,15 @@
 
       <label>
         Latitude
-        <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="33.955000" />
+        <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="33.955000" readonly />
       </label>
 
       <label>
         Longitude
-        <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="-83.382000" />
+        <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="-83.382000" readonly />
       </label>
 
       <div id="gpsAccuracy" class="journal-status-box">Accuracy: no location captured yet</div>
-      <div class="gps-actions">
-        <button type="button" id="manualCoordsBtn" class="journal-btn">Use manual coords</button>
-      </div>
 
       <div class="journal-section-title">Suggested post regions</div>
       <label>
@@ -155,60 +152,6 @@
       "greater-statesboro": "Greater Statesboro"
     };
 
-    const REGION_BOUNDS = {
-      "athens": { minLat: 33.82, maxLat: 34.12, minLon: -83.58, maxLon: -83.12 },
-      "greater-athens": { minLat: 33.70, maxLat: 34.25, minLon: -83.85, maxLon: -83.08 },
-      "greater-savannah": { minLat: 31.82, maxLat: 32.33, minLon: -81.42, maxLon: -80.90 },
-      "gwinnett-county": { minLat: 33.78, maxLat: 34.20, minLon: -84.16, maxLon: -83.80 },
-      "cobb-county": { minLat: 33.72, maxLat: 34.08, minLon: -84.80, maxLon: -84.48 },
-      "metro-atlanta-north": { minLat: 33.76, maxLat: 34.33, minLon: -84.78, maxLon: -83.90 },
-      "dekalb-county": { minLat: 33.63, maxLat: 33.92, minLon: -84.35, maxLon: -84.12 },
-      "metro-atlanta-south": { minLat: 33.38, maxLat: 33.82, minLon: -84.82, maxLon: -84.20 },
-      "greater-macon": { minLat: 32.52, maxLat: 33.25, minLon: -84.22, maxLon: -83.48 },
-      "fall-line-sandhills": { minLat: 32.22, maxLat: 33.34, minLon: -84.30, maxLon: -82.64 },
-      "west-piedmont": { minLat: 33.18, maxLat: 34.20, minLon: -85.20, maxLon: -84.66 },
-      "north-georgia-mountains": { minLat: 33.72, maxLat: 35.10, minLon: -85.40, maxLon: -81.65 },
-      "okefenokee-basin": { minLat: 30.50, maxLat: 31.70, minLon: -82.92, maxLon: -81.75 },
-      "greater-valdosta": { minLat: 30.68, maxLat: 31.34, minLon: -83.98, maxLon: -83.05 },
-      "lake-seminole-watershed": { minLat: 30.60, maxLat: 32.50, minLon: -85.52, maxLon: -83.62 },
-      "three-rivers-basin": { minLat: 31.12, maxLat: 32.75, minLon: -83.00, maxLon: -81.75 },
-      "broad-river-watershed": { minLat: 33.46, maxLat: 34.62, minLon: -83.32, maxLon: -82.70 },
-      "greater-columbus": { minLat: 32.10, maxLat: 33.20, minLon: -85.18, maxLon: -84.66 },
-      "golden-isles": { minLat: 30.84, maxLat: 31.75, minLon: -81.95, maxLon: -81.15 },
-      "greater-augusta": { minLat: 33.10, maxLat: 34.10, minLon: -82.98, maxLon: -81.75 },
-      "augusta": { minLat: 33.24, maxLat: 33.70, minLon: -82.23, maxLon: -81.86 },
-      "fulton-county": { minLat: 33.55, maxLat: 34.05, minLon: -84.68, maxLon: -84.32 },
-      "ridge-and-valleys": { minLat: 34.04, maxLat: 35.02, minLon: -85.50, maxLon: -84.52 },
-      "greater-statesboro": { minLat: 32.08, maxLat: 32.90, minLon: -82.35, maxLon: -81.45 }
-    };
-
-    const REGION_CENTERS = {
-      "athens": { lat: 33.97, lon: -83.35 },
-      "greater-athens": { lat: 33.96, lon: -83.46 },
-      "greater-savannah": { lat: 32.08, lon: -81.17 },
-      "gwinnett-county": { lat: 33.95, lon: -84.00 },
-      "cobb-county": { lat: 33.87, lon: -84.58 },
-      "metro-atlanta-north": { lat: 34.00, lon: -84.20 },
-      "dekalb-county": { lat: 33.77, lon: -84.22 },
-      "metro-atlanta-south": { lat: 33.60, lon: -84.44 },
-      "greater-macon": { lat: 32.92, lon: -83.79 },
-      "fall-line-sandhills": { lat: 32.75, lon: -83.52 },
-      "west-piedmont": { lat: 33.67, lon: -84.95 },
-      "north-georgia-mountains": { lat: 34.40, lon: -83.98 },
-      "okefenokee-basin": { lat: 31.15, lon: -82.30 },
-      "greater-valdosta": { lat: 30.95, lon: -83.45 },
-      "lake-seminole-watershed": { lat: 31.62, lon: -84.67 },
-      "three-rivers-basin": { lat: 31.95, lon: -82.35 },
-      "broad-river-watershed": { lat: 34.06, lon: -82.90 },
-      "greater-columbus": { lat: 32.62, lon: -84.82 },
-      "golden-isles": { lat: 31.32, lon: -81.45 },
-      "greater-augusta": { lat: 33.55, lon: -82.33 },
-      "augusta": { lat: 33.47, lon: -81.98 },
-      "fulton-county": { lat: 33.77, lon: -84.39 },
-      "ridge-and-valleys": { lat: 34.45, lon: -85.00 },
-      "greater-statesboro": { lat: 32.40, lon: -81.85 }
-    };
-
     let countyGeoJson = null;
 
     const form = {
@@ -271,23 +214,9 @@
         form.countySelect.innerHTML = '<option value="">No county match yet</option>';
       }
 
-      const accuracyText = Number.isFinite(accuracy) ? `Accuracy: ±${Math.round(accuracy)}m` : 'Accuracy: manual entry';
+      const accuracyText = Number.isFinite(accuracy) ? `Accuracy: ±${Math.round(accuracy)}m` : 'Accuracy: GPS location captured';
       updateGpsStatus(accuracyText, 'success');
-    }
-
-    function useManualCoordinates() {
-      const lat = Number(form.latitude.value);
-      const lon = Number(form.longitude.value);
-      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
-        updateGpsStatus('Enter valid coordinates before generating.', 'error');
-        return null;
-      }
-      if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-        updateGpsStatus('Coordinates are outside valid Earth ranges.', 'error');
-        return null;
-      }
-      setLocation(lat, lon, null);
-      return latestLocation;
+      scheduleLiveMessageUpdate();
     }
 
     function useMyGps() {
@@ -310,10 +239,6 @@
           maximumAge: 0
         }
       );
-    }
-
-    function matchesRegion(lat, lon, bounds) {
-      return lat >= bounds.minLat && lat <= bounds.maxLat && lon >= bounds.minLon && lon <= bounds.maxLon;
     }
 
     function haversineKm(lat1, lon1, lat2, lon2) {
@@ -341,10 +266,10 @@
     }
 
     function pointInPolygon(point, coordinates) {
-      const rings = Array.isArray(coordinates[0][0]) ? coordinates : [coordinates];
+      const rings = Array.isArray(coordinates[0]) && Array.isArray(coordinates[0][0]) ? coordinates : [coordinates];
       for (const ringSet of rings) {
-        const outer = ringSet[0];
-        const holes = ringSet.slice(1);
+        const outer = Array.isArray(ringSet[0]) && Array.isArray(ringSet[0][0]) ? ringSet[0] : ringSet;
+        const holes = Array.isArray(ringSet[0]) && Array.isArray(ringSet[0][0]) ? ringSet.slice(1) : [];
         if (!pointInRing(point, outer)) continue;
         const insideHole = holes.some((hole) => pointInRing(point, hole));
         if (!insideHole) return true;
@@ -385,6 +310,36 @@
       };
     }
 
+    function polygonDistanceToBoundary(point, coordinates) {
+      const rings = Array.isArray(coordinates[0]) && Array.isArray(coordinates[0][0]) ? coordinates : [coordinates];
+      let minDistanceKm = Infinity;
+
+      for (const ringSet of rings) {
+        const outer = Array.isArray(ringSet[0]) && Array.isArray(ringSet[0][0]) ? ringSet[0] : ringSet;
+        const holes = Array.isArray(ringSet[0]) && Array.isArray(ringSet[0][0]) ? ringSet.slice(1) : [];
+
+        for (let i = 0; i < outer.length; i++) {
+          const current = outer[i];
+          const next = outer[(i + 1) % outer.length];
+          const segmentDistance = haversineKm(
+            lat,
+            lon,
+            (current[1] + next[1]) / 2,
+            (current[0] + next[0]) / 2
+          );
+          if (segmentDistance < minDistanceKm) {
+            minDistanceKm = segmentDistance;
+          }
+        }
+
+        if (holes.some((hole) => pointInRing(point, hole))) {
+          return 0;
+        }
+      }
+
+      return minDistanceKm;
+    }
+
     function findCountyForPoint(lat, lon, accuracyMeters = 5000) {
       if (!countyGeoJson) return null;
       const point = [lon, lat];
@@ -415,6 +370,37 @@
 
       if (exactMatches.length > 0) {
         return exactMatches;
+      }
+
+      const nearBoundaryMatches = countyGeoJson
+        .map((feature) => {
+          const geometry = feature.geometry;
+          if (!geometry) return null;
+          let boundaryDistanceKm = Infinity;
+          if (geometry.type === 'Polygon') {
+            boundaryDistanceKm = polygonDistanceToBoundary(point, geometry.coordinates);
+          } else if (geometry.type === 'MultiPolygon') {
+            boundaryDistanceKm = geometry.coordinates.reduce((minDistance, polygon) => {
+              const distance = polygonDistanceToBoundary(point, polygon);
+              return Math.min(minDistance, distance);
+            }, Infinity);
+          }
+
+          const centroid = countyCentroid(feature);
+          const centroidDistanceKm = centroid ? haversineKm(lat, lon, centroid.lat, centroid.lon) : Infinity;
+          return {
+            name: feature.properties.NAME,
+            distance: centroidDistanceKm,
+            boundaryDistanceKm
+          };
+        })
+        .filter((item) => item && item.boundaryDistanceKm <= Math.max(0.5, accuracyKm * 0.25))
+        .sort((a, b) => a.boundaryDistanceKm - b.boundaryDistanceKm || a.distance - b.distance)
+        .slice(0, 2)
+        .map((item) => item.name);
+
+      if (nearBoundaryMatches.length > 0) {
+        return nearBoundaryMatches;
       }
 
       const nearbyMatches = countyGeoJson
@@ -450,25 +436,16 @@
     }
 
     function getSuggestedRegions(lat, lon, accuracyMeters = 5000) {
-      const accuracyKm = Math.max(1, accuracyMeters / 1000);
-      const exactCountyMatches = findCountyForPoint(lat, lon, accuracyMeters);
-
-      if (exactCountyMatches && exactCountyMatches.length > 0) {
-        const regionLabels = [...new Set(exactCountyMatches
+      const countyMatches = findCountyForPoint(lat, lon, accuracyMeters) || [];
+      if (countyMatches.length > 0) {
+        const regionLabels = [...new Set(countyMatches
           .map((county) => COUNTY_TO_REGION[county.toLowerCase()])
           .filter(Boolean)
           .map((slug) => REGION_LABELS[slug] || slug))];
         return regionLabels.slice(0, 2);
       }
 
-      const fallback = Object.keys(REGION_BOUNDS)
-        .map((slug) => ({ slug, label: REGION_LABELS[slug] || slug, distanceKm: haversineKm(lat, lon, REGION_CENTERS[slug].lat, REGION_CENTERS[slug].lon) }))
-        .filter((entry) => entry.distanceKm <= Math.max(25, accuracyKm * 5))
-        .sort((a, b) => a.distanceKm - b.distanceKm)
-        .slice(0, 5)
-        .map((entry) => entry.label);
-
-      return [...new Set(fallback)];
+      return [];
     }
 
     function getSuggestedCategories(regionLabels) {
@@ -599,7 +576,7 @@
       const species = form.species.value.trim();
       const hotspot = form.hotspot.value.trim();
       const description = form.description.value.trim();
-      const location = useManualCoordinates() || latestLocation;
+      const location = latestLocation;
 
       if (!species || !location) {
         updateGpsStatus('Enter the species and a valid GPS coordinate.', 'error');
@@ -614,7 +591,7 @@
 
       const countySelection = form.countySelect.value;
       const countyNames = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
-      const selectedCounty = countySelection || countyNames[0] || '';
+      const selectedCounty = countySelection || countyNames[0] || 'Unknown County';
       const countySlug = COUNTY_TO_REGION[(selectedCounty || '').toLowerCase()];
 
       const regionSuggestions = selectedCounty && countySlug
@@ -623,12 +600,13 @@
       const categorySuggestions = selectedCounty
         ? [COUNTY_TO_CATEGORY[selectedCounty.toLowerCase()] || 'Unassigned']
         : getSuggestedCategories(regionSuggestions);
-      const text = [
-        `**Species:** ${species}`,
-        hotspot ? `**Hotspot:** ${hotspot}` : '',
-        `**GPS:** ${formatCoordinate(location.lat, 'lat')}, ${formatCoordinate(location.lon, 'lon')}${Number.isFinite(location.accuracy) ? ` (±${Math.round(location.accuracy)}m)` : ''}`,
-        description ? `**Description:** ${description}` : ''
-      ].filter(Boolean).join('\n');
+
+      const today = new Date();
+      const formattedDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
+      const title = `${species}${hotspot ? `-${hotspot}` : ''} (${selectedCounty})-${formattedDate}`;
+      const gpsText = `${formatCoordinate(location.lat, 'lat')}, ${formatCoordinate(location.lon, 'lon')}`;
+      const notesText = description ? ` ${description}` : '';
+      const text = `${title}\n> ${gpsText}.${notesText}`;
 
       form.output.value = text;
       renderSuggestions(
@@ -656,10 +634,21 @@
       }
     }
 
+    let liveUpdateTimer = null;
+
+    function scheduleLiveMessageUpdate() {
+      clearTimeout(liveUpdateTimer);
+      liveUpdateTimer = setTimeout(() => {
+        generateMessage();
+      }, 150);
+    }
+
     document.getElementById('useLocationBtn').addEventListener('click', useMyGps);
-    document.getElementById('manualCoordsBtn').addEventListener('click', useManualCoordinates);
     document.getElementById('generateBtn').addEventListener('click', generateMessage);
     document.getElementById('copyBtn').addEventListener('click', copyMessage);
+    form.species.addEventListener('input', scheduleLiveMessageUpdate);
+    form.hotspot.addEventListener('input', scheduleLiveMessageUpdate);
+    form.description.addEventListener('input', scheduleLiveMessageUpdate);
 
     renderSuggestions([]);
   </script>
