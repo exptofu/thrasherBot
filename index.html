@@ -8,7 +8,6 @@
 </head>
 <body>
   <div class="journal-container">
-    <h1 class="journal-title">Bird Post Builder</h1>
 
     <div class="journal-section-title">Observation details</div>
 
@@ -33,21 +32,19 @@
         <div class="gps-field">
           <label>
             Latitude
-            <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="33.955000" readonly />
+            <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="" readonly tabindex="-1" />
           </label>
         </div>
 
         <div class="gps-field">
           <label>
             Longitude
-            <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="-83.382000" readonly />
+            <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="" readonly tabindex="-1" />
           </label>
         </div>
 
-        <button type="button" id="useLocationBtn" class="journal-btn gps-button">Use my GPS</button>
+        <button type="button" id="useLocationBtn" class="journal-btn gps-button">Use GPS</button>
       </div>
-
-      <div id="gpsAccuracy" class="journal-status-box">Accuracy: no location captured yet</div>
 
       <div class="journal-section-title">Suggested post regions</div>
       <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
@@ -153,7 +150,6 @@
       description: document.getElementById('description'),
       latitude: document.getElementById('latitude'),
       longitude: document.getElementById('longitude'),
-      gpsAccuracy: document.getElementById('gpsAccuracy'),
       output: document.getElementById('discordOutput'),
       suggestions: document.getElementById('regionSuggestions')
     };
@@ -161,14 +157,35 @@
     let latestLocation = null;
     let selectedCounty = '';
 
-    function updateGpsStatus(text, tone = 'muted') {
-      form.gpsAccuracy.textContent = text;
-      const colors = {
-        muted: '#475569',
-        success: '#166534',
-        error: '#7f1d1d'
-      };
-      form.gpsAccuracy.style.color = colors[tone] || colors.muted;
+    function setCopyButtonState(isSuccess) {
+      const copyBtn = document.getElementById('copyBtn');
+      if (!copyBtn) {
+        return;
+      }
+
+      copyBtn.textContent = isSuccess ? 'Copied!' : 'Copy to clipboard';
+      copyBtn.classList.toggle('success', isSuccess);
+    }
+
+    function setGpsButtonState(isLocating) {
+      const gpsBtn = document.getElementById('useLocationBtn');
+      if (!gpsBtn) {
+        return;
+      }
+
+      gpsBtn.textContent = isLocating ? 'LOCATING' : 'Use GPS';
+      gpsBtn.disabled = isLocating;
+      gpsBtn.classList.toggle('is-locating', isLocating);
+    }
+
+    function resetGpsFields() {
+      form.latitude.value = '';
+      form.longitude.value = '';
+      latestLocation = null;
+      selectedCounty = '';
+      if (form.suggestions) {
+        form.suggestions.innerHTML = '';
+      }
     }
 
     function applyFieldErrorState(field, hasError) {
@@ -179,10 +196,12 @@
     function validateRequiredFields() {
       const speciesHasValue = form.species.value.trim().length > 0;
       const gpsHasValue = Boolean(latestLocation && Number.isFinite(latestLocation.lat) && Number.isFinite(latestLocation.lon));
+      const gpsBtn = document.getElementById('useLocationBtn');
 
       applyFieldErrorState(form.species, !speciesHasValue);
       applyFieldErrorState(form.latitude, !gpsHasValue);
       applyFieldErrorState(form.longitude, !gpsHasValue);
+      gpsBtn?.classList.toggle('missing-gps', !gpsHasValue);
 
       return speciesHasValue && gpsHasValue;
     }
@@ -268,25 +287,24 @@
         renderSuggestions([]);
       }
 
-      const accuracyText = Number.isFinite(accuracy) ? `Accuracy: ±${Math.round(accuracy)}m` : 'Accuracy: GPS location captured';
-      updateGpsStatus(accuracyText, 'success');
+      setGpsButtonState(false);
       validateRequiredFields();
       scheduleLiveMessageUpdate();
     }
 
     function useMyGps() {
       if (!navigator.geolocation) {
-        updateGpsStatus('GPS lookup unavailable in this browser.', 'muted');
         return;
       }
 
-      updateGpsStatus('Requesting high-accuracy GPS…', 'muted');
+      setGpsButtonState(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setLocation(position.coords.latitude, position.coords.longitude, position.coords.accuracy);
         },
         (error) => {
-          updateGpsStatus(`GPS failed: ${error.message}`, 'muted');
+          console.warn('GPS lookup failed:', error);
+          setGpsButtonState(false);
         },
         {
           enableHighAccuracy: true,
@@ -544,7 +562,6 @@
       form.suggestions.innerHTML = '';
 
       if (!rows.length) {
-        form.suggestions.innerHTML = '<div class="chip">No clear fit</div>';
         return;
       }
 
@@ -632,7 +649,7 @@
       try {
         await loadCountyGeodata();
       } catch (error) {
-        updateGpsStatus('Using the closest available county match.', 'muted');
+        // Fall back to the locally matched county data when the geodata fetch is unavailable.
       }
 
       const countyNames = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
@@ -641,7 +658,7 @@
       const countySlug = COUNTY_TO_REGION[(selectedCountyName || '').toLowerCase()];
 
       const regionSuggestions = selectedCountyName && countySlug
-        ? [REGION_LABELS[countySlug] || countySlug]
+        ? [countySlug]
         : getSuggestedRegions(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000);
       const categorySuggestions = selectedCountyName
         ? [COUNTY_TO_CATEGORY[selectedCountyName.toLowerCase()] || 'Unassigned']
@@ -678,14 +695,23 @@
         return;
       }
 
+      const copyBtn = document.getElementById('copyBtn');
+
       try {
         await navigator.clipboard.writeText(text);
-        updateGpsStatus('Discord message copied to clipboard.', 'success');
       } catch (error) {
         form.output.focus();
         form.output.select();
         document.execCommand('copy');
-        updateGpsStatus('Manual copy used. Select the message and press Ctrl/Cmd + C.', 'success');
+      } finally {
+        setCopyButtonState(true);
+        const existingTimer = Number(copyBtn?.dataset?.resetTimer);
+        if (Number.isFinite(existingTimer)) {
+          clearTimeout(existingTimer);
+        }
+        copyBtn.dataset.resetTimer = window.setTimeout(() => {
+          setCopyButtonState(false);
+        }, 1200).toString();
       }
     }
 
@@ -706,7 +732,9 @@
     });
     form.hotspot.addEventListener('input', scheduleLiveMessageUpdate);
     form.description.addEventListener('input', scheduleLiveMessageUpdate);
+    window.addEventListener('beforeunload', resetGpsFields);
 
+    resetGpsFields();
     validateRequiredFields();
     renderSuggestions([]);
   </script>
