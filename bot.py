@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sqlite3
+from datetime import date
 
 import aiohttp
 import discord
@@ -20,6 +21,7 @@ DISCORD_TOKEN = os.environ["DISCORD_TOKEN"]
 CHANNEL_ID = int(os.environ["DISCORD_CHANNEL_ID"])
 REGION = os.environ.get("EBIRD_REGION", "US-GA")
 BACK_DAYS = int(os.environ.get("EBIRD_BACK_DAYS", "14"))
+RECENT_OBSERVATION_CUTOFF_DAYS = max(0, BACK_DAYS - 1)
 POLL_MINUTES = int(os.environ.get("POLL_MINUTES", "15"))
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
@@ -114,6 +116,29 @@ def region_alert_thread_name(region: str) -> str:
 def region_of(o: dict) -> str | None:
     name = o.get("subnational2Name", "").lower().removesuffix(" county")
     return COUNTY_REGION.get(name)
+
+
+def is_recent_observation(o: dict) -> bool:
+    """Only post brand-new sightings that were observed within the recent threshold."""
+    obs_dt = (o.get("obsDt") or "").strip()
+    if not obs_dt:
+        return True
+    try:
+        obs_day = obs_dt.split("T", 1)[0].split(" ", 1)[0]
+        age_days = (date.today() - date.fromisoformat(obs_day)).days
+    except ValueError:
+        return True
+    if age_days > RECENT_OBSERVATION_CUTOFF_DAYS:
+        log.info(
+            "Skipping stale observation for %s (%s): %d days old (> %d)",
+            o.get("comName", "unknown"),
+            obs_dt,
+            age_days,
+            RECENT_OBSERVATION_CUTOFF_DAYS,
+        )
+        return False
+    return True
+
 
 db = sqlite3.connect(DB_PATH)
 if db.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
@@ -634,8 +659,11 @@ async def poll_once():
             todo = {}
             for o in sorted(obs, key=lambda o: sub_num(o["subId"])):
                 k = (o["subId"], o["speciesCode"])
-                if k not in known:
-                    todo.setdefault(k, o)
+                if k in known:
+                    continue
+                if not is_recent_observation(o):
+                    continue
+                todo.setdefault(k, o)
             log.info("%d new sightings to process", len(todo))
 
             cache: dict = {}
