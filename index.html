@@ -20,7 +20,7 @@
 
       <label>
         Hotspot name (optional)
-        <input id="hotspot" class="journal-input" type="text" placeholder="e.g. Lake Herrick" />
+        <input id="hotspot" class="journal-input" type="text" placeholder="e.g. Jekyll Island" />
       </label>
 
       <label>
@@ -29,35 +29,28 @@
       </label>
 
       <div class="journal-section-title">GPS location</div>
-      <div class="gps-actions">
-        <button type="button" id="useLocationBtn" class="journal-btn">Use my GPS</button>
+      <div class="gps-input-row">
+        <div class="gps-field">
+          <label>
+            Latitude
+            <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="33.955000" readonly />
+          </label>
+        </div>
+
+        <div class="gps-field">
+          <label>
+            Longitude
+            <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="-83.382000" readonly />
+          </label>
+        </div>
+
+        <button type="button" id="useLocationBtn" class="journal-btn gps-button">Use my GPS</button>
       </div>
-
-      <label>
-        Latitude
-        <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="33.955000" readonly />
-      </label>
-
-      <label>
-        Longitude
-        <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="-83.382000" readonly />
-      </label>
 
       <div id="gpsAccuracy" class="journal-status-box">Accuracy: no location captured yet</div>
 
       <div class="journal-section-title">Suggested post regions</div>
-      <label>
-        Select county / post region
-        <select id="countySelect" class="journal-select" aria-label="Select county or post region">
-          <option value="">No county match yet</option>
-        </select>
-      </label>
-
       <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
-
-      <div class="form-actions">
-        <button type="button" id="generateBtn" class="journal-btn">Generate Discord message</button>
-      </div>
     </form>
 
     <div class="journal-section-title">Generated message</div>
@@ -162,11 +155,11 @@
       longitude: document.getElementById('longitude'),
       gpsAccuracy: document.getElementById('gpsAccuracy'),
       output: document.getElementById('discordOutput'),
-      suggestions: document.getElementById('regionSuggestions'),
-      countySelect: document.getElementById('countySelect')
+      suggestions: document.getElementById('regionSuggestions')
     };
 
     let latestLocation = null;
+    let selectedCounty = '';
 
     function updateGpsStatus(text, tone = 'muted') {
       form.gpsAccuracy.textContent = text;
@@ -178,17 +171,57 @@
       form.gpsAccuracy.style.color = colors[tone] || colors.muted;
     }
 
+    function applyFieldErrorState(field, hasError) {
+      if (!field) return;
+      field.classList.toggle('field-error', hasError);
+    }
+
+    function validateRequiredFields() {
+      const speciesHasValue = form.species.value.trim().length > 0;
+      const gpsHasValue = Boolean(latestLocation && Number.isFinite(latestLocation.lat) && Number.isFinite(latestLocation.lon));
+
+      applyFieldErrorState(form.species, !speciesHasValue);
+      applyFieldErrorState(form.latitude, !gpsHasValue);
+      applyFieldErrorState(form.longitude, !gpsHasValue);
+
+      return speciesHasValue && gpsHasValue;
+    }
+
     function selectCountyOption(county) {
       if (!county) return;
-      const countyOptions = [...form.countySelect.options].map((option) => option.value).filter(Boolean);
-      if (!countyOptions.includes(county)) {
-        countyOptions.push(county);
+      selectedCounty = county;
+      const rows = renderSuggestionsFromCountyList();
+      renderSuggestions(rows);
+    }
+
+    function toCamelCaseSpecies(value) {
+      return value
+        .trim()
+        .toLowerCase()
+        .replace(/\b([a-z])/g, (_, letter) => letter.toUpperCase())
+        .replace(/\s+([A-Z])/g, ' $1');
+    }
+
+    function renderSuggestionsFromCountyList() {
+      const counties = [...new Set((findCountyForPoint(latestLocation?.lat ?? 0, latestLocation?.lon ?? 0, Number.isFinite(latestLocation?.accuracy) ? latestLocation.accuracy : 5000) || []))].filter(Boolean);
+      if (!counties.length) {
+        return [];
       }
-      form.countySelect.innerHTML = countyOptions
-        .map((optionCounty) => `<option value="${optionCounty}" ${optionCounty === county ? 'selected' : ''}>${optionCounty}</option>`)
-        .join('');
-      form.countySelect.value = county;
-      updateCountyOptions(countyOptions);
+
+      const currentSelection = counties.includes(selectedCounty) ? selectedCounty : counties[0];
+      selectedCounty = currentSelection;
+
+      return counties.map((county) => {
+        const slug = COUNTY_TO_REGION[county.toLowerCase()];
+        const region = slug ? REGION_LABELS[slug] || slug : 'Unknown';
+        const category = COUNTY_TO_CATEGORY[county.toLowerCase()] || 'Unassigned';
+        return {
+          county,
+          region,
+          category,
+          selected: county === currentSelection
+        };
+      });
     }
 
     function formatCoordinate(value, axis) {
@@ -211,17 +244,18 @@
       try {
         await updateSuggestedCountyMatches(latestLocation);
       } catch (error) {
-        form.countySelect.innerHTML = '<option value="">No county match yet</option>';
+        renderSuggestions([]);
       }
 
       const accuracyText = Number.isFinite(accuracy) ? `Accuracy: ±${Math.round(accuracy)}m` : 'Accuracy: GPS location captured';
       updateGpsStatus(accuracyText, 'success');
+      validateRequiredFields();
       scheduleLiveMessageUpdate();
     }
 
     function useMyGps() {
       if (!navigator.geolocation) {
-        updateGpsStatus('This browser does not support GPS lookup.', 'error');
+        updateGpsStatus('GPS lookup unavailable in this browser.', 'muted');
         return;
       }
 
@@ -231,7 +265,7 @@
           setLocation(position.coords.latitude, position.coords.longitude, position.coords.accuracy);
         },
         (error) => {
-          updateGpsStatus(`GPS failed: ${error.message}`, 'error');
+          updateGpsStatus(`GPS failed: ${error.message}`, 'muted');
         },
         {
           enableHighAccuracy: true,
@@ -466,21 +500,14 @@
     function updateCountyOptions(countyNames) {
       const counties = [...new Set(countyNames || [])].filter(Boolean);
       if (!counties.length) {
-        form.countySelect.innerHTML = '<option value="">No county match yet</option>';
+        selectedCounty = '';
         renderSuggestions([]);
         return;
       }
 
-      const previousSelection = form.countySelect.value;
-      form.countySelect.innerHTML = counties
-        .map((county) => `<option value="${county}" ${county === previousSelection ? 'selected' : ''}>${county}</option>`)
-        .join('');
+      const currentSelection = counties.includes(selectedCounty) ? selectedCounty : counties[0];
+      selectedCounty = currentSelection;
 
-      if (!form.countySelect.value) {
-        form.countySelect.value = counties[0];
-      }
-
-      const selectedCounty = form.countySelect.value;
       const rows = counties.map((county) => {
         const slug = COUNTY_TO_REGION[county.toLowerCase()];
         const region = slug ? REGION_LABELS[slug] || slug : 'Unknown';
@@ -489,7 +516,7 @@
           county,
           region,
           category,
-          selected: county === selectedCounty
+          selected: county === currentSelection
         };
       });
 
@@ -561,7 +588,7 @@
 
     async function updateSuggestedCountyMatches(location) {
       if (!location) {
-        form.countySelect.innerHTML = '<option value="">No county match yet</option>';
+        selectedCounty = '';
         renderSuggestions([]);
         return;
       }
@@ -573,45 +600,49 @@
     }
 
     async function generateMessage() {
-      const species = form.species.value.trim();
-      const hotspot = form.hotspot.value.trim();
+      const species = toCamelCaseSpecies(form.species.value.trim());
+      const hotspot = toCamelCaseSpecies(form.hotspot.value.trim());
       const description = form.description.value.trim();
       const location = latestLocation;
 
-      if (!species || !location) {
-        updateGpsStatus('Enter the species and a valid GPS coordinate.', 'error');
+      if (!validateRequiredFields()) {
         return;
       }
 
       try {
         await loadCountyGeodata();
       } catch (error) {
-        updateGpsStatus('Could not load county boundaries. Falling back to a coarse match.', 'error');
+        updateGpsStatus('Using the closest available county match.', 'muted');
       }
 
-      const countySelection = form.countySelect.value;
       const countyNames = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
-      const selectedCounty = countySelection || countyNames[0] || 'Unknown County';
-      const countySlug = COUNTY_TO_REGION[(selectedCounty || '').toLowerCase()];
+      const resolvedCounty = selectedCounty || countyNames[0] || 'Unknown County';
+      const selectedCountyName = resolvedCounty;
+      const countySlug = COUNTY_TO_REGION[(selectedCountyName || '').toLowerCase()];
 
-      const regionSuggestions = selectedCounty && countySlug
+      const regionSuggestions = selectedCountyName && countySlug
         ? [REGION_LABELS[countySlug] || countySlug]
         : getSuggestedRegions(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000);
-      const categorySuggestions = selectedCounty
-        ? [COUNTY_TO_CATEGORY[selectedCounty.toLowerCase()] || 'Unassigned']
+      const categorySuggestions = selectedCountyName
+        ? [COUNTY_TO_CATEGORY[selectedCountyName.toLowerCase()] || 'Unassigned']
         : getSuggestedCategories(regionSuggestions);
 
       const today = new Date();
       const formattedDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
-      const title = `${species}${hotspot ? `-${hotspot}` : ''} (${selectedCounty})-${formattedDate}`;
+      const formattedTime = new Intl.DateTimeFormat('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      }).format(today).replace(' ', '').replace(':', ':');
+      const title = `${species}${hotspot ? ` - ${hotspot}` : ''} (${selectedCountyName}) - ${formattedDate}`;
       const gpsText = `${formatCoordinate(location.lat, 'lat')}, ${formatCoordinate(location.lon, 'lon')}`;
       const notesText = description ? ` ${description}` : '';
-      const text = `${title}\n> ${gpsText}.${notesText}`;
+      const text = `${title}\n> ${gpsText} @ ${formattedTime}.${notesText}`;
 
       form.output.value = text;
       renderSuggestions(
-        selectedCounty
-          ? [{ county: selectedCounty, region: regionSuggestions[0], category: categorySuggestions[0] || '—', selected: true }]
+        selectedCountyName
+          ? [{ county: selectedCountyName, region: regionSuggestions[0], category: categorySuggestions[0] || '—', selected: true }]
           : buildSuggestionRows(regionSuggestions, categorySuggestions).map((row) => ({ county: '—', region: row.region, category: row.category, selected: true }))
       );
     }
@@ -619,7 +650,6 @@
     async function copyMessage() {
       const text = form.output.value.trim();
       if (!text) {
-        updateGpsStatus('Generate a message before copying.', 'error');
         return;
       }
 
@@ -644,12 +674,15 @@
     }
 
     document.getElementById('useLocationBtn').addEventListener('click', useMyGps);
-    document.getElementById('generateBtn').addEventListener('click', generateMessage);
     document.getElementById('copyBtn').addEventListener('click', copyMessage);
-    form.species.addEventListener('input', scheduleLiveMessageUpdate);
+    form.species.addEventListener('input', () => {
+      validateRequiredFields();
+      scheduleLiveMessageUpdate();
+    });
     form.hotspot.addEventListener('input', scheduleLiveMessageUpdate);
     form.description.addEventListener('input', scheduleLiveMessageUpdate);
 
+    validateRequiredFields();
     renderSuggestions([]);
   </script>
 </body>
