@@ -5,6 +5,7 @@ Usage: python georgia_map.py
 """
 import json
 import math
+import re
 import sys
 import urllib.request
 from pathlib import Path
@@ -202,6 +203,100 @@ LABEL_OFFSETS = {"fulton-county": (-10, 14), "fall-line-sandhills": (45, 40),
                 "metro-atlanta-north":(0,-20),"west-piedmont":(0,20),"greater-augusta":(30,30),"greater-athens":(0,30)}
 
 
+def load_ytd_county_data(path: Path | None = None) -> dict[str, int]:
+    """Load county YTD checklist counts from the generated county report HTML."""
+    report_path = path or Path(__file__).with_name("county_info.html")
+    if not report_path.exists():
+        raise SystemExit(f"YTD data not found: {report_path}")
+    html = report_path.read_text(encoding="utf-8")
+    counts: dict[str, int] = {}
+    for row in re.findall(r"<tr>(.*?)</tr>", html, re.S):
+        county_match = re.search(r'<th scope="row">([^<]+)</th>', row)
+        count_match = re.search(r'<td class="numeric strong-number">([0-9,]+)</td>', row)
+        if county_match and count_match:
+            county = county_match.group(1).strip().lower()
+            counts[county] = int(count_match.group(1).replace(",", ""))
+    if not counts:
+        raise SystemExit(f"No YTD county counts found in {report_path}")
+    return counts
+
+
+def interpolate_color(start: tuple[int, int, int], end: tuple[int, int, int], t: float) -> tuple[int, int, int]:
+    t = max(0.0, min(1.0, t))
+    return tuple(
+        round(start[i] + (end[i] - start[i]) * t)
+        for i in range(3)
+    )
+
+
+def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
+    return "#" + "".join(f"{value:02x}" for value in rgb)
+
+
+def viridis_color(t: float) -> str:
+    t = max(0.0, min(1.0, t))
+    stops = [
+        (0.00, (68, 1, 84)),
+        (0.10, (48, 103, 141)),
+        (0.25, (53, 183, 121)),
+        (0.50, (138, 211, 84)),
+        (0.75, (251, 206, 82)),
+        (1.00, (253, 231, 37)),
+    ]
+    for index, (stop, color) in enumerate(stops[:-1]):
+        next_stop, next_color = stops[index + 1]
+        if t <= stop:
+            return rgb_to_hex(color)
+        if t <= next_stop:
+            local_t = (t - stop) / (next_stop - stop)
+            mixed = interpolate_color(color, next_color, local_t)
+            return rgb_to_hex(mixed)
+    return rgb_to_hex(stops[-1][1])
+
+
+def heatmap_color(value: int, min_value: int = 1, max_value: int = 10000) -> str:
+    if value <= 0:
+        return "#111111"
+    min_log = math.log10(min_value)
+    max_log = math.log10(max_value)
+    if max_log <= min_log:
+        scaled = 1.0
+    else:
+        scaled = (math.log10(value) - min_log) / (max_log - min_log)
+    return viridis_color(scaled)
+
+
+def build_ytd_heatmap() -> dict[str, str]:
+    counts = load_ytd_county_data()
+    min_value = min(counts.values())
+    max_value = max(counts.values())
+    return {county.lower(): heatmap_color(value, min_value, max_value) for county, value in counts.items()}
+
+
+def format_ytd_count(value: int) -> str:
+    if value >= 1000:
+        compact = value / 1000
+        return f"{compact:.2f}k".rstrip("0").rstrip(".")
+    return str(value)
+
+
+def legend_values(min_value: int, max_value: int) -> list[int]:
+    values = []
+    start_power = max(0, math.floor(math.log10(min_value)))
+    end_power = max(start_power, math.ceil(math.log10(max_value)))
+    for powered in range(start_power, end_power + 1):
+        value = 10 ** powered
+        if min_value <= value <= max_value:
+            values.append(value)
+    if not values:
+        values = [min_value, max_value]
+    elif values[0] != min_value:
+        values.insert(0, min_value)
+    if values[-1] != max_value:
+        values.append(max_value)
+    return values
+
+
 def load_counties() -> list[dict]:
     cache = Path(__file__).parent / ".cache" / "geojson-counties-fips.json"
     if not cache.exists():
@@ -223,7 +318,10 @@ def normalize_segment(p1: tuple[float, float], p2: tuple[float, float]) -> tuple
 
 
 def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[str, str],
-          title: str, y0: int, labels: dict[str, str] | None = None) -> tuple[str, int]:
+          title: str, y0: int, labels: dict[str, str] | None = None,
+          county_fill_colors: dict[str, str] | None = None,
+          legend_scale_values: list[int] | None = None,
+          county_labels: dict[str, str] | None = None) -> tuple[str, int]:
     """Return an SVG group for the map placed at y0 and its height."""
     regions = categories
     if title == "Categories":
@@ -238,9 +336,14 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
     names = {f["properties"]["NAME"].lower() for f in features}
     if names != set(county_region):
         raise SystemExit(f"County mismatch: {sorted(names ^ set(county_region))}")
-    missing = [r for r in regions if r not in colors]
-    if missing:
-        raise SystemExit(f"Add colors for: {missing}")
+    if county_fill_colors is None:
+        missing = [r for r in regions if r not in colors]
+        if missing:
+            raise SystemExit(f"Add colors for: {missing}")
+    else:
+        missing = [county for county in county_region if county not in county_fill_colors]
+        if missing:
+            raise SystemExit(f"Add county colors for: {missing[:5]}")
 
     lons = [p[0] for f in features for r in rings(f["geometry"]) for p in r]
     lats = [p[1] for f in features for r in rings(f["geometry"]) for p in r]
@@ -254,9 +357,10 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
 
     paths = []
     centroids = {region: [0.0, 0.0, 0.0] for region in regions}
+    county_centroids: dict[str, tuple[float, float]] = {}
     county_segments: dict[str, set[tuple[tuple[float, float], tuple[float, float]]]] = {}
     county_group = {}
-    if title == "Regions":
+    if title in {"Regions", "YTD Checklists"}:
         region_to_group = {region: group for group, region_names in REGION_GROUPS.items() for region in region_names}
         county_group = {county.lower(): region_to_group[COUNTY_REGION[county.lower()]] for county in COUNTY_REGION}
 
@@ -265,6 +369,12 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         region = county_region[name.lower()]
         projected = [[project(p) for p in r] for r in rings(f["geometry"])]
         county_segments[name.lower()] = set()
+        polygon_points = [pt for ring in projected for pt in ring]
+        if polygon_points:
+            county_centroids[name.lower()] = (
+                sum(pt[0] for pt in polygon_points) / len(polygon_points),
+                sum(pt[1] for pt in polygon_points) / len(polygon_points),
+            )
         for ring in projected:
             for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1]):
                 cross = x1 * y2 - x2 * y1
@@ -279,17 +389,18 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         if title == "Categories":
             stroke_color = "#fff"
             stroke_width = "2.5"
-        elif title == "Regions":
+        elif title in {"Regions", "YTD Checklists"}:
             stroke_color = "#f2f2f2"
             stroke_width = "0.8"
         else:
             stroke_color = "#fff"
             stroke_width = "0.6"
+        fill_color = county_fill_colors.get(name.lower()) if county_fill_colors is not None else colors[region]
         paths.append(
-            f'<path d="{d}" fill="{colors[region]}" stroke="{stroke_color}" stroke-width="{stroke_width}" stroke-linejoin="round"><title>{escape(name)} - {escape(label)}</title></path>'
+            f'<path d="{d}" fill="{fill_color}" stroke="{stroke_color}" stroke-width="{stroke_width}" stroke-linejoin="round"><title>{escape(name)} - {escape(label)}</title></path>'
         )
 
-    if title == "Regions":
+    if title in {"Regions", "YTD Checklists"}:
         segment_map: dict[tuple[tuple[float, float], tuple[float, float]], set[str]] = {}
         for county_name, segments in county_segments.items():
             for segment in segments:
@@ -331,20 +442,34 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
             )
 
     map_labels = []
-    for region, (area2, x_moment, y_moment) in centroids.items():
-        if not area2:
-            continue
-        label = (labels or {}).get(region, region)
-        font_size = 12 if title == "Categories" else 12
-        offset_key = region.lower().replace(" ", "-")
-        offset_x, offset_y = LABEL_OFFSETS.get(offset_key, (0, 0))
-        map_labels.append(
-            f'<text x="{x_moment / (3 * area2) + offset_x:.1f}" '
-            f'y="{y_moment / (3 * area2) + offset_y:.1f}" '
-            f'text-anchor="middle" dominant-baseline="central" font-size="{font_size}" '
-            f'font-weight="bold" fill="#fff" stroke="#000" stroke-width="4" '
-            f'stroke-linejoin="round" paint-order="stroke">{escape(label)}</text>'
-        )
+    if title != "YTD Checklists":
+        for region, (area2, x_moment, y_moment) in centroids.items():
+            if not area2:
+                continue
+            label = (labels or {}).get(region, region)
+            font_size = 12 if title == "Categories" else 12
+            offset_key = region.lower().replace(" ", "-")
+            offset_x, offset_y = LABEL_OFFSETS.get(offset_key, (0, 0))
+            map_labels.append(
+                f'<text x="{x_moment / (3 * area2) + offset_x:.1f}" '
+                f'y="{y_moment / (3 * area2) + offset_y:.1f}" '
+                f'text-anchor="middle" dominant-baseline="central" font-size="{font_size}" '
+                f'font-weight="bold" fill="#fff" stroke="#000" stroke-width="4" '
+                f'stroke-linejoin="round" paint-order="stroke">{escape(label)}</text>'
+            )
+
+    county_label_items = []
+    if title == "YTD Checklists" and county_labels:
+        for county_name, label in county_labels.items():
+            center = county_centroids.get(county_name)
+            if center is None:
+                continue
+            x, y = center
+            county_label_items.append(
+                f'<text x="{x:.1f}" y="{y:.1f}" text-anchor="middle" dominant-baseline="central" '
+                f'font-size="8" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" '
+                f'paint-order="stroke">{escape(label)}</text>'
+            )
 
     legend = ""
     if title == "Regions":
@@ -360,6 +485,20 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
                 f'<text x="{legend_x + 24}" y="{item_y + 13}" font-size="12" fill="#fff">{escape(category)}</text>'
             )
         legend = "\n".join(legend_items)
+    elif title == "YTD Checklists" and legend_scale_values:
+        legend_items = []
+        legend_x = MAP_WIDTH - 145
+        legend_y = 52
+        for index, value in enumerate(legend_scale_values):
+            item_y = legend_y + index * 22
+            color = heatmap_color(value, min(legend_scale_values), max(legend_scale_values))
+            legend_items.append(
+                f'<rect x="{legend_x}" y="{item_y}" width="18" height="18" fill="{color}" stroke="#fff" stroke-width="1"/>'
+            )
+            legend_items.append(
+                f'<text x="{legend_x + 24}" y="{item_y + 13}" font-size="12" fill="#fff">{escape(str(value))}</text>'
+            )
+        legend = "\n".join(legend_items)
 
     panel_height = height
     svg = (
@@ -367,6 +506,7 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         f'<text x="{PAD}" y="26" font-size="18" font-weight="bold">{escape(title)}</text>\n'
         f'<g>\n' + "\n".join(paths) + "\n</g>\n"
         + "\n".join(map_labels) + "\n"
+        + "\n".join(county_label_items) + "\n"
         + legend
         + "\n</g>\n"
     )
@@ -377,12 +517,30 @@ def main():
     regions = REGIONS
     groups = {g: [c for r in rs for c in regions[r]] for g, rs in REGION_GROUPS.items()}
     features = load_counties()
+    raw_counts = load_ytd_county_data()
+    chart_min = min(raw_counts.values())
+    chart_max = max(raw_counts.values())
+    ytd_heatmap = {county.lower(): heatmap_color(value, chart_min, chart_max) for county, value in raw_counts.items()}
+    ytd_count_labels = {county.lower(): format_ytd_count(value) for county, value in raw_counts.items()}
+    ytd_scale = legend_values(chart_min, chart_max)
 
     output_dir = Path(__file__).parent
-    for filename, categories, colors, title, labels in (
-        ("georgia_regions.svg", regions, COLORS, "Regions", REGION_LABELS),
+    for filename, categories, colors, title, labels, county_fill_colors, legend_values_for_map in (
+        ("georgia_regions.svg", regions, COLORS, "Regions", REGION_LABELS, None, None),
+        ("georgia_ytd.svg", regions, {}, "YTD Checklists", REGION_LABELS, ytd_heatmap, ytd_scale),
     ):
-        svg, height = panel(features, categories, colors, title, 0, labels)
+        county_labels = ytd_count_labels if title == "YTD Checklists" else None
+        svg, height = panel(
+            features,
+            categories,
+            colors,
+            title,
+            0,
+            labels,
+            county_fill_colors=county_fill_colors,
+            legend_scale_values=legend_values_for_map,
+            county_labels=county_labels,
+        )
         width = MAP_WIDTH + 2 * PAD
         out = output_dir / filename
         out.write_text(
