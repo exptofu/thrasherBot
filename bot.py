@@ -515,21 +515,36 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
 
     nickname = nickname.strip()
     if not nickname:
+        log.warning("Nickname command rejected empty value for user %s in guild %s", member.id, guild.id)
         await interaction.response.send_message("Enter your full name to set your nickname.", ephemeral=True)
         return
 
     role = next((role for role in guild.roles if role.name.casefold() == "member"), None)
     bot_member = guild.me
     if role is None:
+        log.warning("Nickname command failed: member role not found in guild %s", guild.id)
         await interaction.response.send_message("The server's member role was not found.", ephemeral=True)
         return
     if bot_member is None or not bot_member.guild_permissions.manage_roles or not bot_member.guild_permissions.manage_nicknames:
+        log.warning(
+            "Nickname command failed: bot lacks required guild permissions in guild %s; manage_roles=%s manage_nicknames=%s",
+            guild.id,
+            bool(bot_member and bot_member.guild_permissions.manage_roles),
+            bool(bot_member and bot_member.guild_permissions.manage_nicknames),
+        )
         await interaction.response.send_message(
             "The bot needs Manage Roles and Manage Nicknames permissions to use this command.",
             ephemeral=True,
         )
         return
     if role >= bot_member.top_role or member.top_role >= bot_member.top_role:
+        log.warning(
+            "Nickname command failed because hierarchy check failed in guild %s: member_top=%s bot_top=%s target_top=%s",
+            guild.id,
+            role.position,
+            bot_member.top_role.position if bot_member else None,
+            member.top_role.position,
+        )
         await interaction.response.send_message(
             "The bot's highest role must be above both your highest role and the member role.",
             ephemeral=True,
