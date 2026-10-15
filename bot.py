@@ -236,7 +236,7 @@ def format_coordinate_links(text: str) -> str:
 
 
 def format_comments(members: list[dict], field: str, unknown_name: str, include_coordinates: bool = False) -> str:
-    grouped: dict[str, tuple[str, list[str]]] = {}
+    grouped: dict[str, tuple[str, list[tuple[str, str]]]] = {}
     for member in members:
         comment = member.get(field)
         if not comment:
@@ -248,8 +248,10 @@ def format_comments(members: list[dict], field: str, unknown_name: str, include_
             grouped[normalized] = (comment.strip(), [])
         names = grouped[normalized][1]
         name = member.get("userDisplayName", unknown_name)
-        if name not in names:
-            names.append(name)
+        sub_id = member.get("subId")
+        label = name if not sub_id else f"[{name}](https://ebird.org/checklist/{sub_id})"
+        if not any(existing_name == name for existing_name, _ in names):
+            names.append((name, label))
 
     if not grouped:
         return ""
@@ -257,8 +259,8 @@ def format_comments(members: list[dict], field: str, unknown_name: str, include_
         text = next(iter(grouped.values()))[0]
     else:
         text = "\n".join(
-            f"{names[0]}{' et al.' if len(names) > 1 else ''}: {comment}"
-            for comment, names in grouped.values()
+            f"{display_names[0][1]}{' et al.' if len(display_names) > 1 else ''}: {comment}"
+            for comment, display_names in grouped.values()
         )
     return format_coordinate_links(text) if include_coordinates else text
 
