@@ -853,18 +853,33 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
     guild = interaction.guild
     member = interaction.user
     if guild is None or not isinstance(member, discord.Member):
-        await interaction.response.send_message("This command is only available in a server.", ephemeral=True)
+        embed = discord.Embed(
+            title="⚠️ Server-only command",
+            description="This command can only be used inside the Discord server.",
+            color=discord.Color.orange(),
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
     nickname = nickname.strip()
     if not nickname:
         log.warning("Nickname command rejected empty value for user %s in guild %s", member.id, guild.id)
-        await interaction.response.send_message("Enter your full name to set your nickname.", ephemeral=True)
+        embed = discord.Embed(
+            title="⚠️ Missing full name",
+            description="Please enter your full name to set your server nickname.",
+            color=discord.Color.orange(),
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
     parts = nickname.split()
     if len(parts) < 2:
         log.warning("Nickname command rejected malformed value for user %s in guild %s: %r", member.id, guild.id, nickname)
-        await interaction.response.send_message("Please enter your full name with at least one space in between.", ephemeral=True)
+        embed = discord.Embed(
+            title="⚠️ Format required",
+            description="Please enter your full name with at least one space between first and last name.",
+            color=discord.Color.orange(),
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
     role = next((role for role in guild.roles if role.name.casefold() == "member"), None)
@@ -875,7 +890,12 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
     bot_member = guild.me
     if role is None:
         log.warning("Nickname command failed: member role not found in guild %s", guild.id)
-        await interaction.response.send_message("The server's member role was not found.", ephemeral=True)
+        embed = discord.Embed(
+            title="❌ Member role missing",
+            description="The server's member role was not found, so this registration step cannot continue.",
+            color=discord.Color.red(),
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
     if bot_member is None or not bot_member.guild_permissions.manage_roles or not bot_member.guild_permissions.manage_nicknames:
         log.warning(
@@ -884,10 +904,12 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
             bool(bot_member and bot_member.guild_permissions.manage_roles),
             bool(bot_member and bot_member.guild_permissions.manage_nicknames),
         )
-        await interaction.response.send_message(
-            "The bot needs Manage Roles and Manage Nicknames permissions to use this command.",
-            ephemeral=True,
+        embed = discord.Embed(
+            title="❌ Bot permissions missing",
+            description="The bot needs Manage Roles and Manage Nicknames permissions to complete this step.",
+            color=discord.Color.red(),
         )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
     if role >= bot_member.top_role or member.top_role >= bot_member.top_role:
         log.warning(
@@ -897,10 +919,12 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
             bot_member.top_role.position if bot_member else None,
             member.top_role.position,
         )
-        await interaction.response.send_message(
-            "The bot's highest role must be above both your highest role and the member role.",
-            ephemeral=True,
+        embed = discord.Embed(
+            title="❌ Role hierarchy issue",
+            description="The bot's highest role must be above both your highest role and the member role.",
+            color=discord.Color.red(),
         )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
         return
 
     await interaction.response.defer(ephemeral=True)
@@ -918,30 +942,44 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
             member.id, guild.id, error,
         )
         if role_added and member.id == guild.owner_id:
-            message = (
-                "The member role is in place, but Discord does not allow the bot to change the "
+            description = (
+                "Your member role is in place, but Discord does not allow the bot to change the "
                 "server owner's nickname. Please update it yourself in the server."
             )
         elif role_added:
-            message = (
-                "The member role is in place, but Discord rejected the nickname change. "
-                "Ask an admin to verify the bot has Manage Nicknames and its highest role "
-                "is above yours."
+            description = (
+                "Your member role is in place, but Discord rejected the nickname change. "
+                "Ask an admin to verify the bot has Manage Nicknames and its highest role is above yours."
             )
         else:
-            message = "The bot could not assign the member role. Check its role permissions and hierarchy."
-        await interaction.followup.send(message, ephemeral=True)
+            description = "The bot could not assign the member role. Check its role permissions and hierarchy."
+        embed = discord.Embed(
+            title="⚠️ Nickname update blocked",
+            description=description,
+            color=discord.Color.orange(),
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
         return
     except discord.HTTPException:
-        message = (
+        description = (
             "The member role was assigned, but Discord could not update your nickname."
             if role_added
             else "Discord could not assign the member role. Please try again later."
         )
-        await interaction.followup.send(message, ephemeral=True)
+        embed = discord.Embed(
+            title="⚠️ Discord error",
+            description=description,
+            color=discord.Color.orange(),
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
         return
 
-    await interaction.followup.send("Nickname updated and member role assigned.", ephemeral=True)
+    embed = discord.Embed(
+        title="✅ Nickname updated",
+        description=f"Your server nickname is now set to **{nickname}** and the member role has been assigned.",
+        color=discord.Color.green(),
+    )
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 class NicknameModal(discord.ui.Modal, title="Set your server nickname"):
