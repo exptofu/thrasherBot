@@ -58,12 +58,12 @@ The checklist values can be refreshed by replacing `2026ytd_counts.html` and reg
 
 ## Discord migration
 
-The forum allows 20 tags. Remove the 16 obsolete tag names manually before restarting; four names are unchanged, and the bot will add the 16 new tags. The bot does not delete tags automatically.
+The forum allows 20 tags. Remove the 16 obsolete tag names manually, then run `python utils/region_channels.py --apply`; four names are unchanged, and the standalone job adds the 16 new tags. Neither the job nor `bot.py` deletes tags automatically.
 
-At startup, the bot reuses and moves channels whose names exactly match a region slug. It creates a forum and banter channel for each new slug; the matching RBA thread is created when the first new sighting arrives. Channels with retired slugs are left in place and are not deleted or renamed automatically. For this migration, only the four identical slugs reuse their existing regional channel pairs; the other old pairs remain as historical channels while new pairs are created.
+The standalone job reuses and moves channels whose names exactly match a region slug. It creates a forum and banter channel for each new slug; the matching RBA thread is created when the first new sighting arrives. Channels with retired slugs are left in place and are not deleted or renamed automatically. For this migration, only the four identical slugs reuse their existing regional channel pairs; the other old pairs remain as historical channels while new pairs are created. The job also syncs regional channel permissions with their parent categories.
 
 Changing a county's region affects future routing. Existing sighting posts and RBA threads are not automatically retagged or redistributed. Review and archive old regional channels manually after confirming the new channels and tags are working.
 
-Regional startup provisioning, permission syncing, and ordering live in `utils/region_channels.py`. Keep `REGIONS` and `REGION_GROUPS` in `bot.py` and `georgia_map.py` synchronized. Run `python -m py_compile bot.py utils/region_channels.py utils/sync_category_permissions.py georgia_map.py` and `python georgia_map.py` before restarting the service.
+Regional provisioning, permission syncing, and ordering live in standalone `utils/region_channels.py`; they do not run when `bot.py` starts. Keep `REGIONS` and `REGION_GROUPS` in `bot.py` and `georgia_map.py` synchronized. Run `python -m py_compile bot.py utils/region_channels.py utils/sync_category_permissions.py georgia_map.py` and `python georgia_map.py` before running the region job.
 
 The temporary `utils/sync_category_permissions.py` utility previews changes by default. It can apply category permissions to all categorized channels in the alert forum's guild except the forum ID configured by `DISCORD_CHANNEL_ID`; it is not limited to regional channels. Review the full preview before using `--apply`, because channel-specific overwrites on affected channels will be replaced by the category overwrites.

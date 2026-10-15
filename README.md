@@ -21,13 +21,20 @@ python bot.py
 
 Georgia's 159 counties are grouped into 20 regions in the `REGIONS` dict in `bot.py`. The bot:
 
-- Creates a forum tag for each region in the `DISCORD_CHANNEL_ID` forum on startup and tags each new post with its county's region. Discord allows 20 tags per forum, so the region list uses all of them.
-- Creates a regional discussion forum and a `<region>-banter` text channel for each region. Both are grouped under a broader geographic category such as `Metro Atlanta` or `North Georgia`. Members can reply in the discussion forums; only the bot starts forum posts. The banter channels are for general local discussion.
-- Regional channel creation, category permission syncing, and ordering are implemented in `utils/region_channels.py`.
+- Tags each new alert post with its county's region. Discord allows 20 tags per forum, so the region list uses all of them.
 - Posts to each region's `<region>_rba` post when a net-new sighting appears, linking to the original post.
-- If startup needs to reorder channels, it waits `DISCORD_CHANNEL_MOVE_DELAY_SECONDS` between moves (default: 1 second).
 
-The bot needs the Manage Channels, Manage Roles, and Manage Threads permissions; the invite link it logs on a permission error includes them.
+The bot needs View Channel, Send Messages, Send Messages in Threads, Read Message History, and Manage Threads in the alert forum. Its invite link on a permission error includes these permissions.
+
+## Regional setup
+
+Regional discussion forums and `<region>-banter` channels are managed separately from bot startup. Run this job when you want to add missing tags, create or move regional channels, sync their category permissions, and reorder forum/banter pairs:
+
+```powershell
+python utils/region_channels.py --apply
+```
+
+The job reads `REGIONS` and `REGION_GROUPS` from `bot.py` without starting the bot. It requires Manage Channels and Manage Roles, does not delete obsolete tags or channels, and waits `DISCORD_CHANNEL_MOVE_DELAY_SECONDS` between moves (default: 3 seconds).
 
 ### Temporary permission sync utility
 

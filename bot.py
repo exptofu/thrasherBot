@@ -8,7 +8,6 @@ import aiohttp
 import discord
 from discord.ext import tasks
 from dotenv import load_dotenv
-from utils.region_channels import ensure_region_forums, ensure_region_tags
 
 load_dotenv()
 
@@ -20,9 +19,6 @@ BACK_DAYS = int(os.environ.get("EBIRD_BACK_DAYS", "14"))
 POLL_MINUTES = int(os.environ.get("POLL_MINUTES", "15"))
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
-DISCORD_CHANNEL_MOVE_DELAY_SECONDS = float(
-    os.environ.get("DISCORD_CHANNEL_MOVE_DELAY_SECONDS", "1")
-)
 MAX_RETRIES = 5
 SCHEMA_VERSION = 2
 
@@ -500,8 +496,6 @@ REQUIRED_PERMS = discord.Permissions(
     send_messages=True,
     send_messages_in_threads=True,
     read_message_history=True,
-    manage_channels=True,
-    manage_roles=True,
     manage_threads=True,
 )
 
@@ -531,21 +525,6 @@ class Bot(discord.Client):
             )
             await self.close()
             return
-
-        try:
-            await ensure_region_tags(channel, REGIONS)
-        except discord.HTTPException:
-            log.exception("Could not create region tags; the bot needs Manage Channels")
-        try:
-            await ensure_region_forums(
-                channel, REGION_GROUPS, DISCORD_CHANNEL_MOVE_DELAY_SECONDS
-            )
-        except discord.HTTPException:
-            log.exception(
-                "Could not sync regional channels; the bot needs Manage Channels and "
-                "Manage Roles. Re-authorize it with: %s",
-                invite,
-            )
 
         if not poll.is_running():
             poll.start()
