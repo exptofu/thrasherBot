@@ -104,52 +104,151 @@ let gpsPollingInterval = null;
 let gpsAutoCenterUntil = 0;
 let gpsTrackingStartedAt = 0;
 
+function normalizeLatLngInput(latLng) {
+  if (Array.isArray(latLng) && latLng.length >= 2) {
+    return { lng: Number(latLng[1]), lat: Number(latLng[0]) };
+  }
+
+  if (latLng && typeof latLng === 'object') {
+    const lng = Number(latLng.lng ?? latLng.lon ?? 0);
+    const lat = Number(latLng.lat ?? 0);
+    if (Number.isFinite(lng) && Number.isFinite(lat)) {
+      return { lng, lat };
+    }
+  }
+
+  return { lng: -84.3880, lat: 33.7490 };
+}
+
+function metersToPixels(map, meters, latitude) {
+  const zoom = map.getZoom();
+  const metersPerPixel = (156543.03392 * Math.cos(latitude * Math.PI / 180)) / (2 ** zoom);
+  return Math.max(0, meters / Math.max(metersPerPixel, 1));
+}
+
+function createMapOverlayElement(className) {
+  const container = document.getElementById('gpsMap');
+  const element = document.createElement('div');
+  element.className = className;
+  element.setAttribute('aria-hidden', 'true');
+  container.appendChild(element);
+  return element;
+}
+
+function createGpsAccuracyCircle() {
+  const element = createMapOverlayElement('gps-accuracy-circle');
+
+  return {
+    _center: { lng: -84.3880, lat: 33.7490 },
+    _radiusMeters: 25,
+    _element: element,
+    setLatLng(latLng) {
+      this._center = normalizeLatLngInput(latLng);
+      this.render();
+    },
+    setRadius(radius) {
+      this._radiusMeters = Number(radius) || 0;
+      this.render();
+    },
+    setStyle(style = {}) {
+      const opacity = Number(style.opacity ?? 1);
+      const fillOpacity = Number(style.fillOpacity ?? 1);
+      const visible = opacity > 0 && fillOpacity > 0;
+      this._element.style.opacity = String(opacity);
+      this._element.style.display = visible ? 'block' : 'none';
+      this._element.style.background = `rgba(96, 165, 250, ${Math.max(0, Math.min(1, fillOpacity))})`;
+      this._element.style.borderColor = `rgba(59, 130, 246, ${Math.max(0, Math.min(1, opacity))})`;
+    },
+    render() {
+      if (!gpsMap) return;
+      const point = gpsMap.project(this._center);
+      const radiusPx = metersToPixels(gpsMap, this._radiusMeters, this._center.lat);
+      const size = radiusPx * 2;
+      this._element.style.left = `${point.x - radiusPx}px`;
+      this._element.style.top = `${point.y - radiusPx}px`;
+      this._element.style.width = `${size}px`;
+      this._element.style.height = `${size}px`;
+      if (this._element.style.display !== 'none') {
+        this._element.style.display = 'block';
+      }
+    }
+  };
+}
+
+function createGpsPositionMarker() {
+  const element = createMapOverlayElement('gps-position-marker');
+
+  return {
+    _center: { lng: -84.3880, lat: 33.7490 },
+    _element: element,
+    setLatLng(latLng) {
+      this._center = normalizeLatLngInput(latLng);
+      this.render();
+    },
+    setStyle(style = {}) {
+      const opacity = Number(style.opacity ?? 1);
+      const fillOpacity = Number(style.fillOpacity ?? 1);
+      const visible = opacity > 0 && fillOpacity > 0;
+      this._element.style.opacity = String(opacity);
+      this._element.style.display = visible ? 'block' : 'none';
+    },
+    render() {
+      if (!gpsMap) return;
+      const point = gpsMap.project(this._center);
+      this._element.style.left = `${point.x}px`;
+      this._element.style.top = `${point.y}px`;
+      if (this._element.style.display !== 'none') {
+        this._element.style.display = 'block';
+      }
+    }
+  };
+}
+
 function initLocationMap() {
   if (gpsMap) return;
 
-  gpsMap = L.map('gpsMap', {
-    zoomControl: true,
-    scrollWheelZoom: true,
-    dragging: true,
-    attributionControl: true
-  }).setView([33.7490, -84.3880], 7);
+  gpsMap = new maplibregl.Map({
+    container: 'gpsMap',
+    style: 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json',
+    center: [-84.3880, 33.7490],
+    zoom: 7,
+    maxZoom: 20,
+    attributionControl: true,
+    dragRotate: false,
+    touchZoomRotate: false
+  });
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    detectRetina: true,
-    attribution: '&copy; OpenStreetMap contributors'
-  }).addTo(gpsMap);
+  gpsMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+  gpsMap.setView = function(center, zoom, options = {}) {
+    const target = normalizeLatLngInput(center);
+    if (options.animate) {
+      this.flyTo({ center: [target.lng, target.lat], zoom });
+      return;
+    }
+    this.jumpTo({ center: [target.lng, target.lat], zoom });
+  };
 
   gpsCenterPin = document.createElement('div');
   gpsCenterPin.className = 'gps-center-pin';
   gpsCenterPin.setAttribute('aria-hidden', 'true');
   document.getElementById('gpsMap').appendChild(gpsCenterPin);
 
-  gpsAccuracyCircle = L.circle([33.7490, -84.3880], {
-    radius: 25,
-    color: '#3b82f6',
-    fillColor: '#60a5fa',
-    fillOpacity: 0.2,
-    weight: 2,
-    opacity: 0.8,
-    interactive: false
-  }).addTo(gpsMap);
+  gpsAccuracyCircle = createGpsAccuracyCircle();
   gpsAccuracyCircle.setStyle({ opacity: 0, fillOpacity: 0 });
 
-  gpsPositionMarker = L.circleMarker([33.7490, -84.3880], {
-    radius: 7,
-    color: '#2563eb',
-    fillColor: '#2563eb',
-    fillOpacity: 1,
-    weight: 2,
-    interactive: false
-  }).addTo(gpsMap);
+  gpsPositionMarker = createGpsPositionMarker();
   gpsPositionMarker.setStyle({ opacity: 0, fillOpacity: 0 });
 
   const syncMapCenter = () => {
     if (!gpsMap) return;
     const center = gpsMap.getCenter();
+    const pixel = gpsMap.project(center);
     gpsCenterPin.style.display = 'block';
+    gpsCenterPin.style.left = `${pixel.x}px`;
+    gpsCenterPin.style.top = `${pixel.y}px`;
+    gpsAccuracyCircle.render();
+    gpsPositionMarker.render();
     setLocation(center.lat, center.lng, 25);
   };
 
@@ -159,12 +258,12 @@ function initLocationMap() {
     }
   });
   gpsMap.on('zoomend', syncMapCenter);
+  gpsMap.on('load', syncMapCenter);
   window.gpsMap = gpsMap;
   window.gpsCenterPin = gpsCenterPin;
   window.gpsPositionMarker = gpsPositionMarker;
   window.gpsAccuracyCircle = gpsAccuracyCircle;
   gpsCenterPin.style.display = 'block';
-  syncMapCenter();
 }
 
 function updateGpsTrackingMarker(position) {

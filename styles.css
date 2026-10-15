@@ -200,10 +200,46 @@ input[type="number"] {
   margin: 10px 0 14px;
 }
 
-.gps-map .leaflet-container {
+.gps-map .maplibregl-map,
+.gps-map .maplibregl-canvas-container,
+.gps-map .maplibregl-canvas {
   width: 100%;
   height: 100%;
   background: #dfe9f2;
+}
+
+.gps-map .maplibregl-control-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gps-map .maplibregl-ctrl {
+  pointer-events: auto;
+}
+
+.gps-position-marker,
+.gps-accuracy-circle {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  z-index: 350;
+}
+
+.gps-position-marker {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #2563eb;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+}
+
+.gps-accuracy-circle {
+  border-radius: 50%;
+  background: rgba(96, 165, 250, 0.18);
+  border: 2px solid rgba(59, 130, 246, 0.55);
+  box-sizing: border-box;
 }
 
 .gps-center-pin {
