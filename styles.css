@@ -23,7 +23,6 @@
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
-  text-align: right;
   border-bottom: 0px solid #4a3319;
   padding-bottom: 0px;
   margin-bottom: 0;
@@ -202,6 +201,10 @@ input[type="number"] {
   display: block;
 }
 
+.top-row {
+  height:40px;
+}
+
 .top-row,
 .wizard-header,
 .form-actions,
@@ -219,6 +222,11 @@ input[type="number"] {
   margin-top: 18px;
   justify-content: flex-end;
 }
+
+.form-copy {
+  margin-top: 18px;
+}
+
 
 .form-actions.stacked {
   justify-content: space-between;
@@ -420,7 +428,7 @@ input[type="number"] {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.7rem;
+  font-size: 1rem;
   line-height: 1;
   background: #f5e7e7;
   border-color: #bb4a45;
@@ -640,56 +648,23 @@ input[type="number"] {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #b91c1c;
-  border: 2px solid #ffffff;
-  transform: translate(-50%, -80%);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  margin-top:-38px;
+  margin-left:-19px; 
+  fill: #ec1a23;
   pointer-events: none;
   z-index: 500;
 }
 
 .detail-map-pin {
   position: absolute;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #b91c1c;
-  border: 2px solid #ffffff;
+  margin-top:12px;
+  margin-left:0px; 
+  fill: #ec1a23;
   transform: translate(-50%, -50%);
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
   pointer-events: none;
   z-index: 500;
 }
 
-.gps-center-pin::before,
-.detail-map-pin::before {
-  content: "";
-  position: absolute;
-  left: 50%;
-  top: 100%;
-  transform: translate(-50%, -2px);
-  width: 0;
-  height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 12px solid #b91c1c;
-}
-
-.gps-center-pin::after,
-.detail-map-pin::after {
-  content: "";
-  position: absolute;
-  width: 6px;
-  height: 6px;
-  background: #ffffff;
-  border-radius: 50%;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-}
 
 .gps-input-row {
   display: grid;

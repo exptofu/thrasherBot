@@ -234,6 +234,7 @@ function initLocationMap() {
   };
 
   gpsCenterPin = document.createElement('div');
+  gpsCenterPin.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24"><path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12 ,2Z" /></svg>';
   gpsCenterPin.className = 'gps-center-pin';
   gpsCenterPin.setAttribute('aria-hidden', 'true');
   document.getElementById('gpsMap').appendChild(gpsCenterPin);
@@ -290,6 +291,7 @@ function initDetailMap(lat, lon) {
     detailMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
     detailMapPin = document.createElement('div');
+    detailMapPin.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24"><path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12 ,2Z" /></svg>';
     detailMapPin.className = 'detail-map-pin';
     detailMapPin.setAttribute('aria-hidden', 'true');
     detailMapPin.style.display = 'block';
