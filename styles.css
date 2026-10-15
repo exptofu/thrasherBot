@@ -2,7 +2,7 @@
 .journal-container {
   background-color: #fdfcf7; /* Lightened significantly for maximum contrast */
   border-radius: 4px;
-  padding: 35px 30px 35px 35px; /* Generous left padding to clear a "margin line" */
+  padding: 20px 30px 35px 35px; /* Generous left padding to clear a "margin line" */
   font-family: 'Georgia', serif;
   color: #110d0a; /* Darkened to deep near-black ink for contrast compliance */
   box-shadow: 
@@ -16,14 +16,14 @@
 }
 
 .journal-title {
-  font-size: 26px;
+  font-size: 15px;
   font-weight: bold;
-  text-transform: capitalize;
+  text-transform: uppercase;
   letter-spacing: 1px;
-  text-align: center;
-  border-bottom: 2px solid #4a3319;
-  padding-bottom: 12px;
-  margin-bottom: 30px;
+  text-align: right;
+  border-bottom: 0px solid #4a3319;
+  padding-bottom: 0px;
+  margin-bottom: 0;
   color: #110d0a; /* High contrast */
   font-style: italic;
 }
