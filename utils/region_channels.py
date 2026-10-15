@@ -88,7 +88,8 @@ def rba_guidelines_for_regions(regions: list[str]) -> str:
         "All posts should be titled: Species Name-Site Location Name (County)-Month/Day/Year\n\n"
         "Posts should include the full species name, location including county, and any other pertinent information.\n\n"
         "All replies and follow up comments are welcome, but MUST BE IN THE FORUM topic or may be deleted by an admin or moderator.\n\n"
-        "You can manage notifications on individual topics. By default, notifications are set to @mentions."
+        "You can manage notifications on individual topics. By default, notifications are set to @mentions.\n\n"
+        "There is a helper tool available (https://helper.birdsandtofu.com/) that can format the posts to fit the guidelines above as well as assist with GPS location details."
     )
 
 

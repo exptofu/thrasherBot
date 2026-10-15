@@ -109,9 +109,9 @@ REGION_GROUPS = {
     "Augusta Area": ["greater-augusta", "augusta",],
     "Central Georgia": ["fall-line-sandhills", "greater-macon",],
     "West Georgia": ["west-piedmont", "greater-columbus"],
-    "Statesboro Area": ["greater-statesboro"],
     "North Georgia": ["broad-river-watershed", "north-georgia-mountains", "ridge-and-valleys"],
     "South Georgia": ["okefenokee-basin", "lake-seminole-watershed", "three-rivers-basin", "greater-valdosta"],
+    "Statesboro Area": ["greater-statesboro"],
 }
 
 GROUP_COLORS = {
