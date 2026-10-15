@@ -32,33 +32,8 @@ def load_region_config() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
     return config["REGIONS"], config["REGION_GROUPS"]
 
 
-def county_slug(county: str) -> str:
-    return county.lower().removesuffix(" county").replace(" ", "-")
-
-
-def load_county_overrides(
-    regions: dict[str, list[str]],
-) -> tuple[dict[str, list[str]], set[str]]:
-    """Return override channel names per region and regions with every county overridden."""
-    overrides = _literal_assignments({"COUNTY_OVERRIDES"})["COUNTY_OVERRIDES"]
-    by_county = {
-        county_slug(county): region
-        for region, counties in regions.items()
-        for county in counties
-    }
-    result: dict[str, list[str]] = {}
-    for county in overrides:
-        slug = county_slug(county)
-        if slug not in by_county:
-            raise ValueError(f"COUNTY_OVERRIDES county '{county}' is not in any region")
-        names = result.setdefault(by_county[slug], [])
-        if f"{slug}-rarities" not in names:
-            names.append(f"{slug}-rarities")
-    fully_overridden = {
-        region for region, counties in regions.items()
-        if counties and {county_slug(c) for c in counties} <= {county_slug(c) for c in overrides}
-    }
-    return result, fully_overridden
+def channel_slug(name: str) -> str:
+    return name.lower().replace(" ", "-")
 
 
 async def _on(target: str, coro):
@@ -86,92 +61,113 @@ async def ensure_region_tags(channel: discord.ForumChannel, regions: dict[str, l
         )
 
 
-def channel_specs(
-    region: str, county_channels: dict[str, list[str]], fully_overridden: set[str]
-) -> list[tuple[str, str]]:
-    """Channel (name, topic) pairs for a region and its county overrides, in display order."""
-    specs = []
-    if region not in fully_overridden:
-        specs += [
-            (f"{region}-rarities", f"Rarity sightings and discussion for {region}"),
-            (f"{region}-banter", f"General discussion for {region}"),
-        ]
-    for rarities in county_channels.get(region, []):
-        county = rarities.removesuffix("-rarities")
-        specs += [
-            (rarities, f"Rarity sightings for {county}"),
-            (f"{county}-banter", f"General discussion for {county}"),
-        ]
+def category_channel_specs(category: str, regions: list[str]) -> list[tuple[str, str, bool]]:
+    """Channel (name, topic, is_forum) specs in category discussion order."""
+    specs = [(f"{channel_slug(category)}-rba", f"RBA discussion for {category}", True)]
+    specs.extend(
+        (f"{region}-chat", f"General birding discussion for {region.replace('-', ' ')}", False)
+        for region in sorted(regions)
+    )
     return specs
 
 
 async def ensure_region_channels(
     channel: discord.ForumChannel,
     region_groups: dict[str, list[str]],
-    county_channels: dict[str, list[str]],
-    fully_overridden: set[str],
     move_delay_seconds: float,
 ):
-    """Create and group regional rarities, county override, and banter text channels."""
+    """Create, permission-sync, and order category and regional discussion channels."""
     guild = channel.guild
-    text_channels = {text.name: text for text in guild.text_channels}
+    managed_channels = {
+        item.name: item
+        for item in guild.channels
+        if not isinstance(item, discord.CategoryChannel)
+    }
     categories = {category.name: category for category in guild.categories}
+    discussion_category = next(
+        (category for category in categories.values() if category.name.casefold() == "discussions"),
+        None,
+    )
+    if discussion_category is None:
+        raise ValueError("Discord category 'Discussions' was not found; no region channels were changed.")
     moves_applied = 0
     for group, regions in region_groups.items():
         category = categories.get(group)
         if category is None:
             category = await _on(f"creating category '{group}'", guild.create_category(group))
             categories[group] = category
-        ordered_regions = sorted(regions)
-        for region in ordered_regions:
-            for text_name, topic in channel_specs(region, county_channels, fully_overridden):
-                text = text_channels.get(text_name)
-                if text is None:
-                    text = await _on(
-                        f"creating text channel '{text_name}' in category '{group}'",
-                        guild.create_text_channel(
-                            text_name, category=category, topic=topic
-                        ),
+        for channel_name, topic, is_forum in category_channel_specs(group, regions):
+            managed_channel = managed_channels.get(channel_name)
+            if managed_channel is not None:
+                is_expected_type = (
+                    isinstance(managed_channel, discord.ForumChannel)
+                    if is_forum
+                    else isinstance(managed_channel, discord.TextChannel)
+                )
+                if not is_expected_type:
+                    expected_type = "forum" if is_forum else "text"
+                    actual_type = "forum" if isinstance(managed_channel, discord.ForumChannel) else "text"
+                    raise ValueError(
+                        f"#{channel_name} is currently a {actual_type} channel, but must be a "
+                        f"{expected_type} channel. Rename or archive it, then rerun this job."
                     )
-                    text = await _on(
-                        f"channel #{text_name} ({text.id}): syncing permissions",
-                        text.edit(sync_permissions=True),
-                    ) or text
-                    text_channels[text_name] = text
-                elif text.category_id != category.id or not text.permissions_synced:
-                    text = await _on(
-                        f"channel #{text_name} ({text.id}): moving/syncing to category '{group}'",
-                        text.edit(category=category, sync_permissions=True),
-                    ) or text
-                    text_channels[text_name] = text
+            else:
+                create_channel = guild.create_forum if is_forum else guild.create_text_channel
+                managed_channel = await _on(
+                    f"creating {'forum' if is_forum else 'text'} channel '{channel_name}' in category '{group}'",
+                    create_channel(channel_name, category=category, topic=topic),
+                )
+                managed_channels[channel_name] = managed_channel
 
-        expected_names = [
-            name
-            for region in ordered_regions
-            for name, _ in channel_specs(region, county_channels, fully_overridden)
-        ]
+            if managed_channel.category_id != category.id or not managed_channel.permissions_synced:
+                managed_channel = await _on(
+                    f"channel #{channel_name} ({managed_channel.id}): moving/syncing to category '{group}'",
+                    managed_channel.edit(category=category, sync_permissions=True),
+                ) or managed_channel
+                managed_channels[channel_name] = managed_channel
+
+    current_category_order = [
+        category.name
+        for category in sorted(categories.values(), key=lambda item: (item.position, item.id))
+    ]
+    region_category_names = list(region_groups)
+    final_category_order = [
+        name for name in current_category_order if name not in region_category_names
+    ]
+    discussion_index = final_category_order.index(discussion_category.name)
+    final_category_order[discussion_index + 1:discussion_index + 1] = region_category_names
+    for group in region_category_names:
+        category = categories[group]
+        position = final_category_order.index(group)
+        if category.position != position:
+            await _on(
+                f"category '{group}': reordering",
+                category.edit(position=position),
+            )
+
+    for group, regions in region_groups.items():
+        category = categories[group]
+        expected_names = [name for name, _, _ in category_channel_specs(group, regions)]
         expected_set = set(expected_names)
         current_names = [
-            text.name
-            for text in sorted(guild.text_channels, key=lambda item: (item.position, item.id))
-            if text.category_id == category.id and text.name in expected_set
+            item.name
+            for item in sorted(guild.channels, key=lambda item: (item.position, item.id))
+            if item.name in expected_set and getattr(item, "category_id", None) == category.id
         ]
         if current_names != expected_names:
             for name in expected_names:
-                text = text_channels[name]
+                item = managed_channels[name]
                 if moves_applied:
                     await asyncio.sleep(move_delay_seconds)
                 await _on(
-                    f"channel #{name} ({text.id}): reordering",
-                    text.move(end=True, category=category),
+                    f"channel #{name} ({item.id}): reordering",
+                    item.move(end=True, category=category),
                 )
                 moves_applied += 1
 
 
 async def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Create and order regional Discord channels."
-    )
+    parser = argparse.ArgumentParser(description="Create and order regional Discord channels.")
     parser.add_argument(
         "--apply", action="store_true", help="Apply the region setup to Discord"
     )
@@ -193,7 +189,6 @@ async def main() -> int:
 
     try:
         regions, region_groups = load_region_config()
-        county_channels, fully_overridden = load_county_overrides(regions)
     except (OSError, SyntaxError, ValueError) as error:
         parser.error(f"Could not load region definitions from bot.py: {error}")
 
@@ -242,17 +237,20 @@ async def main() -> int:
 
                 await ensure_region_tags(alert_forum, regions)
                 await ensure_region_channels(
-                    alert_forum, region_groups, county_channels, fully_overridden, move_delay
+                    alert_forum, region_groups, move_delay
                 )
                 print("Regional tags, channels, category permissions, and ordering are up to date.")
+            except ValueError as error:
+                print(f"Regional setup failed: {error}")
+                self.exit_code = 1
             except discord.HTTPException as error:
                 print(f"Regional setup failed: {error}")
                 print(f"Failed target: {getattr(error, 'target', 'unknown')}")
                 if error.code == 50001:
                     print(
                         "The bot lacks channel-level access (View Channel, Manage Channels, "
-                        "Manage Permissions) on the alert forum or an existing region "
-                        "category/forum/banter channel. Check overwrites that deny the bot "
+                        "Manage Permissions) on the alert forum or an existing category "
+                        "or regional chat channel. Check overwrites that deny the bot "
                         "or its role, or grant it Administrator."
                     )
                 self.exit_code = 1

@@ -9,9 +9,9 @@ import discord
 from dotenv import load_dotenv
 
 try:
-    from region_channels import county_slug, load_county_overrides, load_region_config
+    from region_channels import load_region_config
 except ImportError:
-    from utils.region_channels import county_slug, load_county_overrides, load_region_config
+    from utils.region_channels import load_region_config
 
 ROOT = Path(__file__).resolve().parent.parent
 MESSAGE_LIMIT = 1900
@@ -19,20 +19,17 @@ MAPPING_CHANNEL = "county-mapping"
 DESCRIPTION = (
     "**County to channel mapping**\n"
     "Each county lists its region role (ping it to reach that region's birders), "
-    "the rarities channel where its sightings are posted, and its category."
+    "the region chat where sightings are posted, and its category."
 )
 
 
 def build_rows() -> list[tuple[str, str, str, str]]:
     regions, region_groups = load_region_config()
-    county_channels, _ = load_county_overrides(regions)
-    overrides = {name for names in county_channels.values() for name in names}
     category_of = {r: group for group, rs in region_groups.items() for r in rs}
     rows = []
     for region, counties in regions.items():
         for county in counties:
-            override = f"{county_slug(county)}-rarities"
-            channel = override if override in overrides else f"{region}-rarities"
+            channel = f"{region}-chat"
             rows.append((county, region, channel, category_of[region]))
     return sorted(rows, key=lambda row: row[0].lower())
 
