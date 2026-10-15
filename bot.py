@@ -492,7 +492,7 @@ async def relay_rare_species_to_moderators(
     county = first.get("subnational2Name", "Unknown county")
     obs_date = (first.get("obsDt") or "")[:10]
     message = (
-        f"Rare bird thread: {rare_name} ({species}) in {county}"
+        f"Potential rare sighting! {rare_name} in {county}"
         f"{f' on {obs_date}' if obs_date else ''} - {thread.jump_url}"
     )
     try:
