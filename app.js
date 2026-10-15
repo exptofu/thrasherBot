@@ -429,8 +429,8 @@ function toCamelCaseSpecies(value) {
   return value
     .trim()
     .toLowerCase()
-    .replace(/\b([a-z])/g, (_, letter) => letter.toUpperCase())
-    .replace(/\s+([A-Z])/g, ' $1');
+    .replace(/(?:^|\s)([a-z])/g, (_, letter) => ' ' + letter.toUpperCase())
+    .trim(); // Removes the extra leading space added by the replace function
 }
 
 function slugify(value) {
