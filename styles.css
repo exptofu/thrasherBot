@@ -187,6 +187,15 @@ input[type="number"] {
   .gps-input-row {
     grid-template-columns: 1fr;
   }
+
+  .suggestion-input-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .suggestion-field {
+    min-width: 0;
+  }
 }
 
 .gps-map {
