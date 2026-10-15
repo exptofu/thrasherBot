@@ -10,6 +10,8 @@ from discord import app_commands
 from discord.ext import tasks
 from dotenv import load_dotenv
 
+from georgia_map import REGION_GROUPS, REGIONS
+
 load_dotenv()
 
 EBIRD_KEY = os.environ["EBIRD_API_KEY"]
@@ -56,52 +58,13 @@ HEADERS = {"x-ebirdapitoken": EBIRD_KEY}
 log = logging.getLogger("thrasherbot")
 
 # Region slug -> eBird county names. Slugs are also forum tags and channel prefixes.
-REGIONS = {
-    "greater-athens-area": ["Barrow", "Walton", "Greene", "Morgan", "Oconee", "Oglethorpe", "Clarke", "Jackson", "Madison"],
-    "greater-savannah-area": ["Chatham", "Bryan", "Liberty", "Effingham"],
-    "gwinnett-county": ["Gwinnett"],
-    "metro-atlanta-north": ["Cobb", "Forsyth", "Douglas", "Cherokee", "Hall", "Bartow", "Paulding"],
-    "dekalb-county": ["DeKalb"],
-    "metro-atlanta-south": ["Coweta", "Henry", "Rockdale", "Newton", "Clayton", "Fayette"],
-    "bibb-county": ["Bibb"],
-    "fall-line-sandhills": [
-        "Spalding", "Pike", "Upson", "Lamar", "Monroe", "Crawford", "Peach", "Houston", "Twiggs",
-        "Jones", "Wilkinson", "Baldwin", "Butts", "Jasper", "Putnam", "Hancock", "Washington",
-        "Dodge", "Pulaski", "Bleckley", "Laurens", "Johnson", "Taylor", "Macon", "Dooly", "Talbot",
-        "Marion", "Schley", "Taliaferro", "Warren", "Glascock", "Emanuel",
-    ],
-    "west-piedmont": ["Carroll", "Heard", "Troup", "Meriwether", "Stewart", "Haralson", "Polk"],
-    "north-georgia-mountains": [
-        "Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray", "Gilmer",
-        "Pickens", "Dawson", "Union", "Fannin", "Lumpkin", "White", "Towns", "Rabun", "Habersham",
-    ],
-    "inland-coastal-plain": [
-        "Irwin", "Ben Hill", "Lee", "Terrell", "Sumter", "Calhoun", "Webster", "Worth", "Crisp",
-        "Colquitt", "Grady", "Thomas", "Brooks", "Lowndes", "Echols", "Clinch", "Charlton", "Ware",
-        "Berrien", "Cook", "Lanier", "Atkinson", "Turner", "Tift", "Coffee", "Wilcox", "Telfair",
-        "Wheeler", "Jeff Davis", "Appling", "Bacon", "Pierce", "Decatur", "Mitchell", "Baker", "Miller",
-        "Seminole", "Early", "Clay", "Quitman", "Randolph", "Dougherty", "Toombs", "Montgomery",
-        "Treutlen", "Tattnall", "Evans", "Candler", "Bulloch", "Screven",
-    ],
-    "broad-river-watershed": ["Elbert", "Hart", "Stephens", "Franklin", "Banks"],
-    "columbus-area": ["Harris", "Muscogee", "Chattahoochee"],
-    "golden-isles": ["Wayne", "Long", "McIntosh", "Glynn", "Brantley", "Camden"],
-    "greater-augusta-area": ["Jenkins", "Burke", "Jefferson", "Richmond", "McDuffie", "Columbia", "Lincoln", "Wilkes"],
-    "fulton-county": ["Fulton"],
-}
-REGION_GROUPS = {
-    "Metro Atlanta": ["metro-atlanta-north", "metro-atlanta-south", "fulton-county", "dekalb-county", "gwinnett-county"],
-    "Southeast Georgia": ["golden-isles"],
-    "Savannah Area": ["greater-savannah-area"],
-    "Athens Area": ["greater-athens-area"],
-    "Augusta Area": ["greater-augusta-area"],
-    "Central Georgia": ["bibb-county", "fall-line-sandhills"],
-    "West Georgia": ["west-piedmont", "columbus-area"],
-    "North Georgia": ["north-georgia-mountains", "broad-river-watershed"],
-    "South Georgia": ["inland-coastal-plain"],
-}
+# Keep this configuration synchronized with georgia_map.py.
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
-
+REGION_TO_CATEGORY = {
+    region: category
+    for category, regions in REGION_GROUPS.items()
+    for region in regions
+}
 
 STATEWIDE_CHANNEL = "state-wide-rarities"
 RARE_BIRDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rare_birds.txt")
@@ -351,7 +314,8 @@ async def send_group(
     else:
         first = min(members, key=lambda m: m["obsDt"])
         region = region_of(first)
-        tag = discord.utils.get(channel.available_tags, name=region) if region else None
+        category = REGION_TO_CATEGORY.get(region) if region else None
+        tag = discord.utils.get(channel.available_tags, name=category) if category else None
         created = await channel.create_thread(
             name=post_title(first), embed=embed, applied_tags=[tag] if tag else []
         )
