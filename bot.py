@@ -118,21 +118,28 @@ def region_of(o: dict) -> str | None:
     return COUNTY_REGION.get(name)
 
 
-def is_recent_observation(o: dict) -> bool:
-    """Only post brand-new sightings that were observed within the recent threshold."""
+def observation_age_days(o: dict) -> int | None:
+    """Return the number of days between today and the observation date, if known."""
     obs_dt = (o.get("obsDt") or "").strip()
     if not obs_dt:
-        return True
+        return None
     try:
         obs_day = obs_dt.split("T", 1)[0].split(" ", 1)[0]
-        age_days = (date.today() - date.fromisoformat(obs_day)).days
+        return (date.today() - date.fromisoformat(obs_day)).days
     except ValueError:
+        return None
+
+
+def is_recent_observation(o: dict) -> bool:
+    """Only post brand-new sightings that were observed within the recent threshold."""
+    age_days = observation_age_days(o)
+    if age_days is None:
         return True
     if age_days > RECENT_OBSERVATION_CUTOFF_DAYS:
         log.info(
             "Skipping stale observation for %s (%s): %d days old (> %d)",
             o.get("comName", "unknown"),
-            obs_dt,
+            o.get("obsDt"),
             age_days,
             RECENT_OBSERVATION_CUTOFF_DAYS,
         )
@@ -541,6 +548,20 @@ async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict)
 async def process_sighting(channel: discord.ForumChannel, o: dict):
     species, checklist_id = o["speciesCode"], o["checklistId"]
     scope = scope_of(o)
+
+    existing_group = db.execute(
+        "SELECT message_id FROM groups WHERE species_code=? AND checklist_id=?",
+        (species, checklist_id),
+    ).fetchone()
+    if existing_group:
+        log.warning(
+            "Skipping duplicate species/checklist post for %s/%s: existing message=%s",
+            species,
+            checklist_id,
+            existing_group[0],
+        )
+        return
+
     existing = db.execute(
         "SELECT checklist_id, scope FROM sightings WHERE sub_id=? AND species_code=?",
         (o["subId"], species),
@@ -723,11 +744,24 @@ async def poll_once():
         return
 
     if PRUNE_OLD_SIGHTINGS:
-        # Purge records that dropped off the API, then groups/posts with no sightings left.
-        for sub_id, species in known - current:
-            db.execute(
-                "DELETE FROM sightings WHERE sub_id=? AND species_code=?", (sub_id, species)
-            )
+        # Prune based on the sighting's own observation date to avoid deleting records
+        # the moment they fall out of the API window while still respecting the retention cutoff.
+        for sub_id, species_code, data in db.execute(
+            "SELECT sub_id, species_code, data FROM sightings"
+        ).fetchall():
+            age_days = observation_age_days(json.loads(data))
+            if age_days is not None and age_days >= BACK_DAYS:
+                db.execute(
+                    "DELETE FROM sightings WHERE sub_id=? AND species_code=?",
+                    (sub_id, species_code),
+                )
+                log.info(
+                    "Pruned stale sighting %s/%s: %d days old (>= %d)",
+                    sub_id,
+                    species_code,
+                    age_days,
+                    BACK_DAYS,
+                )
         db.execute(
             """DELETE FROM groups WHERE NOT EXISTS (
                    SELECT 1 FROM sightings s
