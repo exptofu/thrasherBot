@@ -1,0 +1,189 @@
+Waterfowl
+- Fulvous Whistling-Duck
+- Brant
+- Trumpeter Swan
+- Tundra Swan
+- Cinnamon Teal
+- Eurasian Wigeon
+- King Eider
+- Common Eider
+- Harlequin Duck
+- Masked Duck
+
+Grebes
+- Western Grebe
+- Clark's Grebe
+- Red-necked Grebe
+
+Pigeons and Doves
+- Inca Dove
+
+Cuckoos
+- Smooth-billed Ani
+
+Hummingbirds
+- Green-breasted Mango
+- Rivoli's Hummingbird
+- Blue-throated Mountain-gem
+- Anna's Hummingbird
+- Calliope Hummingbird
+- Allen's Hummingbird
+- Broad-tailed Hummingbird
+- Broad-billed Hummingbird
+- Buff-bellied Hummingbird
+- Mexican Violetear
+
+Swifts
+- Vaux's Swift
+- White-throated Swift
+
+Rails, Gallinules, and Coots
+- **Yellow Rail**
+- **Black Rail**
+- Gray-headed Swamphen
+
+Cranes
+- **Whooping Crane**
+
+Plovers, Sandpipers, and Allies
+- Northern Lapwing
+- Mountain Plover
+- Hudsonian Godwit
+- Bar-tailed Godwit
+- Red Phalarope
+- Red-necked Phalarope
+- Ruff
+- Curlew Sandpiper
+
+Skuas and Jaegers
+- Long-tailed Jaeger
+- Pomarine Jaeger
+- South Polar Skua
+
+Auks and Puffins
+- Atlantic Puffin
+- Dovekie
+- Razorbill
+
+Gulls, Terns, and Skimmers
+- Little Gull
+- Black-legged Kittiwake
+- Sabine's Gull
+- Black-headed Gull
+- Ivory Gull
+- Heermann's Gull
+- Glaucous Gull
+- California Gull
+- Iceland Gull
+- Brown Noddy
+- Black Noddy
+- Sooty Tern
+- Bridled Tern
+- Arctic Tern
+- Roseate Tern
+- White-winged Tern
+- White-tailed Tropicbird
+- Red-billed Tropicbird
+
+Loons
+- Yellow-billed Loon
+
+Shearwaters and Petrels
+- Sooty Shearwater
+- Northern Fulmar
+
+Frigatebirds, Boobies, and Gannets
+- Magnificent Frigatebird
+- Masked Booby
+- Brown Booby
+- Red-footed Booby
+
+Cormorants and Anhingas
+- Great Cormorant
+- Neotropic Cormorant
+
+Hawks, Eagles, and Kites
+- Golden Eagle
+- Snail Kite
+- American Goshawk
+- Short-tailed Hawk
+- Rough-legged Hawk
+- Swainson's Hawk
+
+Owls
+- Snowy Owl
+- Burrowing Owl
+- **Long-eared Owl**
+- Northern Saw-whet Owl
+
+Falcons and Caracaras
+- Crested Caracara
+
+Tyrant Flycatchers
+- Dusky Flycatcher
+- Hammond's Flycatcher
+- Tropical Kingbird
+- Couch's Kingbird
+- Fork-tailed Flycatcher
+
+Vireos, Shrike-Babblers, and Allies
+- Bell's Vireo
+
+Jays, Magpies, and Crows
+- Florida Scrub-Jay
+
+Swallows
+- Cave Swallow
+- Violet-green Swallow
+
+Wrens
+- Bewick's Wren
+- Rock Wren
+
+Mockingbirds and Thrashers
+- Sage Thrasher
+
+Thrushes and Allies
+- Mountain Bluebird
+- Varied Thrush
+- Bicknell's Thrush
+- Northern Wheatear
+
+Pipits and Wagtails
+- Sprague's Pipit
+
+Finches, Euphonias, and Allies
+- Evening Grosbeak
+- Redpoll
+- White-winged Crossbill
+- Smith's Longspur
+- Thick-billed Longspur
+- Snow Bunting
+- Lark Bunting
+
+Sparrows and Allies
+- American Tree Sparrow
+- Harris's Sparrow
+- Baird's Sparrow
+- Green-tailed Towhee
+- Spotted Towhee
+
+Blackbirds and Orioles
+- Yellow-headed Blackbird
+- Western Meadowlark
+- Hooded Oriole
+- Scott's Oriole
+- Shiny Cowbird
+
+New World Warblers
+- Virginia's Warbler
+- MacGillivray's Warbler
+- Painted Redstart
+- Kirtland's Warbler
+- Black-throated Gray Warbler
+- Townsend's Warbler
+- Red-faced Warbler
+
+Grosbeaks and Allies
+- Black-headed Grosbeak
+- Lazuli Bunting
