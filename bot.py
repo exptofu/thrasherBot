@@ -630,14 +630,29 @@ class Bot(discord.Client):
             log.warning("Welcome channel #%s was not found", WELCOME_CHANNEL)
             return False
 
+        existing = None
         try:
             async for message in channel.history(limit=100):
                 if message.author == self.user and message.content == WELCOME_MESSAGE:
-                    return True
+                    existing = message
+                    break
         except discord.Forbidden:
             log.warning("Cannot read recent messages in #%s to find the welcome panel", WELCOME_CHANNEL)
         except discord.HTTPException:
             log.exception("Could not check #%s for the welcome panel", WELCOME_CHANNEL)
+
+        if existing is not None:
+            try:
+                await existing.edit(
+                    content=WELCOME_MESSAGE,
+                    view=NicknameView(),
+                    allowed_mentions=discord.AllowedMentions.none(),
+                )
+                log.info("Refreshed nickname welcome panel in #%s", WELCOME_CHANNEL)
+                return True
+            except discord.HTTPException:
+                log.exception("Could not refresh the nickname welcome panel in #%s", WELCOME_CHANNEL)
+                return False
 
         try:
             await channel.send(
