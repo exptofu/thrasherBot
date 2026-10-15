@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import os
 import sqlite3
@@ -19,6 +20,9 @@ BACK_DAYS = int(os.environ.get("EBIRD_BACK_DAYS", "14"))
 POLL_MINUTES = int(os.environ.get("POLL_MINUTES", "15"))
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 HOTSPOT_REFRESH_SECONDS = 24 * 3600
+REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
+MAX_RETRIES = 5
+SCHEMA_VERSION = 2
 
 API = "https://api.ebird.org/v2"
 HEADERS = {"x-ebirdapitoken": EBIRD_KEY}
@@ -26,20 +30,34 @@ HEADERS = {"x-ebirdapitoken": EBIRD_KEY}
 log = logging.getLogger("thrasherbot")
 
 db = sqlite3.connect(DB_PATH)
+if db.execute("PRAGMA user_version").fetchone()[0] != SCHEMA_VERSION:
+    db.executescript("DROP TABLE IF EXISTS sightings; DROP TABLE IF EXISTS posts;")
 db.executescript(
-    """
+    f"""
     CREATE TABLE IF NOT EXISTS sightings (
         sub_id TEXT NOT NULL,
         species_code TEXT NOT NULL,
+        checklist_id TEXT NOT NULL,
         scope TEXT NOT NULL,
+        data TEXT NOT NULL,
         PRIMARY KEY (sub_id, species_code)
     );
+    -- One forum post per species per hotspot/county.
     CREATE TABLE IF NOT EXISTS posts (
         species_code TEXT NOT NULL,
         scope TEXT NOT NULL,
         thread_id INTEGER NOT NULL,
         PRIMARY KEY (species_code, scope)
     );
+    -- One message per species per (shared) checklist.
+    CREATE TABLE IF NOT EXISTS groups (
+        species_code TEXT NOT NULL,
+        checklist_id TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        message_id INTEGER NOT NULL,
+        PRIMARY KEY (species_code, checklist_id)
+    );
+    PRAGMA user_version = {SCHEMA_VERSION};
     """
 )
 db.commit()
@@ -49,9 +67,15 @@ hotspots_loaded_at = 0.0
 
 
 async def get_json(session: aiohttp.ClientSession, path: str, **params):
-    async with session.get(f"{API}{path}", headers=HEADERS, params=params) as r:
-        r.raise_for_status()
-        return await r.json()
+    for attempt in range(MAX_RETRIES):
+        async with session.get(f"{API}{path}", headers=HEADERS, params=params) as r:
+            if r.status == 429 and attempt < MAX_RETRIES - 1:
+                wait = int(r.headers.get("Retry-After", 0)) or 30 * 2**attempt
+                log.warning("Rate limited on %s; waiting %ss", path, wait)
+            else:
+                r.raise_for_status()
+                return await r.json()
+        await asyncio.sleep(wait)
 
 
 async def refresh_hotspots(session: aiohttp.ClientSession):
@@ -64,7 +88,18 @@ async def refresh_hotspots(session: aiohttp.ClientSession):
     log.info("Loaded %d hotspots", len(hotspots))
 
 
-def format_sighting(o: dict) -> discord.Embed:
+def sub_num(sub_id: str) -> int:
+    return int(sub_id.lstrip("S"))
+
+
+def field_text(text: str) -> str:
+    return text if len(text) <= 1024 else text[:1021] + "..."
+
+
+def format_sighting(members: list[dict]) -> discord.Embed:
+    """Build one embed from every observer's record of the same checklist."""
+    members = sorted(members, key=lambda m: sub_num(m["subId"]))
+    o = members[0]
     if o.get("obsReviewed") and o.get("obsValid"):
         status, color = "Confirmed", discord.Color.green()
     elif o.get("obsReviewed"):
@@ -78,6 +113,12 @@ def format_sighting(o: dict) -> discord.Embed:
         url=f"https://ebird.org/checklist/{o['subId']}",
         color=color,
     )
+    author = o.get("userDisplayName", "Unknown")
+    others = len(members) - 1
+    if others:
+        author += f" + {others} other{'s' if others > 1 else ''}"
+    embed.set_author(name=author)
+
     embed.add_field(name="Count", value=str(o.get("howMany", "X")))
     embed.add_field(name="Date", value=o["obsDt"])
     embed.add_field(name="Status", value=status)
@@ -96,6 +137,19 @@ def format_sighting(o: dict) -> discord.Embed:
         name="Map",
         value=f"[Open map](https://maps.google.com/?q={o['lat']},{o['lng']})",
     )
+
+    sub_comments = next((m["subComments"] for m in members if m.get("subComments")), "")
+    if sub_comments:
+        embed.add_field(name="Checklist comments", value=field_text(sub_comments), inline=False)
+    obs_comments = [
+        f"{m.get('userDisplayName', '?')}: {m['obsComments']}"
+        for m in members
+        if m.get("obsComments")
+    ]
+    if obs_comments:
+        embed.add_field(
+            name="Observation comments", value=field_text("\n".join(obs_comments)), inline=False
+        )
     return embed
 
 
@@ -121,24 +175,67 @@ def post_title(o: dict) -> str:
     return f"{prefix} {o['comName']} ({o['obsDt'][:10]})"[:100]
 
 
-async def post_sighting(
-    client: discord.Client, channel: discord.ForumChannel, o: dict, scope: str
+async def send_group(
+    client: discord.Client,
+    channel: discord.ForumChannel,
+    species: str,
+    checklist_id: str,
+    scope: str,
+    members: list[dict],
 ):
-    embed = format_sighting(o)
-    key = (o["speciesCode"], scope)
+    """Post a new message for the checklist group, or edit its existing one."""
+    embed = format_sighting(members)
+
+    existing = db.execute(
+        "SELECT message_id FROM groups WHERE species_code=? AND checklist_id=?",
+        (species, checklist_id),
+    ).fetchone()
     row = db.execute(
-        "SELECT thread_id FROM posts WHERE species_code=? AND scope=?", key
+        "SELECT thread_id FROM posts WHERE species_code=? AND scope=?", (species, scope)
     ).fetchone()
     thread = await get_thread(client, row[0]) if row else None
+
+    if thread and existing:
+        try:
+            msg = await thread.fetch_message(existing[0])
+            await msg.edit(embed=embed)
+            return
+        except discord.NotFound:
+            pass
+
     if thread:
         if thread.archived:
             await thread.edit(archived=False)
-        await thread.send(embed=embed)
-        return
-
-    created = await channel.create_thread(name=post_title(o), embed=embed)
-    db.execute("INSERT OR REPLACE INTO posts VALUES (?,?,?)", (*key, created.thread.id))
+        message = await thread.send(embed=embed)
+    else:
+        created = await channel.create_thread(
+            name=post_title(min(members, key=lambda m: m["obsDt"])), embed=embed
+        )
+        message = created.message
+        db.execute(
+            "INSERT OR REPLACE INTO posts VALUES (?,?,?)", (species, scope, created.thread.id)
+        )
+    db.execute(
+        "INSERT OR REPLACE INTO groups VALUES (?,?,?,?)",
+        (species, checklist_id, scope, message.id),
+    )
     db.commit()
+
+
+async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict) -> dict:
+    """Add shared checklist id and comments from the checklist view."""
+    sub_id = o["subId"]
+    if sub_id not in cache:
+        cache[sub_id] = await get_json(session, f"/product/checklist/view/{sub_id}")
+        await asyncio.sleep(REQUEST_DELAY_SECONDS)
+    cl = cache[sub_id]
+    entry = next((e for e in cl.get("obs", []) if e.get("speciesCode") == o["speciesCode"]), {})
+    return {
+        **o,
+        "checklistId": cl.get("checklistId") or sub_id,
+        "subComments": cl.get("subComments") or "",
+        "obsComments": entry.get("comments") or "",
+    }
 
 
 @tasks.loop(minutes=POLL_MINUTES)
@@ -153,35 +250,64 @@ async def poll():
                 detail="full",
                 back=BACK_DAYS,
             )
+
+            current = {(o["subId"], o["speciesCode"]) for o in obs}
+            known = {
+                (r[0], r[1])
+                for r in db.execute("SELECT sub_id, species_code FROM sightings")
+            }
+
+            cache: dict = {}
+            new: dict[tuple, dict] = {}
+            for o in sorted(obs, key=lambda o: o["obsDt"]):
+                k = (o["subId"], o["speciesCode"])
+                if k in known or k in new:
+                    continue
+                try:
+                    new[k] = await attach_checklist(session, o, cache)
+                except aiohttp.ClientError:
+                    log.exception("Checklist lookup failed for %s; will retry", k)
     except aiohttp.ClientError:
         log.exception("eBird request failed")
         return
 
-    current = {(o["subId"], o["speciesCode"]) for o in obs}
-    known = {
-        (r[0], r[1]) for r in db.execute("SELECT sub_id, species_code FROM sightings")
-    }
+    groups: dict[tuple, list[dict]] = {}
+    for o in new.values():
+        groups.setdefault((o["speciesCode"], o["checklistId"]), []).append(o)
 
-    for o in sorted(obs, key=lambda o: o["obsDt"]):
-        k = (o["subId"], o["speciesCode"])
-        if k in known:
-            continue
-        scope = scope_of(o)
+    for (species, checklist_id), added in groups.items():
+        scope = scope_of(added[0])
+        previous = [
+            json.loads(r[0])
+            for r in db.execute(
+                "SELECT data FROM sightings WHERE species_code=? AND checklist_id=?",
+                (species, checklist_id),
+            )
+        ]
         try:
-            await post_sighting(client, channel, o, scope)
+            await send_group(client, channel, species, checklist_id, scope, previous + added)
         except discord.HTTPException:
-            log.exception("Failed to post %s", k)
+            log.exception("Failed to post %s %s", species, checklist_id)
             continue
-        db.execute("INSERT OR IGNORE INTO sightings VALUES (?,?,?)", (*k, scope))
+        for o in added:
+            db.execute(
+                "INSERT OR IGNORE INTO sightings VALUES (?,?,?,?,?)",
+                (o["subId"], species, checklist_id, scope, json.dumps(o)),
+            )
         db.commit()
-        known.add(k)
         await asyncio.sleep(1)
 
-    # Purge records that dropped off the API, and posts with no remaining sightings.
+    # Purge records that dropped off the API, then groups/posts with no sightings left.
     for sub_id, species in known - current:
         db.execute(
             "DELETE FROM sightings WHERE sub_id=? AND species_code=?", (sub_id, species)
         )
+    db.execute(
+        """DELETE FROM groups WHERE NOT EXISTS (
+               SELECT 1 FROM sightings s
+               WHERE s.species_code = groups.species_code
+                 AND s.checklist_id = groups.checklist_id)"""
+    )
     db.execute(
         """DELETE FROM posts WHERE NOT EXISTS (
                SELECT 1 FROM sightings s
