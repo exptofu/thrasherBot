@@ -1563,12 +1563,27 @@ function bindJournalEvents() {
   });
 }
 
+function syncViewportHeight() {
+  const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+  document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
+}
+
 function initializeJournalApp() {
   if (window.__thrasherJournalAppInitialized) {
     return;
   }
 
   window.__thrasherJournalAppInitialized = true;
+  syncViewportHeight();
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewportHeight, { passive: true });
+    window.visualViewport.addEventListener('scroll', syncViewportHeight, { passive: true });
+  }
+
+  window.addEventListener('resize', syncViewportHeight, { passive: true });
+  window.addEventListener('orientationchange', syncViewportHeight, { passive: true });
+
   bindJournalEvents();
   renderOverview();
   setDefaultObservationTime();
