@@ -1,7 +1,7 @@
 """Render georgia_regions.svg from the region/category layout used by the bot.
 
 Stdlib only. County outlines come from the public plotly/datasets GeoJSON (Census data).
-Usage: python georgia_map.py [output.svg]
+Usage: python georgia_map.py
 """
 import json
 import math
@@ -54,9 +54,9 @@ REGIONS = {
 REGION_LABELS = {
     "greater-athens-area": "Greater Athens Area",
     "greater-savannah-area": "Greater Savannah Area",
-    "gwinnett-county": "Gwinnett County",
+    "gwinnett-county": "Gwinnett",
     "metro-atlanta-north": "Metro Atlanta North",
-    "dekalb-county": "Dekalb County",
+    "dekalb-county": "Dekalb",
     "metro-atlanta-south": "Metro Atlanta South",
     "macon": "Macon",
     "fall-line-sandhills": "Fall Line Sandhills",
@@ -67,7 +67,7 @@ REGION_LABELS = {
     "columbus-area": "Columbus Area",
     "golden-isles": "Golden Isles",
     "greater-augusta-area": "Greater Augusta Area",
-    "fulton-county": "Fulton County",
+    "fulton-county": "Fulton",
 }
 
 REGION_GROUPS = {
@@ -88,14 +88,17 @@ COLORS = {
     "macon": "#08786e", "fall-line-sandhills": "#c45b00", "west-piedmont": "#17605c",
     "north-georgia-mountains": "#4e9b8d", "inland-coastal-plain": "#82609f",
     "broad-river-watershed": "#365f9e", "columbus-area": "#ad4f8c", "golden-isles": "#b8860b",
-    "greater-augusta-area": "#79518d", "fulton-county": "#bd7745",
+    "greater-augusta-area": "#087fa5", "fulton-county": "#bd7745",
 }
 
 GROUP_COLORS = {
     "Metro Atlanta": "#ba4c00", "Southeast Georgia": "#137b5e", "Savannah Area": "#5d55a8",
-    "Athens Area": "#c81d78", "Augusta Area": "#548c17", "Central Georgia": "#b38300",
+    "Athens Area": "#c81d78", "Augusta Area": "#a33d50", "Central Georgia": "#b38300",
     "West Georgia": "#8b5b1a", "North Georgia": "#176c99", "South Georgia": "#69934a",
 }
+
+# Small offsets keep labels readable in the most crowded parts of the map.
+LABEL_OFFSETS = {"fulton-county": (0, 14), "fall-line-sandhills": (0, 30), "metro-atlanta-north":(0,-20),"west-piedmont":(0,20),"greater-augusta-area":(10,30),"augusta-area":(10,30)}
 
 
 def load_counties() -> list[dict]:
@@ -137,10 +140,17 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         return (p[0] * kx - min_x) * scale + PAD, (max_y - p[1]) * scale + PAD
 
     paths = []
+    centroids = {region: [0.0, 0.0, 0.0] for region in regions}
     for f in sorted(features, key=lambda f: f["properties"]["NAME"]):
         name = f["properties"]["NAME"]
         region = county_region[name.lower()]
         projected = [[project(p) for p in r] for r in rings(f["geometry"])]
+        for ring in projected:
+            for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1]):
+                cross = x1 * y2 - x2 * y1
+                centroids[region][0] += cross
+                centroids[region][1] += (x1 + x2) * cross
+                centroids[region][2] += (y1 + y2) * cross
         d = " ".join(
             "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in r) + "Z" for r in projected
         )
@@ -149,15 +159,25 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
             f'<path d="{d}" fill="{colors[region]}"><title>{escape(name)} - {escape(label)}</title></path>'
         )
 
-    region_lats: dict[str, list[float]] = {}
-    for f in features:
-        ys = [p[1] for r in rings(f["geometry"]) for p in r]
-        region_lats.setdefault(county_region[f["properties"]["NAME"].lower()], []).append(
-            (min(ys) + max(ys)) / 2
+    map_labels = []
+    for region, (area2, x_moment, y_moment) in centroids.items():
+        if not area2:
+            continue
+        label = (labels or {}).get(region, region)
+        font_size = 12 if title == "Categories" else 10
+        offset_key = region.lower().replace(" ", "-")
+        offset_x, offset_y = LABEL_OFFSETS.get(offset_key, (0, 0))
+        map_labels.append(
+            f'<text x="{x_moment / (3 * area2) + offset_x:.1f}" '
+            f'y="{y_moment / (3 * area2) + offset_y:.1f}" '
+            f'text-anchor="middle" dominant-baseline="central" font-size="{font_size}" '
+            f'font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" '
+            f'stroke-linejoin="round" paint-order="stroke">{escape(label)}</text>'
         )
     north_to_south = sorted(
-        (r for r in regions if r in region_lats), key=lambda r: -sum(region_lats[r]) / len(region_lats[r])
-    ) + [r for r in regions if r not in region_lats]
+        (region for region, (area2, _, _) in centroids.items() if area2),
+        key=lambda region: centroids[region][2] / (3 * centroids[region][0]),
+    ) + [region for region, (area2, _, _) in centroids.items() if not area2]
 
     legend = [
         f'<rect x="{PAD + MAP_WIDTH + 20}" y="{PAD + i * 22}" width="14" height="14" fill="{colors[r]}" '
@@ -171,29 +191,34 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         f'<g transform="translate(0,{y0})">\n'
         f'<text x="{PAD}" y="26" font-size="18" font-weight="bold">{escape(title)}</text>\n'
         f'<g stroke="#fff" stroke-width="0.6" stroke-linejoin="round">\n' + "\n".join(paths) + "\n</g>\n"
+        + "\n".join(map_labels) + "\n"
         + "\n".join(legend)
         + "\n</g>\n"
     )
     return svg, panel_height
 
 
-def main(out: Path):
+def main():
     regions = REGIONS
     groups = {g: [c for r in rs for c in regions[r]] for g, rs in REGION_GROUPS.items()}
     features = load_counties()
 
-    top, top_height = panel(features, groups, GROUP_COLORS, "Categories", 0)
-    bottom, bottom_height = panel(features, regions, COLORS, "Regions", top_height, REGION_LABELS)
-    width = PAD + MAP_WIDTH + LEGEND_WIDTH
-    total = top_height + bottom_height
-    out.write_text(
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {total}" '
-        f'width="{width}" font-family="sans-serif" font-size="13" fill="#fff">\n'
-        f'<rect width="100%" height="100%" fill="#000"/>\n' + top + bottom + "</svg>\n",
-        encoding="utf-8",
-    )
-    print(f"Wrote {out} ({len(features)} counties, {len(groups)} categories, {len(regions)} regions)")
+    output_dir = Path(__file__).parent
+    for filename, categories, colors, title, labels in (
+        ("georgia_categories.svg", groups, GROUP_COLORS, "Categories", None),
+        ("georgia_regions.svg", regions, COLORS, "Regions", REGION_LABELS),
+    ):
+        svg, height = panel(features, categories, colors, title, 0, labels)
+        width = PAD + MAP_WIDTH + LEGEND_WIDTH
+        out = output_dir / filename
+        out.write_text(
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+            f'width="{width}" font-family="sans-serif" font-size="13" fill="#fff">\n'
+            f'<rect width="100%" height="100%" fill="#000"/>\n' + svg + "</svg>\n",
+            encoding="utf-8",
+        )
+        print(f"Wrote {out} ({len(features)} counties, {len(categories)} {title.lower()})")
 
 
 if __name__ == "__main__":
-    main(Path(sys.argv[1] if len(sys.argv) > 1 else "georgia_regions.svg"))
+    main()
