@@ -22,10 +22,13 @@ def build_unregistered_message(
     guild: discord.Guild,
     channel_name: str,
     role_name: str,
+    *,
+    rules_channel_name: str = "rules-and-info",
 ) -> str:
     channel = discord.utils.get(guild.text_channels, name=channel_name)
+    rules_channel = discord.utils.get(guild.text_channels, name=rules_channel_name)
     role = discord.utils.get(guild.roles, name=role_name)
-    channel_mention = f"<#{channel.id}>" if channel else f"#{channel_name}"
+    channel_mention = f"<#{rules_channel.id}>" if rules_channel else f"#{rules_channel_name}"
     role_mention = f"<@&{role.id}>" if role else f"@{role_name}"
     return UNREGISTERED_MESSAGE_TEMPLATE.format(
         role_mention=role_mention,
@@ -114,10 +117,30 @@ async def send_unregistered_notice(
         return None
 
     reminder = build_unregistered_message(guild, channel_name, "unregistered")
-    print(f"Posting reminder to #{channel_name} in '{guild.name}'.")
+    print(f"Checking reminder in #{channel_name} in '{guild.name}'.")
     if not apply:
         print(f"Preview only; message would be: {reminder}")
         return channel
+
+    async for message in channel.history(limit=50):
+        if message.author != guild.me:
+            continue
+        if "registration" not in message.content.lower():
+            continue
+
+        if message.content == reminder:
+            print(f"Reminder already up to date at message {message.id} in #{channel_name}.")
+            return channel
+        try:
+            await message.edit(content=reminder)
+            print(f"Updated reminder message {message.id} in #{channel_name}.")
+            return channel
+        except discord.Forbidden:
+            print(f"[forbidden] could not edit reminder in #{channel_name}")
+            return channel
+        except discord.HTTPException as exc:
+            print(f"[http] could not edit reminder in #{channel_name}: {exc}")
+            return channel
 
     message = await channel.send(reminder)
     print(f"Sent reminder message {message.id} to #{channel_name}.")
