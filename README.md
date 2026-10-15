@@ -22,7 +22,7 @@ python bot.py
 Georgia's 159 counties are grouped into 20 regions in the `REGIONS` dict in `bot.py`. The bot:
 
 - Creates a forum tag for each region in the `DISCORD_CHANNEL_ID` forum on startup and tags each new post with its county's region. Discord allows 20 tags per forum, so the region list uses all of them.
-- Creates a forum channel named after each region (in the same category) for discussion, where members can reply but only the bot starts posts.
+- Creates a regional discussion forum and a `<region>-banter` text channel for each region. Both are grouped under a broader geographic category such as `Metro Atlanta` or `North Georgia`. Members can reply in the discussion forums; only the bot starts forum posts. The banter channels are for general local discussion.
 - Posts to each region's `<region>_rba` post when a net-new sighting appears, linking to the original post.
 
 The bot needs the Manage Channels and Manage Threads permissions; the invite link it logs on a permission error includes them.
