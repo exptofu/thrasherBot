@@ -84,7 +84,7 @@ REGION_GROUPS = {
     "West Georgia": ["columbus-fall-line", "west-central"],
     "Central Georgia": ["macon-expanded", "south-atlanta", "west-sandhills"],
     "East Georgia": ["augusta-metro", "east-sandhills", "upper-savannah"],
-    "South Georgia": ["early-wiregrass"],
+    "Southwest Georgia": ["early-wiregrass"],
     "Coastal Georgia": ["glynn", "chatham-effingham", "colonial-coast"],
 }
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}

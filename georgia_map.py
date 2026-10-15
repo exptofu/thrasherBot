@@ -98,7 +98,7 @@ REGION_GROUPS = {
     "West Georgia": ["columbus-fall-line", "west-central"],
     "Central Georgia": ["macon-expanded", "south-atlanta", "west-sandhills"],
     "East Georgia": ["augusta-metro", "east-sandhills", "upper-savannah"],
-    "South Georgia": ["early-wiregrass"],
+    "Southwest Georgia": ["early-wiregrass"],
     "Coastal Georgia": ["glynn", "chatham-effingham", "colonial-coast"],
 }
 
@@ -119,7 +119,7 @@ GROUP_COLORS = {
     "West Georgia": "#e7298a",
     "Central Georgia": "#66a61e",
     "East Georgia": "#e6ab02",
-    "South Georgia": "#a6761d",
+    "Southwest Georgia": "#a6761d",
     "Coastal Georgia": "#1f78b4",
 }
 
@@ -189,7 +189,7 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         f'<rect x="{PAD + MAP_WIDTH + 20}" y="{PAD + i * 22}" width="14" height="14" fill="{colors[r]}" '
         f'stroke="#fff" stroke-width="0.5"/>'
         f'<text x="{PAD + MAP_WIDTH + 42}" y="{PAD + 12 + i * 22}">'
-        f'{escape((labels or {}).get(r, r))}</text>'
+        f'{escape(r)}</text>'
         for i, r in enumerate(north_to_south)
     ]
     panel_height = max(height, 2 * PAD + len(legend) * 22)
