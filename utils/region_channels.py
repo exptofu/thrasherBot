@@ -69,18 +69,47 @@ def rba_forum_name(category: str, regions: list[str]) -> str:
     return f"{channel_slug(category)}-rba"
 
 
-def category_channel_specs(category: str, regions: list[str]) -> list[tuple[str, str, bool]]:
+def region_channel_description(region: str, counties: list[str]) -> str:
+    region_label = region.replace("-", " ").title()
+    sorted_counties = sorted(counties, key=str.casefold)
+    county_label = ", ".join(sorted_counties) if sorted_counties else "this region"
+    return (
+        f"Counties covered: {county_label}."
+    )
+
+
+def category_channel_specs(
+    category: str,
+    regions: list[str],
+    region_counties: dict[str, list[str]] | None = None,
+) -> list[tuple[str, str, bool]]:
     """Channel (name, topic, is_forum) specs in category discussion order."""
+    region_counties = region_counties or {}
     specs = [(rba_forum_name(category, regions), f"RBA discussion for {category}", True)]
     specs.extend(
-        (f"{region}-chat", f"General birding discussion for {region.replace('-', ' ')}", False)
+        (
+            f"{region}-chat",
+            region_channel_description(region, region_counties.get(region, [])),
+            False,
+        )
         for region in sorted(regions)
     )
     return specs
 
 
-def rba_guidelines_for_regions(regions: list[str]) -> str:
-    bullets = "\n".join(f"* {name.replace('-', ' ').title()}" for name in sorted(regions))
+def rba_guidelines_for_regions(
+    regions: list[str],
+    region_counties: dict[str, list[str]] | None = None,
+) -> str:
+    region_counties = region_counties or {}
+    lines = []
+    for region in sorted(regions):
+        counties = region_counties.get(region, [])
+        lines.append(f"* {region.replace('-', ' ').title()}")
+        if len(counties) > 1:
+            county_list = ", ".join(sorted(counties, key=str.casefold))
+            lines.append(f"  - {county_list}")
+    bullets = "\n".join(lines) if lines else "* No regions configured."
     return (
         "This is the rare bird alert page for the following regions:\n"
         f"{bullets}\n\n"
@@ -93,16 +122,21 @@ def rba_guidelines_for_regions(regions: list[str]) -> str:
     )
 
 
-async def ensure_pinned_rba_guidelines(guild: discord.Guild, region_groups: dict[str, list[str]]) -> None:
+async def ensure_pinned_rba_guidelines(
+    guild: discord.Guild,
+    region_groups: dict[str, list[str]],
+    region_counties: dict[str, list[str]] | None = None,
+) -> None:
     """Create or update only the bot-owned pinned guidance thread in each category RBA forum."""
     bot_user_id = guild.me.id if guild.me else None
+    region_counties = region_counties or {}
     for category, regions in region_groups.items():
         forum_name = rba_forum_name(category, regions)
         forum = discord.utils.get(guild.channels, name=forum_name)
         if not isinstance(forum, discord.ForumChannel):
             continue
         title = "‼️READ BEFORE POSTING - Guidelines"
-        content = rba_guidelines_for_regions(regions)
+        content = rba_guidelines_for_regions(regions, region_counties)
         try:
             existing = None
             async for thread in forum.archived_threads(limit=100):
@@ -155,9 +189,11 @@ async def ensure_region_channels(
     channel: discord.ForumChannel,
     region_groups: dict[str, list[str]],
     move_delay_seconds: float,
+    region_counties: dict[str, list[str]] | None = None,
 ):
-    """Create, permission-sync, and order category and regional discussion channels."""
+    """Create and order all regional forums/chats under one Discord category while preserving each group's original forum/order."""
     guild = channel.guild
+    region_counties = region_counties or {}
     managed_channels = {
         item.name: item
         for item in guild.channels
@@ -170,13 +206,20 @@ async def ensure_region_channels(
     )
     if discussion_category is None:
         raise ValueError("Discord category 'Discussions' was not found; no region channels were changed.")
+
+    regional_category_name = "Regional"
+    regional_category = categories.get(regional_category_name)
+    if regional_category is None:
+        regional_category = await _on(
+            f"creating category '{regional_category_name}'",
+            guild.create_category(regional_category_name),
+        )
+        categories[regional_category_name] = regional_category
+
     moves_applied = 0
     for group, regions in region_groups.items():
-        category = categories.get(group)
-        if category is None:
-            category = await _on(f"creating category '{group}'", guild.create_category(group))
-            categories[group] = category
-        for channel_name, topic, is_forum in category_channel_specs(group, regions):
+        category = regional_category
+        for channel_name, topic, is_forum in category_channel_specs(group, regions, region_counties):
             managed_channel = managed_channels.get(channel_name)
             if managed_channel is not None:
                 is_expected_type = (
@@ -194,15 +237,22 @@ async def ensure_region_channels(
             else:
                 create_channel = guild.create_forum if is_forum else guild.create_text_channel
                 managed_channel = await _on(
-                    f"creating {'forum' if is_forum else 'text'} channel '{channel_name}' in category '{group}'",
+                    f"creating {'forum' if is_forum else 'text'} channel '{channel_name}' in category '{regional_category_name}'",
                     create_channel(channel_name, category=category, topic=topic),
                 )
                 managed_channels[channel_name] = managed_channel
 
             if managed_channel.category_id != category.id or not managed_channel.permissions_synced:
                 managed_channel = await _on(
-                    f"channel #{channel_name} ({managed_channel.id}): moving/syncing to category '{group}'",
+                    f"channel #{channel_name} ({managed_channel.id}): moving/syncing to category '{regional_category_name}'",
                     managed_channel.edit(category=category, sync_permissions=True),
+                ) or managed_channel
+                managed_channels[channel_name] = managed_channel
+
+            if getattr(managed_channel, "topic", None) != topic:
+                managed_channel = await _on(
+                    f"channel #{channel_name} ({managed_channel.id}): updating topic",
+                    managed_channel.edit(topic=topic),
                 ) or managed_channel
                 managed_channels[channel_name] = managed_channel
 
@@ -210,29 +260,27 @@ async def ensure_region_channels(
         category.name
         for category in sorted(categories.values(), key=lambda item: (item.position, item.id))
     ]
-    region_category_names = list(region_groups)
+    region_category_names = [regional_category_name]
     final_category_order = [
         name for name in current_category_order if name not in region_category_names
     ]
     discussion_index = final_category_order.index(discussion_category.name)
     final_category_order[discussion_index + 1:discussion_index + 1] = region_category_names
-    for group in region_category_names:
-        category = categories[group]
-        position = final_category_order.index(group)
-        if category.position != position:
-            await _on(
-                f"category '{group}': reordering",
-                category.edit(position=position),
-            )
+    category = regional_category
+    position = final_category_order.index(region_category_names[0])
+    if category.position != position:
+        await _on(
+            f"category '{regional_category_name}': reordering",
+            category.edit(position=position),
+        )
 
     for group, regions in region_groups.items():
-        category = categories[group]
-        expected_names = [name for name, _, _ in category_channel_specs(group, regions)]
+        expected_names = [name for name, _, _ in category_channel_specs(group, regions, region_counties)]
         expected_set = set(expected_names)
         current_names = [
             item.name
             for item in sorted(guild.channels, key=lambda item: (item.position, item.id))
-            if item.name in expected_set and getattr(item, "category_id", None) == category.id
+            if item.name in expected_set and getattr(item, "category_id", None) == regional_category.id
         ]
         if current_names != expected_names:
             for name in expected_names:
@@ -241,27 +289,43 @@ async def ensure_region_channels(
                     await asyncio.sleep(move_delay_seconds)
                 await _on(
                     f"channel #{name} ({item.id}): reordering",
-                    item.move(end=True, category=category),
+                    item.move(end=True, category=regional_category),
                 )
                 moves_applied += 1
 
 
+def regional_preview_plan(region_groups: dict[str, list[str]]) -> dict[str, list[str]]:
+    """Flatten the original group order into a single Discord category preview while preserving each original forum and chat name."""
+    planned = []
+    for _, regions in region_groups.items():
+        for channel_name, _, _ in category_channel_specs(_, regions):
+            planned.append(channel_name)
+    return {"Regional": planned}
+
+
 def preview_category_plan(region_groups: dict[str, list[str]]) -> None:
     """Print categories and channel names that would be created or reordered."""
+    flattened = regional_preview_plan(region_groups)
+    region_counties = {region: counties for region, counties in load_region_config()[0].items()}
     print("Planned categories and channels:")
-    for category, regions in region_groups.items():
+    for category, channels in flattened.items():
         print(f"- Category: {category}")
-        for name, _, is_forum in category_channel_specs(category, regions):
-            kind = "forum" if is_forum else "text"
-            print(f"  - {kind}: {name}")
+        for channel_name in channels:
+            if channel_name.endswith("-chat"):
+                region = channel_name[:-5]
+                counties = region_counties.get(region, [])
+                description = region_channel_description(region, counties)
+                print(f"  - text: {channel_name} | {description}")
+            elif channel_name.endswith("-rba"):
+                print(f"  - forum: {channel_name}")
+            else:
+                print(f"  - {channel_name}")
 
 
 def planned_channel_names(region_groups: dict[str, list[str]]) -> list[str]:
-    planned = []
-    for category, regions in region_groups.items():
-        if category not in planned:
-            planned.append(category)
-        planned.extend(name for name, _, _ in category_channel_specs(category, regions))
+    flattened = regional_preview_plan(region_groups)
+    planned = ["Regional"]
+    planned.extend(flattened["Regional"])
     return planned
 
 
@@ -305,6 +369,8 @@ async def main() -> int:
         regions, region_groups = load_region_config()
     except (OSError, SyntaxError, ValueError) as error:
         parser.error(f"Could not load region definitions from georgia_map.py: {error}")
+
+    region_counties = regions
 
     if not args.apply and not args.diff:
         preview_category_plan(region_groups)
@@ -415,10 +481,10 @@ async def main() -> int:
 
                 await ensure_region_tags(alert_forum, region_groups)
                 await ensure_region_channels(
-                    alert_forum, region_groups, move_delay
+                    alert_forum, region_groups, move_delay, region_counties
                 )
                 print('Finished ordering')
-                await ensure_pinned_rba_guidelines(alert_forum.guild, region_groups)
+                await ensure_pinned_rba_guidelines(alert_forum.guild, region_groups, region_counties)
                 print("Regional tags, channels, category permissions, ordering, and pinned guidance posts are up to date.")
             except ValueError as error:
                 print(f"Regional setup failed: {error}")
