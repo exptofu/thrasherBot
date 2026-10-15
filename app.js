@@ -100,6 +100,9 @@ let gpsMap = null;
 let gpsCenterPin = null;
 let gpsAccuracyCircle = null;
 let gpsPositionMarker = null;
+let detailMap = null;
+let detailMapMarker = null;
+let detailMapPin = null;
 let gpsPollingInterval = null;
 let gpsAutoCenterUntil = 0;
 let gpsTrackingStartedAt = 0;
@@ -265,6 +268,56 @@ function initLocationMap() {
   window.gpsPositionMarker = gpsPositionMarker;
   window.gpsAccuracyCircle = gpsAccuracyCircle;
   gpsCenterPin.style.display = 'block';
+}
+
+function initDetailMap(lat, lon) {
+  const targetLat = Number.isFinite(lat) ? Number(lat) : 33.7490;
+  const targetLon = Number.isFinite(lon) ? Number(lon) : -84.3880;
+
+  if (!detailMap) {
+    detailMap = new maplibregl.Map({
+      container: 'detailMap',
+      style: 'https://tiles.openfreemap.org/styles/bright',
+      center: [targetLon, targetLat],
+      zoom: 15,
+      maxZoom: 20,
+      attributionControl: true,
+      dragRotate: false,
+      touchZoomRotate: true,
+      touchPitch: true
+    });
+
+    detailMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+    detailMapPin = document.createElement('div');
+    detailMapPin.className = 'detail-map-pin';
+    detailMapPin.setAttribute('aria-hidden', 'true');
+    detailMapPin.style.display = 'block';
+
+    detailMapMarker = new maplibregl.Marker({
+      element: detailMapPin,
+      anchor: 'bottom',
+      offset: [0, -2]
+    })
+      .setLngLat([targetLon, targetLat])
+      .addTo(detailMap);
+
+    detailMap.on('load', () => {
+      detailMap.resize();
+    });
+  }
+
+  if (detailMap) {
+    detailMap.jumpTo({ center: [targetLon, targetLat], zoom: 15 });
+    detailMap.resize();
+    if (detailMapMarker) {
+      detailMapMarker.setLngLat([targetLon, targetLat]);
+    }
+  }
+
+  window.detailMap = detailMap;
+  window.detailMapPin = detailMapPin;
+  window.detailMapMarker = detailMapMarker;
 }
 
 function updateGpsTrackingMarker(position) {
@@ -991,3 +1044,538 @@ window.addEventListener('beforeunload', resetGpsFields);
 resetGpsFields();
 validateRequiredFields();
 renderSuggestions([]);
+
+const OBSERVATION_STORAGE_KEY = 'thrasher_observation_entries';
+const state = {
+  entries: JSON.parse(localStorage.getItem(OBSERVATION_STORAGE_KEY) || '[]'),
+  activeView: 'overviewView'
+};
+
+const overviewView = document.getElementById('overviewView');
+const observationView = document.getElementById('observationView');
+const detailView = document.getElementById('detailView');
+const locationStep = document.getElementById('locationStep');
+const detailsStep = document.getElementById('detailsStep');
+const emptyMessage = document.getElementById('emptyMessage');
+const entriesGrid = document.getElementById('entriesGrid');
+const countText = document.getElementById('observationCountText');
+const timeInput = document.getElementById('observationTime');
+const refGps = document.getElementById('refGps');
+const refTime = document.getElementById('refTime');
+const detailHeader = document.getElementById('entryDetailHeader');
+const floatingNewObservationBtn = document.getElementById('floatingNewObservationBtn');
+
+function loadEntries() {
+  try {
+    return JSON.parse(localStorage.getItem(OBSERVATION_STORAGE_KEY) || '[]');
+  } catch (error) {
+    return [];
+  }
+}
+
+function saveEntries() {
+  localStorage.setItem(OBSERVATION_STORAGE_KEY, JSON.stringify(state.entries));
+}
+
+function showView(viewId) {
+  [overviewView, observationView, detailView].forEach((panel) => {
+    panel.classList.toggle('active', panel.id === viewId);
+  });
+  const shouldShowFab = viewId === 'overviewView' || viewId === 'detailView';
+  floatingNewObservationBtn.style.display = shouldShowFab ? 'inline-flex' : 'none';
+}
+
+function showWizardStep(stepId) {
+  locationStep.classList.toggle('active', stepId === 'location');
+  detailsStep.classList.toggle('active', stepId === 'details');
+  updateReferenceSummary();
+}
+
+function escapeHTML(value) {
+  return String(value || '').replace(/[&<>"']/g, (character) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[character] || character));
+}
+
+function formatObservationDate(dateValue) {
+  if (!dateValue) {
+    return 'Unknown time';
+  }
+
+  const dateObject = new Date(dateValue);
+  if (Number.isNaN(dateObject.getTime())) {
+    return 'Unknown time';
+  }
+
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit'
+  }).format(dateObject);
+}
+
+function formatTimeInput(dateValue) {
+  const date = dateValue ? new Date(dateValue) : new Date();
+  const offset = date.getTimezoneOffset();
+  const adjusted = new Date(date.getTime() - offset * 60000);
+  return adjusted.toISOString().slice(0, 16);
+}
+
+function setDefaultObservationTime() {
+  timeInput.value = formatTimeInput(new Date());
+  updateReferenceSummary();
+}
+
+function updateReferenceSummary() {
+  const lat = Number(document.getElementById('latitude').value);
+  const lon = Number(document.getElementById('longitude').value);
+  const timeValue = timeInput.value;
+
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    refGps.textContent = `GPS: ${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+  } else {
+    refGps.textContent = 'GPS: not set';
+  }
+
+  if (timeValue) {
+    const formatted = new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(new Date(timeValue));
+    refTime.textContent = `Time: ${formatted}`;
+  } else {
+    refTime.textContent = 'Time: not set';
+  }
+}
+
+function buildDiscordTextFromCurrentForm() {
+  const speciesValue = document.getElementById('species').value.trim();
+  const species = speciesValue ? toCamelCaseSpecies(speciesValue) : 'Species';
+  const hotspot = document.getElementById('hotspot').value.trim();
+  const notes = document.getElementById('description').value.trim();
+  const latitude = Number(document.getElementById('latitude').value);
+  const longitude = Number(document.getElementById('longitude').value);
+  const observedAt = timeInput.value ? new Date(timeInput.value) : new Date();
+  const countyLabel = typeof selectedCounty !== 'undefined' && selectedCounty ? ` (${selectedCounty})` : '';
+
+  const formatDate = `${String(observedAt.getMonth() + 1).padStart(2, '0')}/${String(observedAt.getDate()).padStart(2, '0')}/${observedAt.getFullYear()}`;
+  const formatTime = new Intl.DateTimeFormat('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  }).format(observedAt).replace(' ', '').replace(':', ':');
+
+  const title = `${species}${hotspot ? ` - ${toCamelCaseSpecies(hotspot)}` : ''}${countyLabel} - ${formatDate}`;
+  const gpsText = `${Number.isFinite(latitude) ? latitude.toFixed(5) : '0.00000'}, ${Number.isFinite(longitude) ? longitude.toFixed(5) : '0.00000'}`;
+  const notesText = notes ? ` ${notes}` : '';
+
+  return `${title}\n> ${gpsText} @ ${formatTime}.${notesText}`;
+}
+
+function renderOverview() {
+  entriesGrid.innerHTML = '';
+  countText.textContent = `${state.entries.length} observation${state.entries.length === 1 ? '' : 's'}`;
+  const deleteAllBtn = document.getElementById('deleteAllBtn');
+  deleteAllBtn.style.display = state.entries.length ? 'inline-flex' : 'none';
+
+  if (!state.entries.length) {
+    emptyMessage.classList.add('visible');
+    return;
+  }
+
+  emptyMessage.classList.remove('visible');
+
+  state.entries.forEach((entry) => {
+    const shell = document.createElement('div');
+    shell.className = 'entry-card-shell';
+
+    const confirmButton = document.createElement('button');
+    confirmButton.type = 'button';
+    confirmButton.className = 'entry-delete-confirm';
+    confirmButton.textContent = 'Delete?';
+    confirmButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (confirm('Delete this observation?')) {
+        deleteEntryById(entry.id);
+      } else {
+        resetSwipe();
+      }
+    });
+
+    const card = document.createElement('div');
+    card.className = 'entry-card entry-card-swipe entry-card-summary';
+    card.tabIndex = 0;
+    card.setAttribute('role', 'button');
+    let suppressCardClick = false;
+
+    const openSwipe = () => {
+      shell.classList.add('swiped');
+      card.style.transform = 'translateX(-140px)';
+    };
+
+    const resetSwipe = () => {
+      shell.classList.remove('swiped');
+      card.style.transform = 'translateX(0px)';
+    };
+
+    card.addEventListener('click', (event) => {
+      if (suppressCardClick) {
+        suppressCardClick = false;
+        event.preventDefault();
+        event.stopPropagation();
+        resetSwipe();
+        return;
+      }
+      if (shell.classList.contains('swiped')) {
+        event.preventDefault();
+        event.stopPropagation();
+        resetSwipe();
+        return;
+      }
+      showEntryDetail(entry.id);
+    });
+
+    card.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        if (shell.classList.contains('swiped')) {
+          resetSwipe();
+          return;
+        }
+        showEntryDetail(entry.id);
+      }
+    });
+
+    const title = escapeHTML(entry.species || 'Observation');
+    const hotspot = entry.hotspot ? ` • ${escapeHTML(entry.hotspot)}` : '';
+    const meta = [
+      `${escapeHTML(formatObservationDate(entry.observedAt))}`,
+      `${escapeHTML(`${Number(entry.latitude).toFixed(5)}, ${Number(entry.longitude).toFixed(5)}`)}`
+    ].join('<br>');
+
+    card.innerHTML = `
+      <div class="entry-card-header">
+        <h3 class="entry-card-title">${title}${hotspot}</h3>
+      </div>
+      <div class="detail-meta entry-summary-meta">
+        ${meta}
+      </div>
+      <div class="detail-top-actions">
+        <button type="button" class="mini-btn edit-entry-btn" data-entry-id="${entry.id}">Edit</button>
+        <button type="button" class="mini-btn danger delete-entry-btn" data-entry-id="${entry.id}">Delete</button>
+      </div>
+    `;
+
+    const editButton = card.querySelector('.edit-entry-btn');
+    editButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      startObservationWizard(entry.id);
+    });
+
+    const deleteButton = card.querySelector('.delete-entry-btn');
+    deleteButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (shell.classList.contains('swiped')) {
+        resetSwipe();
+        return;
+      }
+      openSwipe();
+    });
+
+    let startX = 0;
+    let currentX = 0;
+    let dragging = false;
+
+    const applyDragOffset = (offset) => {
+      const maxOffset = -140;
+      const clamped = Math.max(maxOffset, Math.min(0, offset));
+      card.style.transform = `translateX(${clamped}px)`;
+      shell.classList.toggle('swiped', clamped <= -80);
+    };
+
+    card.addEventListener('pointerdown', (event) => {
+      if (event.pointerType === 'mouse' && event.button !== 0) {
+        return;
+      }
+
+      startX = event.clientX;
+      currentX = shell.classList.contains('swiped') ? -140 : 0;
+      dragging = true;
+
+      if (!shell.classList.contains('swiped')) {
+        shell.classList.remove('swiped');
+        card.style.transform = 'translateX(0px)';
+      }
+    });
+
+    card.addEventListener('pointermove', (event) => {
+      if (!dragging) {
+        return;
+      }
+
+      const deltaX = event.clientX - startX;
+      const baseOffset = shell.classList.contains('swiped') ? -140 : 0;
+      currentX = baseOffset + deltaX;
+      const clamped = Math.max(-140, Math.min(0, currentX));
+      card.style.transform = `translateX(${clamped}px)`;
+      shell.classList.toggle('swiped', clamped <= -80);
+    });
+
+    const endSwipe = () => {
+      if (!dragging) {
+        return;
+      }
+      dragging = false;
+
+      if (currentX <= -80) {
+        openSwipe();
+      } else {
+        resetSwipe();
+      }
+    };
+
+    card.addEventListener('pointerup', endSwipe);
+    card.addEventListener('pointerleave', endSwipe);
+    card.addEventListener('pointercancel', endSwipe);
+
+    shell.appendChild(confirmButton);
+    shell.appendChild(card);
+    entriesGrid.appendChild(shell);
+  });
+}
+
+function deleteEntryById(entryId) {
+  state.entries = state.entries.filter((entry) => entry.id !== entryId);
+  saveEntries();
+  renderOverview();
+  showView('overviewView');
+}
+
+function getObservationLocationMeta(latitude, longitude) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return { county: '', region: '', area: '' };
+  }
+
+  const countyNames = typeof findCountyForPoint === 'function'
+    ? findCountyForPoint(latitude, longitude, 5000) || []
+    : [];
+
+  const preferredCounty = (typeof selectedCounty !== 'undefined' && selectedCounty)
+    ? (countyNames.some((county) => county && county.toLowerCase() === selectedCounty.toLowerCase()) ? selectedCounty : countyNames[0] || '')
+    : (countyNames[0] || '');
+
+  if (!preferredCounty) {
+    return { county: '', region: '', area: '' };
+  }
+
+  const countyKey = preferredCounty.toLowerCase();
+  const countySlug = typeof COUNTY_TO_REGION !== 'undefined' ? COUNTY_TO_REGION[countyKey] : '';
+  const areaLabel = typeof COUNTY_TO_CATEGORY !== 'undefined' ? (COUNTY_TO_CATEGORY[countyKey] || 'Unassigned') : '';
+
+  return {
+    county: preferredCounty,
+    region: countySlug ? (typeof formatRegionSlug === 'function' ? formatRegionSlug(countySlug) : `#${countySlug}-chat`) : '',
+    area: countySlug && areaLabel ? (typeof formatAreaSlug === 'function' ? formatAreaSlug(areaLabel, countySlug) : areaLabel) : ''
+  };
+}
+
+function showEntryDetail(entryId) {
+  const entry = state.entries.find((item) => item.id === entryId);
+  if (!entry) {
+    return;
+  }
+
+  const locationMeta = getObservationLocationMeta(Number(entry.latitude), Number(entry.longitude));
+  const county = entry.county || locationMeta.county;
+  const region = entry.region || locationMeta.region;
+  const area = entry.area || locationMeta.area;
+
+  const discordOutput = document.getElementById('discordOutput');
+  discordOutput.dataset.entryId = String(entry.id);
+  discordOutput.value = entry.discord || buildDiscordTextFromCurrentForm();
+
+  detailHeader.innerHTML = `
+    <div class="detail-header-row">
+      <h2>${escapeHTML(entry.species || 'Observation')}</h2>
+    </div>
+    <div class="detail-meta">
+      <strong>When:</strong> ${escapeHTML(formatObservationDate(entry.observedAt))}<br>
+      <strong>GPS:</strong> ${escapeHTML(`${Number(entry.latitude).toFixed(5)}, ${Number(entry.longitude).toFixed(5)}`)}<br>
+      ${county ? `<strong>County:</strong> ${escapeHTML(county)}<br>` : ''}
+      ${region ? `<strong>Region:</strong> ${escapeHTML(region)}<br>` : ''}
+      ${area ? `<strong>Area:</strong> ${escapeHTML(area)}<br>` : ''}
+      ${entry.hotspot ? `<strong>Hotspot:</strong> ${escapeHTML(entry.hotspot)}<br>` : ''}
+      ${entry.notes ? `<strong>Notes:</strong> ${escapeHTML(entry.notes)}` : ''}
+    </div>
+  `;
+
+  if (typeof initDetailMap === 'function') {
+    initDetailMap(entry.latitude, entry.longitude);
+  }
+
+  setCopyButtonState(false);
+  showView('detailView');
+}
+
+function startObservationWizard(entryId = null) {
+  const entry = entryId ? state.entries.find((item) => item.id === entryId) : null;
+
+  if (entry) {
+    const savedLat = Number.isFinite(entry.latitude) ? entry.latitude : 33.749;
+    const savedLon = Number.isFinite(entry.longitude) ? entry.longitude : -84.388;
+
+    document.getElementById('species').value = entry.species || '';
+    document.getElementById('hotspot').value = entry.hotspot || '';
+    document.getElementById('description').value = entry.notes || '';
+    document.getElementById('latitude').value = savedLat;
+    document.getElementById('longitude').value = savedLon;
+    timeInput.value = formatTimeInput(entry.observedAt || new Date());
+    if (typeof setLocation === 'function') {
+      setLocation(savedLat, savedLon, 25);
+    }
+    if (typeof initLocationMap === 'function') {
+      initLocationMap();
+    }
+    if (gpsMap) {
+      gpsMap.setView([savedLat, savedLon], 15, { animate: false });
+      gpsMap.resize();
+    }
+    state.editingEntryId = entryId;
+  } else {
+    setDefaultObservationTime();
+    if (typeof resetGpsFields === 'function') {
+      resetGpsFields();
+    }
+    document.getElementById('species').value = '';
+    document.getElementById('hotspot').value = '';
+    document.getElementById('description').value = '';
+    document.getElementById('discordOutput').value = '';
+    state.editingEntryId = null;
+  }
+
+  showView('observationView');
+  showWizardStep('location');
+  updateReferenceSummary();
+}
+
+function saveCurrentObservation() {
+  const species = document.getElementById('species').value.trim();
+  if (!species) {
+    alert('Please add a species before saving the observation.');
+    return;
+  }
+
+  const latitude = Number(document.getElementById('latitude').value);
+  const longitude = Number(document.getElementById('longitude').value);
+  const observedAt = timeInput.value ? new Date(timeInput.value) : new Date();
+  const message = buildDiscordTextFromCurrentForm();
+  const locationMeta = getObservationLocationMeta(latitude, longitude);
+
+  const payload = {
+    species,
+    hotspot: document.getElementById('hotspot').value.trim(),
+    notes: document.getElementById('description').value.trim(),
+    latitude: Number.isFinite(latitude) ? latitude : 0,
+    longitude: Number.isFinite(longitude) ? longitude : 0,
+    county: locationMeta.county,
+    region: locationMeta.region,
+    area: locationMeta.area,
+    observedAt: observedAt.toISOString(),
+    discord: message
+  };
+
+  if (state.editingEntryId) {
+    const existingIndex = state.entries.findIndex((entry) => entry.id === state.editingEntryId);
+    if (existingIndex >= 0) {
+      state.entries[existingIndex] = { ...state.entries[existingIndex], ...payload };
+    }
+  } else {
+    state.entries.unshift({ id: Date.now(), ...payload });
+  }
+
+  saveEntries();
+  renderOverview();
+  const savedEntry = state.entries.find((entry) => entry.id === state.editingEntryId) || state.entries[0];
+  state.editingEntryId = null;
+  showEntryDetail(savedEntry.id);
+}
+
+function bindJournalEvents() {
+  document.getElementById('floatingNewObservationBtn').addEventListener('click', () => startObservationWizard());
+  document.getElementById('deleteAllBtn').addEventListener('click', () => {
+    if (!state.entries.length) return;
+    if (confirm('Delete all saved observations?')) {
+      state.entries = [];
+      saveEntries();
+      renderOverview();
+      showView('overviewView');
+    }
+  });
+  document.getElementById('exitObservationBtn').addEventListener('click', () => showView('overviewView'));
+  document.getElementById('closeDetailBtn').addEventListener('click', () => showView('overviewView'));
+  document.getElementById('editDetailBtn').addEventListener('click', () => {
+    const entryId = Number(document.getElementById('discordOutput').dataset.entryId || 0);
+    if (entryId) {
+      startObservationWizard(entryId);
+    }
+  });
+  document.getElementById('deleteDetailBtn').addEventListener('click', () => {
+    const entryId = Number(document.getElementById('discordOutput').dataset.entryId || 0);
+    if (entryId && confirm('Delete this observation?')) {
+      deleteEntryById(entryId);
+    }
+  });
+  document.getElementById('toDetailsBtn').addEventListener('click', () => {
+    if (!document.getElementById('latitude').value || !document.getElementById('longitude').value) {
+      alert('Please use GPS to set the location before continuing.');
+      return;
+    }
+    showWizardStep('details');
+  });
+  document.getElementById('backToLocationBtn').addEventListener('click', () => showWizardStep('location'));
+  document.getElementById('saveObservationBtn').addEventListener('click', saveCurrentObservation);
+  timeInput.addEventListener('input', updateReferenceSummary);
+  document.getElementById('species').addEventListener('input', () => {
+    if (typeof scheduleLiveMessageUpdate === 'function') {
+      scheduleLiveMessageUpdate();
+    }
+  });
+  document.getElementById('hotspot').addEventListener('input', () => {
+    if (typeof scheduleLiveMessageUpdate === 'function') {
+      scheduleLiveMessageUpdate();
+    }
+  });
+  document.getElementById('description').addEventListener('input', () => {
+    if (typeof scheduleLiveMessageUpdate === 'function') {
+      scheduleLiveMessageUpdate();
+    }
+  });
+}
+
+function initializeJournalApp() {
+  if (window.__thrasherJournalAppInitialized) {
+    return;
+  }
+
+  window.__thrasherJournalAppInitialized = true;
+  bindJournalEvents();
+  renderOverview();
+  setDefaultObservationTime();
+  showView('overviewView');
+  showWizardStep('location');
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeJournalApp, { once: true });
+} else {
+  initializeJournalApp();
+}

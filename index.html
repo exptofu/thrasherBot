@@ -9,59 +9,112 @@
 </head>
 <body>
   <div class="journal-container">
-
-    <form id="birdForm">
-      <div class="journal-title">Observation details</div>
-      <div id="gpsMap" class="gps-map" aria-label="Map showing a centered GPS pin"></div>
-      <div class="gps-input-row">
-        <div class="gps-field">
-          <label>
-            Latitude
-            <input id="latitude" class="journal-input readonly-field" type="number" step="0.000001" placeholder="" tabindex="-1" readonly />
-          </label>
-        </div>
-
-        <div class="gps-field">
-          <label>
-            Longitude
-            <input id="longitude" class="journal-input readonly-field" type="number" step="0.000001" placeholder="" tabindex="-1" readonly />
-          </label>
-        </div>
-
-        <button type="button" id="useLocationBtn" class="journal-btn gps-button">Use GPS</button>
+    <div id="overviewView" class="view-panel active">
+      <div class="top-row">
+        <div class="journal-title">Observations</div>
       </div>
-      <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
 
-      
-
-      <label>
-        Species
-        <input id="species" class="journal-input" type="text" placeholder="" required />
-      </label>
-
-      <label>
-        Hotspot (optional)
-        <input id="hotspot" class="journal-input" type="text" placeholder="" />
-      </label>
-
-      <label>
-        Notes (optional)
-        <textarea id="description" class="journal-textarea" rows="4" placeholder=""></textarea>
-      </label>
-
-      
-    </form>
-
-    <div class="journal-section-title">Generated message</div>
-    <textarea id="discordOutput" class="journal-output-box" readonly placeholder="Fill in the required fields..."></textarea>
-
-    <div class="form-actions">
-      <button type="button" id="copyBtn" class="journal-btn">Copy to clipboard</button>
+      <div id="entriesGrid" class="entries-grid"></div>
+      <div id="emptyMessage" class="empty-message visible">No observations saved yet.</div>
+      <div class="overview-footer">
+        <div id="observationCountText" class="overview-summary">0 observations</div>
+        <button type="button" id="deleteAllBtn" class="journal-btn secondary delete-all-btn" style="display: none;">Delete all</button>
+      </div>
     </div>
+
+    <div id="observationView" class="view-panel">
+      <div class="wizard-header">
+        <button type="button" id="exitObservationBtn" class="journal-btn secondary">Exit</button>
+        <div class="journal-title">Observation details</div>
+      </div>
+
+      <div id="locationStep" class="wizard-page active">
+        <div id="gpsMap" class="gps-map" aria-label="Map showing a centered GPS pin"></div>
+        <div class="gps-input-row">
+          <div class="gps-field">
+            <label>
+              Latitude
+              <input id="latitude" class="journal-input readonly-field" type="number" step="0.000001" tabindex="-1" readonly />
+            </label>
+          </div>
+
+          <div class="gps-field">
+            <label>
+              Longitude
+              <input id="longitude" class="journal-input readonly-field" type="number" step="0.000001" tabindex="-1" readonly />
+            </label>
+          </div>
+
+          <button type="button" id="useLocationBtn" class="journal-btn gps-button">Use GPS</button>
+        </div>
+
+        <label>
+          Observation time
+          <input id="observationTime" class="journal-input" type="datetime-local" />
+        </label>
+
+        <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
+
+        <div class="form-actions">
+          <button type="button" id="toDetailsBtn" class="journal-btn">Next</button>
+        </div>
+      </div>
+
+      <div id="detailsStep" class="wizard-page">
+        <div class="reference-bar">
+          <span id="refGps">GPS: not set</span>
+          <span id="refTime">Time: not set</span>
+        </div>
+
+        <label>
+          Species
+          <input id="species" class="journal-input" type="text" required />
+        </label>
+
+        <label>
+          Hotspot (optional)
+          <input id="hotspot" class="journal-input" type="text" />
+        </label>
+
+        <label>
+          Notes (optional)
+          <textarea id="description" class="journal-textarea" rows="4"></textarea>
+        </label>
+
+        <div class="form-actions stacked">
+          <button type="button" id="backToLocationBtn" class="journal-btn secondary">Back</button>
+          <button type="button" id="saveObservationBtn" class="journal-btn">Save observation</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="detailView" class="view-panel">
+      <div class="wizard-header">
+        <div class="journal-title">Observation detail</div>
+        <div class="detail-top-actions">
+          <button type="button" id="editDetailBtn" class="mini-btn">Edit</button>
+          <button type="button" id="deleteDetailBtn" class="mini-btn danger">Delete</button>
+          <button type="button" id="closeDetailBtn" class="icon-btn" aria-label="Close observation detail">&times;</button>
+        </div>
+      </div>
+
+      <div id="entryDetailHeader" class="detail-header"></div>
+
+      <div id="detailMap" class="gps-map detail-map" aria-label="Map showing the saved observation location"></div>
+
+      <div class="journal-section-title">Discord copy/paste format</div>
+      <textarea id="discordOutput" class="journal-output-box" readonly placeholder="Your saved observation will appear here."></textarea>
+
+      <div class="form-actions">
+        <button type="button" id="copyBtn" class="journal-btn">Copy to clipboard</button>
+      </div>
+    </div>
+    <button type="button" id="floatingNewObservationBtn" class="fab" aria-label="Create new observation">+</button>
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@3.3.0/dist/maplibre-gl.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=20261013-map-marker-fix"></script>
+
 </body>
 </html>
