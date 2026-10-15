@@ -14,7 +14,6 @@ GEOJSON_URL = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-
 GEORGIA_FIPS = "13"
 MAP_WIDTH = 620
 PAD = 40
-LEGEND_WIDTH = 380
 
 # Keep these county assignments and categories synchronized with bot.py.
 REGIONS = {
@@ -118,7 +117,7 @@ def rings(geometry: dict):
 
 def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[str, str],
           title: str, y0: int, labels: dict[str, str] | None = None) -> tuple[str, int]:
-    """Return an SVG group (map + legend) placed at y0 and its height."""
+    """Return an SVG group for the map placed at y0 and its height."""
     regions = categories
     county_region = {c.lower(): r for r, cs in regions.items() for c in cs}
 
@@ -174,25 +173,12 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
             f'font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" '
             f'stroke-linejoin="round" paint-order="stroke">{escape(label)}</text>'
         )
-    north_to_south = sorted(
-        (region for region, (area2, _, _) in centroids.items() if area2),
-        key=lambda region: centroids[region][2] / (3 * centroids[region][0]),
-    ) + [region for region, (area2, _, _) in centroids.items() if not area2]
-
-    legend = [
-        f'<rect x="{PAD + MAP_WIDTH + 20}" y="{PAD + i * 22}" width="14" height="14" fill="{colors[r]}" '
-        f'stroke="#fff" stroke-width="0.5"/>'
-        f'<text x="{PAD + MAP_WIDTH + 42}" y="{PAD + 12 + i * 22}">'
-        f'{escape(r)}</text>'
-        for i, r in enumerate(north_to_south)
-    ]
-    panel_height = max(height, 2 * PAD + len(legend) * 22)
+    panel_height = height
     svg = (
         f'<g transform="translate(0,{y0})">\n'
         f'<text x="{PAD}" y="26" font-size="18" font-weight="bold">{escape(title)}</text>\n'
         f'<g stroke="#fff" stroke-width="0.6" stroke-linejoin="round">\n' + "\n".join(paths) + "\n</g>\n"
         + "\n".join(map_labels) + "\n"
-        + "\n".join(legend)
         + "\n</g>\n"
     )
     return svg, panel_height
@@ -209,7 +195,7 @@ def main():
         ("georgia_regions.svg", regions, COLORS, "Regions", REGION_LABELS),
     ):
         svg, height = panel(features, categories, colors, title, 0, labels)
-        width = PAD + MAP_WIDTH + LEGEND_WIDTH
+        width = MAP_WIDTH + 2 * PAD
         out = output_dir / filename
         out.write_text(
             f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
