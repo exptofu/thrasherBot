@@ -657,7 +657,7 @@ class Bot(discord.Client):
         existing = None
         try:
             async for message in channel.history(limit=100):
-                if message.author == self.user and message.content == WELCOME_MESSAGE:
+                if message.author == self.user:
                     existing = message
                     break
         except discord.Forbidden:
