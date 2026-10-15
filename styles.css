@@ -179,7 +179,7 @@ input[type="number"] {
   /* Pronounced spine accent */
   border-radius: 2px;
   padding: 15px;
-  font-family: 'Courier New', Courier, monospace;
+  font-family: "Source Sans 3", sans-serif;
   font-size: 18px;
   color: #000000;
   /* Absolute highest contrast for dynamic generation output */
@@ -774,4 +774,12 @@ body {
   font-family: 'Source Serif 4', serif;
   color: #110d0a;
   padding: 10px;
+}
+
+input,
+button,
+select,
+textarea {
+  font-family: "Source Sans 3", sans-serif;
+  font-size: 100%; /* Optional: ensures form field size matches page text */
 }
