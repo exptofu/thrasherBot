@@ -215,7 +215,8 @@ function initLocationMap() {
     maxZoom: 20,
     attributionControl: true,
     dragRotate: false,
-    touchZoomRotate: false
+    touchZoomRotate: true,
+    touchPitch: true
   });
 
   gpsMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');

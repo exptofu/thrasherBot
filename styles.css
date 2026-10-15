@@ -1,17 +1,20 @@
 /* Core Journal Container & Layout */
 .journal-container {
-  background-color: #fdfcf7; /* Lightened significantly for maximum contrast */
+  background-color: #fdfcf7;
+  /* Lightened significantly for maximum contrast */
   border-radius: 4px;
-  padding: 20px 30px 35px 35px; /* Generous left padding to clear a "margin line" */
+  padding: 20px 30px 35px 35px;
+  /* Generous left padding to clear a "margin line" */
   font-family: 'Georgia', serif;
-  color: #110d0a; /* Darkened to deep near-black ink for contrast compliance */
-  box-shadow: 
+  color: #110d0a;
+  /* Darkened to deep near-black ink for contrast compliance */
+  box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
     0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
   max-width: 650px;
   margin: 30px auto;
-  background-image: 
+  background-image:
     /* Crimson notebook vertical margin line */
 }
 
@@ -24,7 +27,8 @@
   border-bottom: 0px solid #4a3319;
   padding-bottom: 0px;
   margin-bottom: 0;
-  color: #110d0a; /* High contrast */
+  color: #110d0a;
+  /* High contrast */
   font-style: italic;
 }
 
@@ -33,7 +37,8 @@
   text-transform: uppercase;
   letter-spacing: 1px;
   font-weight: bold;
-  color: #2b1f13; /* Darkened for better readability */
+  color: #2b1f13;
+  /* Darkened for better readability */
   border-bottom: 2px solid #7c6a52;
   padding-bottom: 4px;
   margin-top: 25px;
@@ -43,7 +48,8 @@
 label {
   display: block;
   margin-bottom: 18px;
-  font-weight: 700; /* Increased weight for crisp legibility */
+  font-weight: 700;
+  /* Increased weight for crisp legibility */
   color: #110d0a;
 }
 
@@ -53,12 +59,14 @@ label {
   width: 100%;
   background-color: transparent;
   border: none;
-  border-bottom: 2px dashed #544637; /* Dashed underline for editable inputs */
+  border-bottom: 2px dashed #544637;
+  /* Dashed underline for editable inputs */
   border-radius: 0px !important;
   padding: 6px 4px;
   font-family: 'Georgia', serif;
   font-size: 16px;
-  color: #110d0a; /* Crisp high-contrast values */
+  color: #110d0a;
+  /* Crisp high-contrast values */
   box-sizing: border-box;
   transition: all 0.2s ease;
   -webkit-text-size-adjust: 100%;
@@ -100,7 +108,8 @@ input[type="number"] {
 .journal-input:focus,
 .journal-textarea:focus,
 .journal-select:focus {
-  outline: 2px solid #2e4d31; /* Added explicit focus outline ring for accessibility */
+  outline: 2px solid #2e4d31;
+  /* Added explicit focus outline ring for accessibility */
   outline-offset: 3px;
   background-color: rgb(250, 240, 214);
 }
@@ -119,7 +128,8 @@ input[type="number"] {
 }
 
 .journal-btn {
-  background-color: #2b1f13; /* Darkened for contrast against light button text */
+  background-color: #2b1f13;
+  /* Darkened for contrast against light button text */
   color: #ffffff;
   border: 1px solid #110d0a;
   border-radius: 4px;
@@ -134,7 +144,8 @@ input[type="number"] {
   transition: all 0.15s ease;
 }
 
-.journal-btn:hover, .journal-btn:focus-visible {
+.journal-btn:hover,
+.journal-btn:focus-visible {
   background-color: #110d0a;
   outline: 2px solid #2e4d31;
   outline-offset: 2px;
@@ -154,12 +165,14 @@ input[type="number"] {
 .journal-output-box {
   background-color: #ffffff;
   border: 1px solid #544637;
-  border-left: 5px solid #2b1f13; /* Pronounced spine accent */
+  border-left: 5px solid #2b1f13;
+  /* Pronounced spine accent */
   border-radius: 2px;
   padding: 15px;
-  font-family: 'Courier New', Courier, monospace; 
+  font-family: 'Courier New', Courier, monospace;
   font-size: 18px;
-  color: #000000; /* Absolute highest contrast for dynamic generation output */
+  color: #000000;
+  /* Absolute highest contrast for dynamic generation output */
   box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.05);
   margin-top: 15px;
   width: 100%;
@@ -189,12 +202,29 @@ input[type="number"] {
   }
 
   .suggestion-input-row {
-    grid-template-columns: 1fr;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: 7fr 13fr !important;
+    /* Two equal columns */
+    gap: 16px;
+    /* Adjust spacing between fields */
+
   }
 
-  .suggestion-field {
-    min-width: 0;
+  /* Make the third item span across both columns */
+  .suggestion-input-row .suggestion-field:nth-child(3) {
+    grid-column: span 2;
+  }
+
+  .suggestion-field label {
+    font-size: 12px;
+  }
+
+  .suggestion-readonly {
+    font-size: 12px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    line-height: 1.3;
   }
 }
 
@@ -381,7 +411,8 @@ input[type="number"] {
 
 body {
   margin: 0;
-  background-color: #355831; /* Softened desk background slightly to help paper surface pop */
+  background-color: #355831;
+  /* Softened desk background slightly to help paper surface pop */
   background-size: 60px 60px;
   background-position: 0 0, 30px 30px;
   font-family: 'Georgia', serif;
