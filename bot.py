@@ -30,6 +30,7 @@ VERBOSE_LOGGING = os.environ.get("VERBOSE_LOGGING", "false").strip().lower() not
 MAX_RETRIES = 5
 SCHEMA_VERSION = 2
 WELCOME_CHANNEL = "rules-and-info"
+UNREGISTERED_ROLE_NAME = "unregistered"
 WELCOME_MESSAGE = (
     "# Welcome to the Georgia Birding Discord!\n\nWe are glad you are here! To keep this server "
     "a helpful and easy-to-use resource for all Georgia birders, all members are required to "
@@ -867,6 +868,10 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
         return
 
     role = next((role for role in guild.roles if role.name.casefold() == "member"), None)
+    unregistered_role = next(
+        (role for role in guild.roles if role.name.casefold() == UNREGISTERED_ROLE_NAME),
+        None,
+    )
     bot_member = guild.me
     if role is None:
         log.warning("Nickname command failed: member role not found in guild %s", guild.id)
@@ -904,6 +909,8 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
         if not role_added:
             await member.add_roles(role, reason="User set their server nickname")
             role_added = True
+        if unregistered_role is not None and unregistered_role in member.roles:
+            await member.remove_roles(unregistered_role, reason="User completed registration")
         await member.edit(nick=nickname, reason="User changed their server nickname")
     except discord.Forbidden as error:
         log.warning(
