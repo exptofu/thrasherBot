@@ -23,10 +23,20 @@ Georgia's 159 counties are grouped into 20 regions in the `REGIONS` dict in `bot
 
 - Creates a forum tag for each region in the `DISCORD_CHANNEL_ID` forum on startup and tags each new post with its county's region. Discord allows 20 tags per forum, so the region list uses all of them.
 - Creates a regional discussion forum and a `<region>-banter` text channel for each region. Both are grouped under a broader geographic category such as `Metro Atlanta` or `North Georgia`. Members can reply in the discussion forums; only the bot starts forum posts. The banter channels are for general local discussion.
+- Regional channel creation, category permission syncing, and ordering are implemented in `utils/region_channels.py`.
 - Posts to each region's `<region>_rba` post when a net-new sighting appears, linking to the original post.
 - If startup needs to reorder channels, it waits `DISCORD_CHANNEL_MOVE_DELAY_SECONDS` between moves (default: 1 second).
 
-The bot needs the Manage Channels and Manage Threads permissions; the invite link it logs on a permission error includes them.
+The bot needs the Manage Channels, Manage Roles, and Manage Threads permissions; the invite link it logs on a permission error includes them.
+
+### Temporary permission sync utility
+
+`utils/sync_category_permissions.py` previews channels whose permissions differ from their parent category. Review the preview, then add `--apply` to sync them. It skips the forum configured by `DISCORD_CHANNEL_ID`, but applies to every other categorized channel in that guild, not only regional channels. Syncing replaces each affected channel's custom overwrites with its category's permissions.
+
+```powershell
+python utils/sync_category_permissions.py
+python utils/sync_category_permissions.py --apply
+```
 
 ## Region map
 

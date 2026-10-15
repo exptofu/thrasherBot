@@ -64,4 +64,6 @@ At startup, the bot reuses and moves channels whose names exactly match a region
 
 Changing a county's region affects future routing. Existing sighting posts and RBA threads are not automatically retagged or redistributed. Review and archive old regional channels manually after confirming the new channels and tags are working.
 
-Keep `REGIONS` and `REGION_GROUPS` in `bot.py` and `georgia_map.py` synchronized. Run `python -m py_compile bot.py georgia_map.py` and `python georgia_map.py` before restarting the service.
+Regional startup provisioning, permission syncing, and ordering live in `utils/region_channels.py`. Keep `REGIONS` and `REGION_GROUPS` in `bot.py` and `georgia_map.py` synchronized. Run `python -m py_compile bot.py utils/region_channels.py utils/sync_category_permissions.py georgia_map.py` and `python georgia_map.py` before restarting the service.
+
+The temporary `utils/sync_category_permissions.py` utility previews changes by default. It can apply category permissions to all categorized channels in the alert forum's guild except the forum ID configured by `DISCORD_CHANNEL_ID`; it is not limited to regional channels. Review the full preview before using `--apply`, because channel-specific overwrites on affected channels will be replaced by the category overwrites.
