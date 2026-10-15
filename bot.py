@@ -41,9 +41,8 @@ WELCOME_MESSAGE = (
     "* :two: **Stay On Topic:** Before making a post, always double check that you've selected "
     "the appropriate channel.\n"
     "* :three: **Posts related to advertising, marketing, solicitation, membership drives, or "
-    "petitions are not acceptable**. Limited exceptions may be made by moderators for relevant "
-    "birding events, conservation initiatives, or announcements from Birds Georgia and trusted "
-    "partners within the Georgia birding community.\n"
+    "petitions are not acceptable**. Birding events, meetups, and talks are welcome to be shared "
+    "provided they are open to the public.\n"
     "* :four: **We expect all members to model the [American Birding Association's Code of Ethics]"
     "(<https://www.aba.org/aba-code-of-birding-ethics/>):**\n"
     "  - Respect and promote birds and their environment\n"
@@ -489,6 +488,7 @@ async def send_group(
         getattr(thread, "id", None),
         existing[0] if existing else None,
     )
+    should_notify_region = not existing
 
     if thread and existing:
         try:
@@ -528,7 +528,7 @@ async def send_group(
     )
     db.commit()
     log.debug("Stored group %s %s in thread %s with message %s", species, checklist_id, getattr(thread, "id", "?"), message.id)
-    if not thread and region:
+    if should_notify_region and not thread and region:
         await notify_region_chat(client, channel, region, created.thread, first)
 
 
@@ -552,19 +552,6 @@ async def process_sighting(channel: discord.ForumChannel, o: dict):
     species, checklist_id = o["speciesCode"], o["checklistId"]
     scope = scope_of(o)
 
-    existing_group = db.execute(
-        "SELECT message_id FROM groups WHERE species_code=? AND checklist_id=?",
-        (species, checklist_id),
-    ).fetchone()
-    if existing_group:
-        log.warning(
-            "Skipping duplicate species/checklist post for %s/%s: existing message=%s",
-            species,
-            checklist_id,
-            existing_group[0],
-        )
-        return
-
     existing = db.execute(
         "SELECT checklist_id, scope FROM sightings WHERE sub_id=? AND species_code=?",
         (o["subId"], species),
@@ -578,6 +565,19 @@ async def process_sighting(channel: discord.ForumChannel, o: dict):
             existing[1],
         )
         return
+
+    existing_group = db.execute(
+        "SELECT message_id FROM groups WHERE species_code=? AND checklist_id=?",
+        (species, checklist_id),
+    ).fetchone()
+    if existing_group:
+        log.info(
+            "Merging additional observer %s into existing species/checklist group %s/%s (message=%s)",
+            o["subId"],
+            species,
+            checklist_id,
+            existing_group[0],
+        )
 
     previous = [
         json.loads(r[0])
