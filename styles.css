@@ -19,7 +19,6 @@ body {
   background-color: #fdfcf7;
   border-radius: 4px;
   padding: 20px 30px 24px 35px;
-  font-family: 'Georgia', serif;
   color: #110d0a;
   box-shadow:
     0 4px 12px rgba(0, 0, 0, 0.15),
@@ -79,7 +78,6 @@ label {
   /* Dashed underline for editable inputs */
   border-radius: 0px !important;
   padding: 6px 4px;
-  font-family: 'Georgia', serif;
   font-size: 16px;
   color: #110d0a;
   /* Crisp high-contrast values */
@@ -147,24 +145,20 @@ input[type="number"] {
   background-color: #2b1f13;
   /* Darkened for contrast against light button text */
   color: #ffffff;
-  border: 1px solid #110d0a;
+  border: 0px solid #110d0a;
   border-radius: 4px;
   padding: 10px 20px;
-  font-family: 'Georgia', serif;
   font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 1.5px;
   font-weight: bold;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   transition: all 0.15s ease;
 }
 
 .journal-btn:hover,
 .journal-btn:focus-visible {
   background-color: #110d0a;
-  outline: 2px solid #2e4d31;
-  outline-offset: 2px;
 }
 
 .journal-btn:active {
@@ -404,7 +398,6 @@ input[type="number"] {
 .mini-btn,
 .icon-btn {
   border-radius: 999px;
-  font-family: 'Georgia', serif;
   cursor: pointer;
   transition: all 0.15s ease;
   border: 0px solid #544637;
@@ -511,7 +504,6 @@ input[type="number"] {
   height: 100%;
   border: none;
   border-radius: 0;
-  font-family: 'Georgia', serif;
   font-size: 0.76rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -749,7 +741,6 @@ input[type="number"] {
   border-bottom: 1px solid #544637;
   border-radius: 0;
   padding: 6px 4px;
-  font-family: 'Georgia', serif;
   font-size: 16px;
   color: #110d0a;
   box-sizing: border-box;
@@ -780,7 +771,7 @@ body {
   /* Softened desk background slightly to help paper surface pop */
   background-size: 60px 60px;
   background-position: 0 0, 30px 30px;
-  font-family: 'Georgia', serif;
+  font-family: 'Source Serif 4', serif;
   color: #110d0a;
   padding: 10px;
 }
