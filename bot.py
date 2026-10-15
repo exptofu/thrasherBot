@@ -32,73 +32,63 @@ log = logging.getLogger("thrasherbot")
 
 # Region slug -> eBird county names. Slugs are the forum tag and discussion forum names.
 REGIONS = {
-    "fulton": ["Fulton"],
     "dekalb": ["DeKalb"],
-    "gwinnett": ["Gwinnett"],
     "cobb": ["Cobb"],
-    "cherokee-forsyth": ["Cherokee", "Forsyth"],
-    "chatham": ["Chatham"],
-    "glynn-camden": ["Glynn", "Camden"],
-    "clarke-oconee": ["Clarke", "Oconee"],
-    "metro-atlanta-south": [
-        "Clayton", "Henry", "Fayette", "Coweta", "Spalding", "Butts", "Douglas", "Paulding",
+    "fulton": ["Fulton"],
+    "gwinnett": ["Gwinnett"],
+    "cherokee": ["Cherokee"],
+    "glynn": ["Glynn"],
+    "columbus-fall-line": ["Muscogee", "Harris", "Chattahoochee", "Marion", "Talbot", "Taylor"],
+    "athens-metro": ["Clarke", "Oconee", "Oglethorpe"],
+    "augusta-metro": ["Richmond", "Columbia"],
+    "macon-expanded": [
+        "Bibb", "Houston", "Jones", "Peach", "Crawford", "Twiggs", "Wilkinson", "Monroe",
+        "Baldwin", "Macon",
     ],
-    "metro-atlanta-east": ["Hall", "Barrow", "Walton", "Newton", "Rockdale"],
-    "northeast-mountains": [
-        "Rabun", "Habersham", "Stephens", "Franklin", "Hart", "Banks", "Jackson", "Towns",
-        "Union",
+    "chatham-effingham": ["Chatham", "Effingham"],
+    "colonial-coast": ["McIntosh", "Camden", "Bryan", "Liberty"],
+    "north-georgia": [
+        "Rabun", "Habersham", "Lumpkin", "Fannin", "Union", "Towns", "White", "Dawson",
+        "Gilmer", "Pickens", "Floyd", "Bartow", "Whitfield", "Catoosa", "Gordon", "Chattooga",
+        "Dade", "Walker", "Polk", "Murray",
     ],
-    "north-central-mountains": ["Fannin", "Gilmer", "Pickens", "Lumpkin", "Dawson", "White"],
-    "northwest-georgia": [
-        "Floyd", "Bartow", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield",
-        "Murray", "Gordon", "Polk", "Haralson",
+    "upper-piedmont": [
+        "Hall", "Forsyth", "Barrow", "Jackson", "Madison", "Franklin", "Banks", "Hart",
+        "Elbert", "Stephens",
     ],
-    "west-georgia": [
-        "Troup", "Harris", "Muscogee", "Carroll", "Heard", "Meriwether", "Talbot",
-        "Chattahoochee", "Marion", "Taylor", "Upson", "Pike",
+    "west-central": ["Coweta", "Carroll", "Paulding", "Haralson", "Douglas", "Heard", "Troup", "Meriwether"],
+    "south-atlanta": [
+        "Clayton", "Fayette", "Henry", "Rockdale", "Newton", "Walton", "Morgan", "Greene",
+        "Putnam", "Jasper", "Spalding", "Butts", "Lamar", "Pike", "Upson",
     ],
-    "central-georgia": [
-        "Bibb", "Houston", "Baldwin", "Jones", "Putnam", "Peach", "Crawford", "Monroe",
-        "Lamar", "Twiggs", "Wilkinson", "Jasper", "Bleckley", "Pulaski", "Dooly", "Macon",
-        "Laurens", "Dodge", "Telfair", "Johnson", "Hancock", "Treutlen", "Wheeler",
+    "early-wiregrass": [
+        "Early", "Decatur", "Thomas", "Sumter", "Dougherty", "Lee", "Worth", "Terrell",
+        "Schley", "Webster", "Stewart", "Quitman", "Randolph", "Clay", "Calhoun", "Seminole",
+        "Miller", "Baker", "Grady", "Mitchell", "Crisp", "Dooly", "Wilcox", "Turner", "Tift",
+        "Brooks", "Cook", "Lowndes", "Berrien", "Colquitt", "Lanier",
     ],
-    "southwest-georgia": [
-        "Dougherty", "Lee", "Decatur", "Grady", "Mitchell", "Baker", "Calhoun", "Clay",
-        "Early", "Miller", "Seminole", "Randolph", "Quitman", "Terrell", "Schley", "Sumter",
-        "Webster", "Stewart",
+    "west-sandhills": [
+        "Laurens", "Washington", "Hancock", "Warren", "Taliaferro", "Glascock", "Jefferson",
+        "Johnson", "Emanuel", "Bleckley", "Dodge", "Pulaski", "Telfair", "Wheeler", "Ben Hill",
+        "Irwin",
     ],
-    "south-central-georgia": [
-        "Lowndes", "Brooks", "Thomas", "Tift", "Colquitt", "Cook", "Berrien", "Irwin",
-        "Ben Hill", "Echols", "Lanier", "Turner", "Worth", "Crisp", "Wilcox",
+    "east-sandhills": [
+        "Charlton", "Bulloch", "Ware", "Pierce", "Brantley", "Clinch", "Atkinson", "Coffee",
+        "Jeff Davis", "Appling", "Bacon", "Treutlen", "Montgomery", "Toombs", "Candler",
+        "Jenkins", "Screven", "Tattnall", "Evans", "Long", "Wayne", "Echols",
     ],
-    "southeast-georgia": [
-        "Ware", "Clinch", "Charlton", "Appling", "Bulloch", "Coffee", "Atkinson", "Bacon",
-        "Brantley", "Pierce", "Wayne", "Jeff Davis", "Tattnall", "Toombs", "Evans",
-        "Candler", "Emanuel", "Jenkins", "Montgomery",
-    ],
-    "coastal-georgia-other": ["Liberty", "McIntosh", "Bryan", "Effingham", "Long"],
-    "east-georgia": [
-        "Burke", "Jefferson", "Washington", "Wilkes", "Lincoln", "McDuffie", "Warren",
-        "Glascock", "Taliaferro", "Greene", "Oglethorpe", "Madison", "Elbert", "Screven",
-        "Morgan", "Richmond", "Columbia",
-    ],
+    "upper-savannah": ["Burke", "McDuffie", "Lincoln", "Wilkes"],
 }
 # Region slugs -> geographic categories for discussion and banter channels.
 REGION_GROUPS = {
-    "Metro Atlanta": [
-        "fulton", "dekalb", "gwinnett", "cobb", "cherokee-forsyth",
-        "metro-atlanta-south", "metro-atlanta-east",
-    ],
-    "North Georgia": [
-        "northeast-mountains", "north-central-mountains", "northwest-georgia",
-    ],
-    "Central Georgia": [
-        "clarke-oconee", "west-georgia", "central-georgia", "east-georgia",
-    ],
-    "South Georgia": ["southwest-georgia", "south-central-georgia"],
-    "Coastal Georgia": [
-        "chatham", "glynn-camden", "coastal-georgia-other", "southeast-georgia",
-    ],
+    "Metro Atlanta": ["dekalb", "fulton", "cobb", "gwinnett", "cherokee"],
+    "North Georgia": ["north-georgia"],
+    "Northeast Georgia": ["upper-piedmont", "athens-metro"],
+    "West Georgia": ["columbus-fall-line", "west-central"],
+    "Central Georgia": ["macon-expanded", "south-atlanta", "west-sandhills"],
+    "East Georgia": ["augusta-metro", "east-sandhills", "upper-savannah"],
+    "South Georgia": ["early-wiregrass"],
+    "Coastal Georgia": ["glynn", "chatham-effingham", "colonial-coast"],
 }
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
 rba_threads: dict[str, int] = {}
@@ -278,19 +268,6 @@ async def ensure_region_forums(channel: discord.ForumChannel):
     forums = {forum.name: forum for forum in guild.forums}
     text_channels = {text.name: text for text in guild.text_channels}
     categories = {category.name: category for category in guild.categories}
-    forum_overwrites = {
-        guild.default_role: discord.PermissionOverwrite(
-            send_messages=False, send_messages_in_threads=True
-        ),
-        guild.me: discord.PermissionOverwrite(send_messages=True, manage_threads=True),
-    }
-    text_overwrites = {
-        guild.default_role: discord.PermissionOverwrite(
-            view_channel=True,
-            send_messages=True,
-            read_message_history=True,
-        ),
-    }
     moves_applied = 0
     for group, regions in REGION_GROUPS.items():
         category = categories.get(group)
@@ -304,12 +281,12 @@ async def ensure_region_forums(channel: discord.ForumChannel):
                 forum = await guild.create_forum(
                     region,
                     category=category,
-                    overwrites=forum_overwrites,
                     topic=f"New sightings and discussion for {region}",
                 )
+                forum = await forum.edit(sync_permissions=True) or forum
                 forums[region] = forum
-            elif forum.category_id != category.id:
-                forum = await forum.edit(category=category)
+            elif forum.category_id != category.id or not forum.permissions_synced:
+                forum = await forum.edit(category=category, sync_permissions=True) or forum
                 forums[region] = forum
 
             text_name = f"{region}-banter"
@@ -318,12 +295,12 @@ async def ensure_region_forums(channel: discord.ForumChannel):
                 text = await guild.create_text_channel(
                     text_name,
                     category=category,
-                    overwrites=text_overwrites,
                     topic=f"General discussion for {region}",
                 )
+                text = await text.edit(sync_permissions=True) or text
                 text_channels[text_name] = text
-            elif text.category_id != category.id:
-                text = await text.edit(category=category)
+            elif text.category_id != category.id or not text.permissions_synced:
+                text = await text.edit(category=category, sync_permissions=True) or text
                 text_channels[text_name] = text
 
         expected_names = [
@@ -601,6 +578,7 @@ REQUIRED_PERMS = discord.Permissions(
     send_messages_in_threads=True,
     read_message_history=True,
     manage_channels=True,
+    manage_roles=True,
     manage_threads=True,
 )
 
@@ -638,7 +616,11 @@ class Bot(discord.Client):
         try:
             await ensure_region_forums(channel)
         except discord.HTTPException:
-            log.exception("Could not create region forums; the bot needs Manage Channels")
+            log.exception(
+                "Could not sync regional channels; the bot needs Manage Channels and "
+                "Manage Roles. Re-authorize it with: %s",
+                invite,
+            )
 
         if not poll.is_running():
             poll.start()

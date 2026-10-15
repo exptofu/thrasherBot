@@ -34,4 +34,6 @@ The bot needs the Manage Channels and Manage Threads permissions; the invite lin
 python georgia_map.py
 ```
 
-Writes `georgia_regions.svg`, a dark-background county map colored by region with a legend ordered north to south. County outlines are downloaded once from the public plotly/datasets GeoJSON and cached in `.cache/`. Region colors are in `COLORS` in `georgia_map.py`; update them when `REGIONS` changes.
+Writes `georgia_regions.svg`, a dark-background county map with two stacked panels, each with its own legend ordered north to south: categories on top and regions below. County outlines are downloaded once from the public plotly/datasets GeoJSON and cached in `.cache/`. Region colors are in `COLORS` and category colors in `GROUP_COLORS` in `georgia_map.py`; update them when the regions or categories change.
+
+`georgia_map.py` renders the current `REGIONS` and `REGION_GROUPS` layout. Keep those definitions synchronized with `bot.py`. The checklist and population analysis, along with Discord migration notes, are in [docs/regions.md](docs/regions.md).
