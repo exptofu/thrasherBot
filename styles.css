@@ -1,49 +1,52 @@
 /* Core Journal Container & Layout */
 .journal-container {
-  background-color: #fff;
-  border: 1px solid #d4cbb3;
-  border-radius: 2px;
-  padding: 30px;
+  background-color: #fdfcf7; /* Lightened significantly for maximum contrast */
+  border: 1px solid #4a3319; /* Refined to a slim, elegant single border */
+  border-radius: 4px;
+  padding: 35px 30px 35px 50px; /* Generous left padding to clear a "margin line" */
   font-family: 'Georgia', serif;
-  color: #2b261f;
+  color: #110d0a; /* Darkened to deep near-black ink for contrast compliance */
   box-shadow: 
-    3px 3px 0px #fff,
-    4px 4px 0px #d4cbb3,
-    7px 7px 0px #fff,
-    8px 8px 0px #d4cbb3,
-    14px 14px 20px rgba(0, 0, 0, 0.15);
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
   max-width: 650px;
-  margin: 20px auto;
+  margin: 30px auto;
+  background-image: 
+    /* Crimson notebook vertical margin line */
+    linear-gradient(90deg, transparent 39px, #ddb7b7 39px, #ddb7b7 41px, transparent 41px);
 }
 
 .journal-title {
-  font-size: 24px;
-  text-transform: uppercase;
-  letter-spacing: 2px;
+  font-size: 26px;
+  font-weight: bold;
+  text-transform: capitalize;
+  letter-spacing: 1px;
   text-align: center;
-  border-bottom: 2px double #8c7e65;
-  padding-bottom: 10px;
-  margin-bottom: 25px;
-  color: #4a3f35;
+  border-bottom: 2px solid #4a3319;
+  padding-bottom: 12px;
+  margin-bottom: 30px;
+  color: #110d0a; /* High contrast */
+  font-style: italic;
 }
 
 .journal-section-title {
-  font-size: 16px;
-  font-style: italic;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
   font-weight: bold;
-  color: #5c4f41;
-  border-bottom: 1px solid #d4cbb3;
-  padding-bottom: 5px;
-  margin-top: 20px;
+  color: #2b1f13; /* Darkened for better readability */
+  border-bottom: 2px solid #7c6a52;
+  padding-bottom: 4px;
+  margin-top: 25px;
   margin-bottom: 15px;
 }
 
 label {
   display: block;
   margin-bottom: 18px;
-  font-weight: 600;
-  color: #2b261f;
+  font-weight: 700; /* Increased weight for crisp legibility */
+  color: #110d0a;
 }
 
 .journal-input,
@@ -52,89 +55,93 @@ label {
   width: 100%;
   background-color: transparent;
   border: none;
-  border-bottom: 1px dashed #8c7e65;
+  border-bottom: 1px solid #544637; /* Darker bottom line rule */
   border-radius: 0px !important;
-  padding: 8px 4px;
+  padding: 6px 4px;
   font-family: 'Georgia', serif;
   font-size: 16px;
-  color: #2b261f;
+  color: #110d0a; /* Crisp high-contrast values */
   box-sizing: border-box;
   transition: all 0.2s ease;
   -webkit-text-size-adjust: 100%;
   touch-action: manipulation;
 }
 
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .journal-input:focus,
 .journal-textarea:focus,
 .journal-select:focus {
-  outline: none;
-  border-bottom: 1px solid #4a3f35;
-  background-color: rgba(245, 240, 225, 0.5);
+  outline: 2px solid #2e4d31; /* Added explicit focus outline ring for accessibility */
+  outline-offset: 3px;
+  background-color: #f7f3e8;
 }
 
 .journal-input.field-error,
 .journal-textarea.field-error,
 .journal-select.field-error {
-  background-color: rgba(220, 38, 38, 0.06);
-  border-bottom: 1px solid #dc2626;
-  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.08);
+  background-color: rgba(186, 45, 45, 0.05);
+  border-bottom: 2px solid #ba2d2d;
 }
 
 .journal-textarea {
   min-height: 92px;
   resize: vertical;
+  line-height: 1.5;
 }
 
 .journal-btn {
-  background-color: #5c4f41;
-  color: #f7f4eb;
-  border: 1px solid #4a3f35;
-  border-radius: 1px;
-  padding: 10px 18px;
+  background-color: #2b1f13; /* Darkened for contrast against light button text */
+  color: #ffffff;
+  border: 1px solid #110d0a;
+  border-radius: 4px;
+  padding: 10px 20px;
   font-family: 'Georgia', serif;
-  font-size: 14px;
+  font-size: 13px;
   text-transform: uppercase;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
+  font-weight: bold;
   cursor: pointer;
-  box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-  transition: all 0.1s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  transition: all 0.15s ease;
 }
 
-.journal-btn:hover {
-  background-color: #4a3f35;
-  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
-  transform: translateY(1px);
+.journal-btn:hover, .journal-btn:focus-visible {
+  background-color: #110d0a;
+  outline: 2px solid #2e4d31;
+  outline-offset: 2px;
 }
 
 .journal-btn:active {
-  box-shadow: none;
-  transform: translateY(2px);
+  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.4);
+  transform: translateY(1px);
 }
 
-.journal-status-box {
-  background-color: #f0ede1;
-  border: 1px solid #c2b79e;
-  border-radius: 0px;
-  padding: 12px;
-  font-size: 13px;
-  font-style: italic;
-  color: #6e6151;
-  box-shadow: inset 1px 1px 3px rgba(0, 0, 0, 0.05);
-  margin: 10px 0 18px;
+.journal-btn.success {
+  background-color: #166534;
+  border-color: #166534;
+  color: #ffffff;
 }
 
 .journal-output-box {
-  background-color: #fffdf7;
-  border-left: 3px solid #8c7e65;
-  border-top: 1px solid #e8e2cf;
-  border-right: 1px solid #e8e2cf;
-  border-bottom: 1px solid #e8e2cf;
-  border-radius: 0px;
+  background-color: #ffffff;
+  border: 1px solid #544637;
+  border-left: 5px solid #2b1f13; /* Pronounced spine accent */
+  border-radius: 2px;
   padding: 15px;
-  font-family: monospace;
+  font-family: 'Courier New', Courier, monospace; 
   font-size: 14px;
-  color: #1a1a1a;
-  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.08);
+  color: #000000; /* Absolute highest contrast for dynamic generation output */
+  box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.05);
   margin-top: 15px;
   width: 100%;
   max-width: 100%;
@@ -148,7 +155,8 @@ label {
 
 @media (max-width: 480px) {
   .journal-container {
-    padding: 18px 14px;
+    padding: 20px 15px 20px 35px;
+    background-image: linear-gradient(90deg, transparent 24px, #cc7a7a 24px, #cc7a7a 26px, transparent 26px);
   }
 
   .journal-output-box {
@@ -173,12 +181,34 @@ label {
 
 .gps-field {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.gps-field label {
+  margin-bottom: 0;
+}
+
+.gps-field input[readonly] {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  pointer-events: none;
+  cursor: default;
 }
 
 .gps-button {
   align-self: end;
-  margin-bottom: 4px;
+  margin-bottom: 0;
   white-space: nowrap;
+  height: fit-content;
+}
+
+.journal-btn.gps-button.missing-gps {
+  background-color: #7f1d1d;
+  border-color: #7f1d1d;
+  color: #ffffff;
 }
 
 .form-actions {
@@ -187,65 +217,83 @@ label {
 
 .suggestion-table-wrap {
   margin-top: 8px;
+  border: 1px solid #544637;
+  border-radius: 2px;
+  overflow: hidden;
 }
 
 .suggestion-table-wrap table {
   width: 100%;
   border-collapse: collapse;
-  background: rgba(255, 255, 255, 0.12);
+  background: #ffffff;
 }
 
 .suggestion-table-wrap tbody tr {
   cursor: pointer;
-  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-color 0.15s ease;
   touch-action: manipulation;
 }
 
+.suggestion-table-wrap tbody tr:nth-child(even) {
+  background-color: #f7f3e8; /* High-contrast alternating parchment lines */
+}
+
 .suggestion-table-wrap tbody tr:hover,
-.suggestion-table-wrap tbody tr:focus-visible,
-.suggestion-table-wrap tbody tr.selected {
-  background: rgba(22, 101, 52, 0.08);
-  box-shadow: inset 0 0 0 1px rgba(22, 101, 52, 0.15);
+.suggestion-table-wrap tbody tr:focus-visible {
+  background: #eadeca;
   outline: none;
+}
+
+.suggestion-table-wrap tbody tr.selected {
+  background: #1c3320; /* Dark forest green for distinct select visibility */
+}
+
+.suggestion-table-wrap tbody tr.selected td,
+.suggestion-table-wrap tbody tr.selected .chip {
+  color: #ffffff !important;
 }
 
 .suggestion-table-wrap th,
 .suggestion-table-wrap td {
   text-align: left;
-  padding: 10px 8px;
-  border-bottom: 1px solid #d4cbb3;
-  color: #2b261f;
+  padding: 10px 12px;
+  border-bottom: 1px solid #cbd5e1;
+  color: #110d0a;
+  font-size: 14px;
 }
 
 .suggestion-table-wrap thead th {
-  background: rgba(93, 81, 64, 0.05);
-  font-size: 13px;
+  background: #ebdcb9;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
+  color: #110d0a;
+  font-weight: bold;
+  border-bottom: 2px solid #544637;
 }
 
 .chip {
   display: inline-block;
-  background: rgba(92, 79, 65, 0.08);
-  border: 1px solid #d4cbb3;
-  padding: 4px 8px;
+  background: #eadeca;
+  border: 1px solid #544637;
+  border-radius: 2px;
+  padding: 3px 6px;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #5c4f41;
+  letter-spacing: 0.05em;
+  color: #110d0a;
+  font-weight: bold;
 }
 
 body {
   margin: 0;
-  background: linear-gradient(180deg, rgba(111, 96, 72, 0.12), transparent),
-    repeating-linear-gradient(
-      0deg,
-      rgba(112, 88, 52, 0.03),
-      rgba(112, 88, 52, 0.03) 2px,
-      transparent 2px,
-      transparent 8px
-    ),
-    #eae1cf;
+  background-color: #cfc2aa; /* Softened desk background slightly to help paper surface pop */
+  background-image: 
+    radial-gradient(rgba(0,0,0,0.03) 15%, transparent 16%),
+    radial-gradient(rgba(0,0,0,0.03) 15%, transparent 16%);
+  background-size: 60px 60px;
+  background-position: 0 0, 30px 30px;
   font-family: 'Georgia', serif;
-  color: #2b261f;
+  color: #110d0a;
+  padding: 10px;
 }
