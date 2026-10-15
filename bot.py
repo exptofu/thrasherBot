@@ -40,7 +40,7 @@ WELCOME_MESSAGE = (
     ":four: We expect all members to model the American Birding Association’s Code of Ethics "
     "- Respect and promote birds and their environment; Respect and promote the birding "
     "community and its individual members; Respect and promote the law and the rights of "
-    "others. ([https://www.aba.org/aba-code-of-birding-ethics/](https://www.aba.org/aba-code-of-birding-ethics/))\n"
+    "others. (https://www.aba.org/aba-code-of-birding-ethics/)\n"
     ":five: We require users to share your full name (first and last) as your display name "
     "(aka nickname). Integrity, safety and transparency are an important part of birding and "
     "using a false or misleading identity is contrary to that requirement.\n"
