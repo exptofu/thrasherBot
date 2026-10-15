@@ -24,7 +24,7 @@ MAX_RETRIES = 5
 SCHEMA_VERSION = 2
 WELCOME_CHANNEL = "rules-and-info"
 WELCOME_MESSAGE = (
-    "# Welcome to the Georgia Birding Discord!\n\nWe are glad you are here! To keep this server"
+    "# Welcome to the Georgia Birding Discord!\n\nWe are glad you are here! To keep this server "
     "a helpful and easy-to-use resource for all Georgia birders, all members are required to "
     "follow the rules below. Posts that do not adhere to these rules may be removed at an admin's "
     "discretion. Repeated violations may result in temporary suspension or removal from the "
