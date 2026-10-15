@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Build a Python mapping of rare bird names to their eBird six-letter codes.
 
 Run this any time the species list changes:
@@ -7,7 +6,8 @@ Run this any time the species list changes:
 
 from __future__ import annotations
 
-import json
+import csv
+import io
 import os
 from pathlib import Path
 from urllib.request import Request, urlopen
