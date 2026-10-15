@@ -518,6 +518,10 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
         log.warning("Nickname command rejected empty value for user %s in guild %s", member.id, guild.id)
         await interaction.response.send_message("Enter your full name to set your nickname.", ephemeral=True)
         return
+    if " " not in nickname or nickname.split() != nickname.split():
+        log.warning("Nickname command rejected malformed value for user %s in guild %s: %r", member.id, guild.id, nickname)
+        await interaction.response.send_message("Please enter your full name with at least one space in between.", ephemeral=True)
+        return
 
     role = next((role for role in guild.roles if role.name.casefold() == "member"), None)
     bot_member = guild.me
