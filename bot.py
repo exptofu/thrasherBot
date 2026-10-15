@@ -471,13 +471,23 @@ async def send_group(
         "SELECT thread_id FROM posts WHERE species_code=? AND scope=?", (species, scope)
     ).fetchone()
     thread = await get_thread(client, row[0]) if row else None
+    log.debug(
+        "send_group species=%s checklist=%s scope=%s thread=%s existing_message=%s",
+        species,
+        checklist_id,
+        scope,
+        getattr(thread, "id", None),
+        existing[0] if existing else None,
+    )
 
     if thread and existing:
         try:
             msg = await thread.fetch_message(existing[0])
             await msg.edit(embed=embed)
+            log.debug("Edited existing group message for %s %s in thread %s", species, checklist_id, thread.id)
             return
         except discord.NotFound:
+            log.warning("Existing group message %s for %s %s was missing; recreating it.", existing[0], species, checklist_id)
             pass
 
     if thread:
@@ -507,7 +517,7 @@ async def send_group(
         (species, checklist_id, scope, message.id),
     )
     db.commit()
-    log.debug("Stored group %s %s in thread %s with message %s", species, checklist_id, getattr(created.thread if not thread else thread, "id", "?"), message.id)
+    log.debug("Stored group %s %s in thread %s with message %s", species, checklist_id, getattr(thread, "id", "?"), message.id)
     if not thread and region:
         await notify_region_chat(client, channel, region, created.thread, first)
 
@@ -689,6 +699,7 @@ async def poll_once():
             log.info("%d new sightings to process", len(todo))
 
             cache: dict = {}
+            seen_checklists: set[str] = set()
             for i, (k, o) in enumerate(todo.items(), 1):
                 log.debug("Checklist %d/%d: %s (%s)", i, len(todo), k[0], o["comName"])
                 try:
@@ -698,6 +709,10 @@ async def poll_once():
                     continue
 
                 checklist_id = o["checklistId"]
+                if checklist_id in seen_checklists:
+                    log.warning("Skipping duplicate checklist in this poll: %s (%s / %s)", checklist_id, k[0], o["comName"])
+                    continue
+                seen_checklists.add(checklist_id)
                 rare_members = [o] if normalize_species(o["comName"]) in RARE_BIRDS else []
                 if len(rare_members) > RARE_CHECKLIST_ALERT_THRESHOLD:
                     await flag_checklist(channel, checklist_id, rare_members)
