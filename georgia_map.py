@@ -22,7 +22,8 @@ REGIONS = {
     "athens": ["Clarke","Oconee"],
     "greater-savannah": ["Chatham", "Bryan", "Liberty", "Effingham"],
     "gwinnett-county": ["Gwinnett"],
-    "metro-atlanta-north": ["Cobb", "Forsyth", "Douglas", "Cherokee", "Hall", "Bartow", "Paulding"],
+    "cobb-county": ["Cobb"],
+    "metro-atlanta-north": ["Forsyth", "Douglas", "Cherokee", "Hall", "Bartow", "Paulding"],
     "dekalb-county": ["DeKalb"],
     "metro-atlanta-south": ["Coweta", "Henry", "Rockdale", "Newton", "Clayton", "Fayette", "Spalding", "Butts"],
     "greater-macon": [
@@ -67,6 +68,7 @@ REGION_LABELS = {
     "gwinnett-county": "Gwinnett",
     "metro-atlanta-north": "Metro Atlanta North",
     "dekalb-county": "Dekalb",
+    "cobb-county": "Cobb",
     "metro-atlanta-south": "Metro Atlanta South",
     "greater-macon": "Greater Macon",
     "fall-line-sandhills": "Fall Line Sandhills",
@@ -100,7 +102,7 @@ def validate_unique_counties() -> dict[str, str]:
 COUNTY_REGION = validate_unique_counties()
 
 REGION_GROUPS = {
-    "Metro Atlanta": ["metro-atlanta-south", "metro-atlanta-north", "fulton-county", "dekalb-county", "gwinnett-county"],
+    "Metro Atlanta": ["metro-atlanta-south", "metro-atlanta-north", "fulton-county", "dekalb-county", "gwinnett-county","cobb-county"],
     "Southeast Georgia": ["golden-isles"],
     "Savannah Area": ["greater-savannah"],
     "Athens Area": ["greater-athens", "athens",],
