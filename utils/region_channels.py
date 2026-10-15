@@ -13,18 +13,52 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def load_region_config() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
-    """Read literal region definitions from bot.py without importing the bot."""
+def _literal_assignments(names: set[str]) -> dict:
     tree = ast.parse((ROOT / "bot.py").read_text(encoding="utf-8"))
-    config = {}
+    found = {}
     for node in tree.body:
         if (isinstance(node, ast.Assign) and len(node.targets) == 1
                 and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id in {"REGIONS", "REGION_GROUPS"}):
-            config[node.targets[0].id] = ast.literal_eval(node.value)
-    if set(config) != {"REGIONS", "REGION_GROUPS"}:
-        raise ValueError("bot.py must define literal REGIONS and REGION_GROUPS dictionaries")
+                and node.targets[0].id in names):
+            found[node.targets[0].id] = ast.literal_eval(node.value)
+    if set(found) != names:
+        raise ValueError(f"bot.py must define literal {', '.join(sorted(names))}")
+    return found
+
+
+def load_region_config() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Read literal region definitions from bot.py without importing the bot."""
+    config = _literal_assignments({"REGIONS", "REGION_GROUPS"})
     return config["REGIONS"], config["REGION_GROUPS"]
+
+
+def county_slug(county: str) -> str:
+    return county.lower().removesuffix(" county").replace(" ", "-")
+
+
+def load_county_overrides(
+    regions: dict[str, list[str]],
+) -> tuple[dict[str, list[str]], set[str]]:
+    """Return override channel names per region and regions with every county overridden."""
+    overrides = _literal_assignments({"COUNTY_OVERRIDES"})["COUNTY_OVERRIDES"]
+    by_county = {
+        county_slug(county): region
+        for region, counties in regions.items()
+        for county in counties
+    }
+    result: dict[str, list[str]] = {}
+    for county in overrides:
+        slug = county_slug(county)
+        if slug not in by_county:
+            raise ValueError(f"COUNTY_OVERRIDES county '{county}' is not in any region")
+        names = result.setdefault(by_county[slug], [])
+        if f"{slug}_rarities" not in names:
+            names.append(f"{slug}_rarities")
+    fully_overridden = {
+        region for region, counties in regions.items()
+        if counties and {county_slug(c) for c in counties} <= {county_slug(c) for c in overrides}
+    }
+    return result, fully_overridden
 
 
 async def _on(target: str, coro):
@@ -52,14 +86,34 @@ async def ensure_region_tags(channel: discord.ForumChannel, regions: dict[str, l
         )
 
 
-async def ensure_region_forums(
+def channel_specs(
+    region: str, county_channels: dict[str, list[str]], fully_overridden: set[str]
+) -> list[tuple[str, str]]:
+    """Channel (name, topic) pairs for a region and its county overrides, in display order."""
+    specs = []
+    if region not in fully_overridden:
+        specs += [
+            (f"{region}_rarities", f"Rarity sightings and discussion for {region}"),
+            (f"{region}-banter", f"General discussion for {region}"),
+        ]
+    for rarities in county_channels.get(region, []):
+        county = rarities.removesuffix("_rarities")
+        specs += [
+            (rarities, f"Rarity sightings for {county}"),
+            (f"{county}-banter", f"General discussion for {county}"),
+        ]
+    return specs
+
+
+async def ensure_region_channels(
     channel: discord.ForumChannel,
     region_groups: dict[str, list[str]],
+    county_channels: dict[str, list[str]],
+    fully_overridden: set[str],
     move_delay_seconds: float,
 ):
-    """Create and group regional discussion forums and banter channels."""
+    """Create and group regional rarities, county override, and banter text channels."""
     guild = channel.guild
-    forums = {forum.name: forum for forum in guild.forums}
     text_channels = {text.name: text for text in guild.text_channels}
     categories = {category.name: category for category in guild.categories}
     moves_applied = 0
@@ -70,81 +124,46 @@ async def ensure_region_forums(
             categories[group] = category
         ordered_regions = sorted(regions)
         for region in ordered_regions:
-            forum = forums.get(region)
-            if forum is None:
-                forum = await _on(
-                    f"creating forum '{region}' in category '{group}'",
-                    guild.create_forum(
-                        region,
-                        category=category,
-                        topic=f"New sightings and discussion for {region}",
-                    ),
-                )
-                forum = await _on(
-                    f"forum #{region} ({forum.id}): syncing permissions",
-                    forum.edit(sync_permissions=True),
-                ) or forum
-                forums[region] = forum
-            elif forum.category_id != category.id or not forum.permissions_synced:
-                forum = await _on(
-                    f"forum #{region} ({forum.id}): moving/syncing to category '{group}'",
-                    forum.edit(category=category, sync_permissions=True),
-                ) or forum
-                forums[region] = forum
-
-            text_name = f"{region}-banter"
-            text = text_channels.get(text_name)
-            if text is None:
-                text = await _on(
-                    f"creating text channel '{text_name}' in category '{group}'",
-                    guild.create_text_channel(
-                        text_name,
-                        category=category,
-                        topic=f"General discussion for {region}",
-                    ),
-                )
-                text = await _on(
-                    f"channel #{text_name} ({text.id}): syncing permissions",
-                    text.edit(sync_permissions=True),
-                ) or text
-                text_channels[text_name] = text
-            elif text.category_id != category.id or not text.permissions_synced:
-                text = await _on(
-                    f"channel #{text_name} ({text.id}): moving/syncing to category '{group}'",
-                    text.edit(category=category, sync_permissions=True),
-                ) or text
-                text_channels[text_name] = text
+            for text_name, topic in channel_specs(region, county_channels, fully_overridden):
+                text = text_channels.get(text_name)
+                if text is None:
+                    text = await _on(
+                        f"creating text channel '{text_name}' in category '{group}'",
+                        guild.create_text_channel(
+                            text_name, category=category, topic=topic
+                        ),
+                    )
+                    text = await _on(
+                        f"channel #{text_name} ({text.id}): syncing permissions",
+                        text.edit(sync_permissions=True),
+                    ) or text
+                    text_channels[text_name] = text
+                elif text.category_id != category.id or not text.permissions_synced:
+                    text = await _on(
+                        f"channel #{text_name} ({text.id}): moving/syncing to category '{group}'",
+                        text.edit(category=category, sync_permissions=True),
+                    ) or text
+                    text_channels[text_name] = text
 
         expected_names = [
             name
             for region in ordered_regions
-            for name in (region, f"{region}-banter")
+            for name, _ in channel_specs(region, county_channels, fully_overridden)
         ]
         expected_set = set(expected_names)
         current_names = [
             text.name
-            for text in sorted(guild.channels, key=lambda item: (item.position, item.id))
+            for text in sorted(guild.text_channels, key=lambda item: (item.position, item.id))
             if text.category_id == category.id and text.name in expected_set
         ]
-        pairs_are_adjacent = all(
-            text_channels[f"{region}-banter"].position == forums[region].position + 1
-            for region in ordered_regions
-        )
-        if current_names != expected_names or not pairs_are_adjacent:
-            for region in ordered_regions:
-                forum = forums[region]
-                text = text_channels[f"{region}-banter"]
+        if current_names != expected_names:
+            for name in expected_names:
+                text = text_channels[name]
                 if moves_applied:
                     await asyncio.sleep(move_delay_seconds)
                 await _on(
-                    f"forum #{region} ({forum.id}): reordering",
-                    forum.move(end=True, category=category),
-                )
-                moves_applied += 1
-                await asyncio.sleep(move_delay_seconds)
-                await _on(
-                    f"channel #{region}-banter ({text.id}): reordering",
-                    text.move(after=forum),
+                    f"channel #{name} ({text.id}): reordering",
+                    text.move(end=True, category=category),
                 )
                 moves_applied += 1
 
@@ -174,6 +193,7 @@ async def main() -> int:
 
     try:
         regions, region_groups = load_region_config()
+        county_channels, fully_overridden = load_county_overrides(regions)
     except (OSError, SyntaxError, ValueError) as error:
         parser.error(f"Could not load region definitions from bot.py: {error}")
 
@@ -221,7 +241,9 @@ async def main() -> int:
                     return
 
                 await ensure_region_tags(alert_forum, regions)
-                await ensure_region_forums(alert_forum, region_groups, move_delay)
+                await ensure_region_channels(
+                    alert_forum, region_groups, county_channels, fully_overridden, move_delay
+                )
                 print("Regional tags, channels, category permissions, and ordering are up to date.")
             except discord.HTTPException as error:
                 print(f"Regional setup failed: {error}")

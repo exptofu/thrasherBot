@@ -22,7 +22,7 @@ python bot.py
 Georgia's 159 counties are grouped into 20 regions in the `REGIONS` dict in `bot.py`. The bot:
 
 - Tags each new alert post with its county's region. Discord allows 20 tags per forum, so the region list uses all of them.
-- Posts to each region's `<region>_rba` post when a net-new sighting appears, linking to the original post.
+- Posts a link to each region's `<region>_rarities` text channel when a net-new sighting appears.
 
 The bot needs View Channel, Send Messages, Send Messages in Threads, Read Message History, and Manage Threads in the alert forum. Its invite link on a permission error includes these permissions.
 

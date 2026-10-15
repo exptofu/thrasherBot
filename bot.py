@@ -88,7 +88,24 @@ REGION_GROUPS = {
     "Coastal Georgia": ["glynn", "chatham-effingham", "colonial-coast"],
 }
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
-rba_threads: dict[tuple[str, str], int] = {}
+
+# eBird county names whose rarities go to their own <county>_rarities channel instead of the region's.
+COUNTY_OVERRIDES = [
+    "Clarke", "Oconee", "Oglethorpe",
+    "Richmond", "Columbia",
+    "Chatham", "Effingham",
+]
+
+
+def county_slug(county: str) -> str:
+    return county.lower().removesuffix(" county").replace(" ", "-")
+
+
+def rarities_channel_name(o: dict, region: str) -> str:
+    county = county_slug(o.get("subnational2Name", ""))
+    if county in {county_slug(c) for c in COUNTY_OVERRIDES}:
+        return f"{county}_rarities"
+    return f"{region}_rarities"
 
 
 def region_of(o: dict) -> str | None:
@@ -250,43 +267,20 @@ def scope_of(o: dict) -> str:
     return "county:" + o.get("subnational2Code", o.get("subnational2Name", "unknown"))
 
 
-async def get_rba_thread(channel: discord.ForumChannel, region: str, county: str):
-    """Find or create the <county>_RBA post in the region's discussion forum."""
-    forum = discord.utils.get(channel.guild.forums, name=region)
-    if not forum:
-        log.warning("No forum channel named %s; skipping RBA message", region)
-        return None
-    name = f"{county}_RBA"[:100]
-    key = (region, county)
-    thread = await get_thread(client, rba_threads[key]) if key in rba_threads else None
-    if not thread:
-        thread = discord.utils.get(forum.threads, name=name)
-    if not thread:
-        async for t in forum.archived_threads(limit=None):
-            if t.name == name:
-                thread = t
-                break
-    if not thread:
-        thread = (
-            await forum.create_thread(name=name, content=f"New sightings for {county} County.")
-        ).thread
-    rba_threads[key] = thread.id
-    return thread
-
-
-async def notify_rba(channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
+async def notify_rarities(channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
+    """Link the new sighting post in the county's override channel or the region's rarities channel."""
+    name = rarities_channel_name(o, region)
+    rarities = discord.utils.get(channel.guild.text_channels, name=name)
+    if not rarities:
+        log.warning("No text channel named %s; skipping notification", name)
+        return
     try:
-        county = o.get("subnational2Name", "Unknown").removesuffix(" County")
-        rba = await get_rba_thread(channel, region, county)
-        if not rba:
-            return
-        if rba.archived:
-            await rba.edit(archived=False)
-        await rba.send(
-            f"New: [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
+        county = o.get("subnational2Name", "Unknown")
+        await rarities.send(
+            f"[{county}] [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
         )
     except discord.HTTPException:
-        log.exception("Failed to post RBA message for %s", region)
+        log.exception("Failed to post rarities message for %s", region)
 
 
 def post_title(o: dict) -> str:
@@ -346,7 +340,7 @@ async def send_group(
     )
     db.commit()
     if not thread and region:
-        await notify_rba(channel, region, created.thread, first)
+        await notify_rarities(channel, region, created.thread, first)
 
 
 async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict) -> dict:
