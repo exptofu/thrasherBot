@@ -97,6 +97,25 @@ COUNTY_OVERRIDES = [
 ]
 
 
+STATEWIDE_CHANNEL = "state-wide-rarities"
+RARE_BIRDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rare_birds.txt")
+
+
+def normalize_species(name: str) -> str:
+    return " ".join(name.replace("’", "'").lower().split())
+
+
+def load_rare_birds() -> set[str]:
+    try:
+        with open(RARE_BIRDS_PATH, encoding="utf-8") as f:
+            return {normalize_species(line) for line in f if line.strip()}
+    except FileNotFoundError:
+        return set()
+
+
+RARE_BIRDS = load_rare_birds()
+
+
 def county_slug(county: str) -> str:
     return county.lower().removesuffix(" county").replace(" ", "-")
 
@@ -269,18 +288,21 @@ def scope_of(o: dict) -> str:
 
 async def notify_rarities(channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
     """Link the new sighting post in the county's override channel or the region's rarities channel."""
-    name = rarities_channel_name(o, region)
-    rarities = discord.utils.get(channel.guild.text_channels, name=name)
-    if not rarities:
-        log.warning("No text channel named %s; skipping notification", name)
-        return
-    try:
-        county = o.get("subnational2Name", "Unknown")
-        await rarities.send(
-            f"[{county}] [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
-        )
-    except discord.HTTPException:
-        log.exception("Failed to post rarities message for %s", region)
+    names = [rarities_channel_name(o, region)]
+    if normalize_species(o["comName"]) in RARE_BIRDS:
+        names.append(STATEWIDE_CHANNEL)
+    for name in names:
+        rarities = discord.utils.get(channel.guild.text_channels, name=name)
+        if not rarities:
+            log.warning("No text channel named %s; skipping notification", name)
+            continue
+        try:
+            county = o.get("subnational2Name", "Unknown")
+            await rarities.send(
+                f"[{county}] [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
+            )
+        except discord.HTTPException:
+            log.exception("Failed to post rarities message to %s", name)
 
 
 def post_title(o: dict) -> str:
