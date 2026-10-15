@@ -11,6 +11,7 @@ from discord.ext import tasks
 from dotenv import load_dotenv
 
 from georgia_map import REGION_GROUPS, REGIONS
+from gps import build_georgia_coordinates_embed, find_georgia_coordinates
 
 load_dotenv()
 
@@ -899,6 +900,16 @@ class Bot(discord.Client):
         except discord.HTTPException:
             log.exception("Could not post the nickname welcome panel in #%s", WELCOME_CHANNEL)
             return False
+
+    async def on_message(self, message):
+        if message.author.bot:
+            return
+
+        found_coords = find_georgia_coordinates(message.content)
+        if not found_coords:
+            return
+
+        await message.channel.send(embed=build_georgia_coordinates_embed(message, found_coords))
 
     async def on_ready(self):
         if not self.commands_synced:
