@@ -11,7 +11,7 @@ Common Eider
 Harlequin Duck
 Masked Duck
 Western Grebe
-Clark’s Grebe
+Clark's Grebe
 Red-necked Grebe
 Inca Dove
 Smooth-billed Ani
@@ -25,7 +25,7 @@ Broad-tailed Hummingbird
 Broad-billed Hummingbird
 Buff-bellied Hummingbird
 Mexican Violetear
-Vaux’s Swift
+Vaux's Swift
 White-throated Swift
 Yellow Rail
 Black Rail
@@ -50,7 +50,7 @@ Black-legged Kittiwake
 Sabine's Gull
 Black-headed Gull
 Ivory Gull
-Heermann’s Gull
+Heermann's Gull
 Glaucous Gull
 California Gull
 Iceland Gull
@@ -84,9 +84,9 @@ Long-eared Owl
 Northern Saw-whet Owl
 Crested Caracara
 Dusky Flycatcher
-Hammond’s Flycatcher 
+Hammond's Flycatcher 
 Tropical Kingbird
-Couch’s Kingbird
+Couch's Kingbird
 Fork-tailed Flycatcher
 Bell's Vireo
 Florida Scrub-Jay 
@@ -109,7 +109,7 @@ Snow Bunting
 Lark Bunting
 American Tree Sparrow
 Harris's Sparrow
-Baird’s Sparrow
+Baird's Sparrow
 Green-tailed Towhee
 Spotted Towhee
 Yellow-headed Blackbird

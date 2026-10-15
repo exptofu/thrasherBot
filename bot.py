@@ -74,6 +74,12 @@ MODERATOR_CHANNEL_NAME = os.environ.get("MODERATOR_CHANNEL_NAME", "moderator-onl
 RARE_CHECKLIST_ALERT_THRESHOLD = int(os.environ.get("RARE_CHECKLIST_ALERT_THRESHOLD", "4"))
 RARE_BIRDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rare_birds.txt")
 
+try:
+    from rare_birds_codes import RARE_BIRD_CODES, RARE_BIRDS as CODED_RARE_BIRDS
+except ImportError:
+    RARE_BIRD_CODES = {}
+    CODED_RARE_BIRDS = set()
+
 
 def normalize_species(name: str) -> str:
     return " ".join(name.replace("’", "'").lower().split())
@@ -87,7 +93,8 @@ def load_rare_birds() -> set[str]:
         return set()
 
 
-RARE_BIRDS = load_rare_birds()
+RARE_BIRDS = set(load_rare_birds()) | set(CODED_RARE_BIRDS)
+RARE_SPECIES_CODES = {code for code in RARE_BIRD_CODES.values()}
 
 
 def county_slug(county: str) -> str:
@@ -463,6 +470,36 @@ def post_title(o: dict) -> str:
     return title[:100]
 
 
+async def relay_rare_species_to_moderators(
+    channel: discord.ForumChannel,
+    first: dict,
+    species: str,
+    thread: discord.Thread,
+):
+    if channel.guild is None:
+        return
+
+    moderator_channel = discord.utils.get(channel.guild.text_channels, name=MODERATOR_CHANNEL_NAME)
+    if moderator_channel is None:
+        log.warning("Moderator channel #%s was not found; rare bird thread %s will not be relayed.", MODERATOR_CHANNEL_NAME, thread.id)
+        return
+
+    rare_name = next(
+        (name for name, code in RARE_BIRD_CODES.items() if code == species),
+        first.get("comName", "Rare bird"),
+    )
+    county = first.get("subnational2Name", "Unknown county")
+    obs_date = (first.get("obsDt") or "")[:10]
+    message = (
+        f"Rare bird thread: {rare_name} ({species}) in {county}"
+        f"{f' on {obs_date}' if obs_date else ''} - {thread.jump_url}"
+    )
+    try:
+        await moderator_channel.send(message)
+    except discord.HTTPException:
+        log.exception("Failed to relay rare bird thread %s to #%s", thread.id, MODERATOR_CHANNEL_NAME)
+
+
 async def send_group(
     client: discord.Client,
     channel: discord.ForumChannel,
@@ -532,6 +569,10 @@ async def send_group(
     log.debug("Stored group %s %s in thread %s with message %s", species, checklist_id, getattr(thread, "id", "?"), message.id)
     if should_notify_region and not thread and region:
         await notify_region_chat(client, channel, region, created.thread, first)
+    if should_notify_region and not thread and (
+        species in RARE_SPECIES_CODES or normalize_species(first["comName"]) in RARE_BIRDS
+    ):
+        await relay_rare_species_to_moderators(channel, first, species, thread_obj)
 
 
 async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict) -> dict:
