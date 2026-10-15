@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import sqlite3
-import time
 
 import aiohttp
 import discord
@@ -19,7 +18,6 @@ REGION = os.environ.get("EBIRD_REGION", "US-GA")
 BACK_DAYS = int(os.environ.get("EBIRD_BACK_DAYS", "14"))
 POLL_MINUTES = int(os.environ.get("POLL_MINUTES", "15"))
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
-HOTSPOT_REFRESH_SECONDS = 24 * 3600
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
 MAX_RETRIES = 5
 SCHEMA_VERSION = 2
@@ -62,10 +60,6 @@ db.executescript(
 )
 db.commit()
 
-hotspots: set[str] = set()
-hotspots_loaded_at = 0.0
-
-
 async def get_json(session: aiohttp.ClientSession, path: str, **params):
     for attempt in range(MAX_RETRIES):
         async with session.get(f"{API}{path}", headers=HEADERS, params=params) as r:
@@ -78,16 +72,6 @@ async def get_json(session: aiohttp.ClientSession, path: str, **params):
         await asyncio.sleep(wait)
 
 
-async def refresh_hotspots(session: aiohttp.ClientSession):
-    global hotspots, hotspots_loaded_at
-    if hotspots and time.time() - hotspots_loaded_at < HOTSPOT_REFRESH_SECONDS:
-        return
-    data = await get_json(session, f"/ref/hotspot/{REGION}", fmt="json")
-    hotspots = {h["locId"] for h in data}
-    hotspots_loaded_at = time.time()
-    log.info("Loaded %d hotspots", len(hotspots))
-
-
 def sub_num(sub_id: str) -> int:
     return int(sub_id.lstrip("S"))
 
@@ -96,16 +80,46 @@ def field_text(text: str) -> str:
     return text if len(text) <= 1024 else text[:1021] + "..."
 
 
+def is_hotspot(o: dict) -> bool:
+    return o.get("locationPrivate") is False
+
+
+def format_comments(members: list[dict], field: str, unknown_name: str) -> str:
+    grouped: dict[str, tuple[str, list[str]]] = {}
+    for member in members:
+        comment = member.get(field)
+        if not comment:
+            continue
+        normalized = " ".join(comment.split())
+        if not normalized:
+            continue
+        if normalized not in grouped:
+            grouped[normalized] = (comment.strip(), [])
+        names = grouped[normalized][1]
+        name = member.get("userDisplayName", unknown_name)
+        if name not in names:
+            names.append(name)
+
+    if not grouped:
+        return ""
+    if len(grouped) == 1:
+        return next(iter(grouped.values()))[0]
+    return "\n".join(
+        f"{names[0]}{' et al.' if len(names) > 1 else ''}: {comment}"
+        for comment, names in grouped.values()
+    )
+
+
 def format_sighting(members: list[dict]) -> discord.Embed:
     """Build one embed from every observer's record of the same checklist."""
     members = sorted(members, key=lambda m: sub_num(m["subId"]))
     o = members[0]
     if o.get("obsReviewed") and o.get("obsValid"):
-        status, color = "Confirmed", discord.Color.green()
+        status, color = "✅ Confirmed", discord.Color.green()
     elif o.get("obsReviewed"):
-        status, color = "Rejected", discord.Color.red()
+        status, color = "❌ Rejected", discord.Color.red()
     else:
-        status, color = "Unreviewed", discord.Color.orange()
+        status, color = "❓ Unreviewed", discord.Color.orange()
 
     author = o.get("userDisplayName", "Unknown")
     others = len(members) - 1
@@ -129,7 +143,7 @@ def format_sighting(members: list[dict]) -> discord.Embed:
         name="Location",
         value=(
             f"[{o['locName']}](https://ebird.org/hotspot/{o['locId']})"
-            if o["locId"] in hotspots
+            if is_hotspot(o)
             else o["locName"]
         ),
         inline=False,
@@ -141,17 +155,15 @@ def format_sighting(members: list[dict]) -> discord.Embed:
         value=f"[Open map](https://maps.google.com/?q={o['lat']},{o['lng']})",
     )
 
-    sub_comments = next((m["subComments"] for m in members if m.get("subComments")), "")
-    if sub_comments:
-        embed.add_field(name="Checklist comments", value=field_text(sub_comments), inline=False)
-    obs_comments = [
-        f"{m.get('userDisplayName', '?')}: {m['obsComments']}"
-        for m in members
-        if m.get("obsComments")
-    ]
-    if obs_comments:
+    checklist_comment = format_comments(members, "subComments", "Unknown")
+    if checklist_comment:
         embed.add_field(
-            name="Observation comments", value=field_text("\n".join(obs_comments)), inline=False
+            name="Checklist comments", value=field_text(checklist_comment), inline=False
+        )
+    obs_comment_text = format_comments(members, "obsComments", "?")
+    if obs_comment_text:
+        embed.add_field(
+            name="Observation comments", value=field_text(obs_comment_text), inline=False
         )
     return embed
 
@@ -165,7 +177,7 @@ async def get_thread(client: discord.Client, thread_id: int):
 
 
 def scope_of(o: dict) -> str:
-    if o["locId"] in hotspots:
+    if is_hotspot(o):
         return o["locId"]
     return "county:" + o.get("subnational2Code", o.get("subnational2Name", "unknown"))
 
@@ -173,7 +185,7 @@ def scope_of(o: dict) -> str:
 def post_title(o: dict) -> str:
     county = o.get("subnational2Name", "Unknown")
     title = f"[{county}] {o['comName']} ({o['obsDt'][:10]})"
-    if o["locId"] in hotspots:
+    if is_hotspot(o):
         title += f" @ {o['locName']}"
     return title[:100]
 
@@ -235,7 +247,7 @@ async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict)
     entry = next((e for e in cl.get("obs", []) if e.get("speciesCode") == o["speciesCode"]), {})
     return {
         **o,
-        "checklistId": cl.get("checklistId") or sub_id,
+        "checklistId": f"{o['locId']}|{o['obsDt']}",
         "subComments": cl.get("subComments") or "",
         "obsComments": entry.get("comments") or "",
     }
@@ -263,12 +275,52 @@ async def process_sighting(channel: discord.ForumChannel, o: dict):
     db.commit()
 
 
+async def update_existing_sightings(
+    channel: discord.ForumChannel, observations: list[dict]
+) -> set[tuple[str, str]]:
+    current = {(o["subId"], o["speciesCode"]): o for o in observations}
+    rows = db.execute(
+        "SELECT sub_id, species_code, checklist_id, scope, data FROM sightings"
+    ).fetchall()
+    known = {(row[0], row[1]) for row in rows}
+    groups: dict[tuple[str, str, str], list[dict]] = {}
+    changed_groups = set()
+
+    for row in rows:
+        key = (row[0], row[1])
+        latest = current.get(key)
+        if not latest:
+            continue
+        saved = json.loads(row[4])
+        merged = {**saved, **latest}
+        scope = scope_of(merged)
+        group = (row[1], row[2], scope)
+        groups.setdefault(group, []).append(merged)
+        if merged != saved or scope != row[3]:
+            changed_groups.add(group)
+
+    for group in changed_groups:
+        species, checklist_id, scope = group
+        members = groups[group]
+        try:
+            await send_group(client, channel, species, checklist_id, scope, members)
+        except discord.HTTPException:
+            log.exception("Failed to update %s %s", species, checklist_id)
+            continue
+        for member in members:
+            db.execute(
+                "UPDATE sightings SET scope=?, data=? WHERE sub_id=? AND species_code=?",
+                (scope, json.dumps(member), member["subId"], species),
+            )
+        db.commit()
+    return known
+
+
 @tasks.loop(minutes=POLL_MINUTES)
 async def poll():
     channel = client.get_channel(CHANNEL_ID) or await client.fetch_channel(CHANNEL_ID)
     try:
         async with aiohttp.ClientSession() as session:
-            await refresh_hotspots(session)
             obs = await get_json(
                 session,
                 f"/data/obs/{REGION}/recent/notable",
@@ -277,10 +329,7 @@ async def poll():
             )
 
             current = {(o["subId"], o["speciesCode"]) for o in obs}
-            known = {
-                (r[0], r[1])
-                for r in db.execute("SELECT sub_id, species_code FROM sightings")
-            }
+            known = await update_existing_sightings(channel, obs)
 
             # checklistId is only known after the lookup, so order by subId; later
             # observers of a shared checklist edit the message already posted.
