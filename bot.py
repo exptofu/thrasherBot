@@ -531,6 +531,20 @@ async def attach_checklist(session: aiohttp.ClientSession, o: dict, cache: dict)
 async def process_sighting(channel: discord.ForumChannel, o: dict):
     species, checklist_id = o["speciesCode"], o["checklistId"]
     scope = scope_of(o)
+    existing = db.execute(
+        "SELECT checklist_id, scope FROM sightings WHERE sub_id=? AND species_code=?",
+        (o["subId"], species),
+    ).fetchone()
+    if existing:
+        log.warning(
+            "Skipping duplicate sighting for %s/%s: already in DB as checklist=%s scope=%s",
+            o["subId"],
+            species,
+            existing[0],
+            existing[1],
+        )
+        return
+
     previous = [
         json.loads(r[0])
         for r in db.execute(
@@ -538,6 +552,14 @@ async def process_sighting(channel: discord.ForumChannel, o: dict):
             (species, checklist_id),
         )
     ]
+    log.debug(
+        "Processing sighting %s/%s checklist=%s scope=%s age=%s",
+        o["subId"],
+        species,
+        checklist_id,
+        scope,
+        o.get("obsDt"),
+    )
     try:
         await send_group(client, channel, species, checklist_id, scope, previous + [o])
     except discord.HTTPException:
