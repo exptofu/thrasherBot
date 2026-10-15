@@ -71,7 +71,7 @@ REGION_TO_CATEGORY = {
     for region in regions
 }
 
-MODERATOR_CHANNEL_NAME = os.environ.get("MODERATOR_CHANNEL_NAME", "moderator-only")
+RARITY_CHANNEL = os.environ.get("RARITY_CHANNEL", "general-birding-chat")
 RARE_CHECKLIST_ALERT_THRESHOLD = int(os.environ.get("RARE_CHECKLIST_ALERT_THRESHOLD", "4"))
 RARE_BIRDS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "rare_birds.txt")
 
@@ -480,9 +480,9 @@ async def relay_rare_species_to_moderators(
     if channel.guild is None:
         return
 
-    moderator_channel = discord.utils.get(channel.guild.text_channels, name=MODERATOR_CHANNEL_NAME)
-    if moderator_channel is None:
-        log.warning("Moderator channel #%s was not found; rare bird thread %s will not be relayed.", MODERATOR_CHANNEL_NAME, thread.id)
+    rarity_channel = discord.utils.get(channel.guild.text_channels, name=RARITY_CHANNEL)
+    if rarity_channel is None:
+        log.warning("Rarity channel #%s was not found; rare bird thread %s will not be relayed.", RARITY_CHANNEL, thread.id)
         return
 
     rare_name = next(
@@ -496,9 +496,9 @@ async def relay_rare_species_to_moderators(
         f"{f' on {obs_date}' if obs_date else ''} - {thread.jump_url}"
     )
     try:
-        await moderator_channel.send(message)
+        await rarity_channel.send(message)
     except discord.HTTPException:
-        log.exception("Failed to relay rare bird thread %s to #%s", thread.id, MODERATOR_CHANNEL_NAME)
+        log.exception("Failed to relay rare bird thread %s to #%s", thread.id, RARITY_CHANNEL)
 
 
 async def send_group(
@@ -657,23 +657,23 @@ async def flag_checklist(channel: discord.ForumChannel, checklist_id: str, membe
     ).fetchone():
         return
 
-    moderator_channel = discord.utils.get(channel.guild.text_channels, name=MODERATOR_CHANNEL_NAME)
-    if moderator_channel is None:
-        log.warning("Moderator channel #%s was not found; checklist %s will remain unposted.", MODERATOR_CHANNEL_NAME, checklist_id)
+    rarity_channel = discord.utils.get(channel.guild.text_channels, name=RARITY_CHANNEL)
+    if rarity_channel is None:
+        log.warning("Rarity channel #%s was not found; checklist %s will remain unposted.", RARITY_CHANNEL, checklist_id)
         return
 
     embed = format_flagged_checklist_embed(checklist_id, members)
     view = ChecklistReviewView(checklist_id)
     try:
-        message = await moderator_channel.send(embed=embed, view=view)
+        message = await rarity_channel.send(embed=embed, view=view)
     except discord.HTTPException:
-        log.exception("Failed to post moderator review for checklist %s to #%s", checklist_id, MODERATOR_CHANNEL_NAME)
+        log.exception("Failed to post moderator review for checklist %s to #%s", checklist_id, RARITY_CHANNEL)
         return
 
     self.add_view(view, message_id=message.id)
     db.execute(
         "INSERT INTO review_queue (checklist_id, data, channel_id, message_id) VALUES (?,?,?,?)",
-        (checklist_id, json.dumps(members), moderator_channel.id, message.id),
+        (checklist_id, json.dumps(members), rarity_channel.id, message.id),
     )
     db.commit()
     log.info("Flagged checklist %s for moderator review; %s rare sightings", checklist_id, len(members))

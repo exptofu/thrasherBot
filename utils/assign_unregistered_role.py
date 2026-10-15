@@ -14,7 +14,7 @@ load_dotenv(ROOT / ".env")
 
 UNREGISTERED_MESSAGE_TEMPLATE = (
     "{role_mention} - Welcome! If you are getting this ping, you have not completed registration (and cannot access most channels!). "
-    "Please read the messages in {channel_mention} and follow the prompts."
+    "Please read the rules in {channel_mention} and press the agree button."
 )
 
 
