@@ -257,7 +257,7 @@ def format_sighting(members: list[dict]) -> discord.Embed:
         name="Map",
         value=(
             f"[Google Maps](https://maps.google.com/?q={o['lat']},{o['lng']}) | "
-            f"[Apple Maps](https://maps.apple.com/?ll={o['lat']},{o['lng']})"
+            f"[Apple Maps](https://maps.apple.com/?q={o['lat']},{o['lng']})"
         ),
     )
 
