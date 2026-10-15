@@ -35,7 +35,7 @@ REGIONS = {
     "metro-atlanta-north": ["Cobb", "Forsyth", "Douglas", "Cherokee", "Hall", "Bartow", "Paulding"],
     "dekalb-county": ["DeKalb"],
     "metro-atlanta-south": ["Coweta", "Henry", "Rockdale", "Newton", "Clayton", "Fayette"],
-    "macon": ["Bibb"],
+    "bibb-county": ["Bibb"],
     "fall-line-sandhills": [
         "Spalding", "Pike", "Upson", "Lamar", "Monroe", "Crawford", "Peach", "Houston", "Twiggs",
         "Jones", "Wilkinson", "Baldwin", "Butts", "Jasper", "Putnam", "Hancock", "Washington",
@@ -67,7 +67,7 @@ REGION_GROUPS = {
     "Savannah Area": ["greater-savannah-area"],
     "Athens Area": ["greater-athens-area"],
     "Augusta Area": ["greater-augusta-area"],
-    "Central Georgia": ["macon", "fall-line-sandhills"],
+    "Central Georgia": ["bibb-county", "fall-line-sandhills"],
     "West Georgia": ["west-piedmont", "columbus-area"],
     "North Georgia": ["north-georgia-mountains", "broad-river-watershed"],
     "South Georgia": ["inland-coastal-plain"],

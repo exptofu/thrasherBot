@@ -13,7 +13,7 @@
 <path d="M118.0,134.0 L136.6,133.4 L163.9,130.9 L163.1,182.7 L161.3,182.6 L161.2,182.6 L161.0,182.6 L160.9,182.6 L160.0,182.6 L159.8,182.6 L159.4,182.6 L154.9,182.5 L154.8,182.5 L154.0,182.5 L152.9,182.4 L128.8,182.0 L112.6,179.8 L118.0,134.0Z" fill="#4f8f3a"><title>Bartow - Metro Atlanta North</title></path>
 <path d="M355.9,527.4 L379.6,537.8 L379.2,554.4 L356.0,553.6 L355.9,557.8 L336.6,553.3 L336.7,541.5 L320.0,541.3 L316.5,527.5 L355.9,527.4Z" fill="#82609f"><title>Ben Hill - Inland Coastal Plain</title></path>
 <path d="M353.2,654.6 L343.4,654.4 L342.5,654.4 L340.6,654.3 L339.2,632.7 L322.5,604.3 L334.9,584.9 L360.0,585.5 L360.1,585.5 L360.0,586.0 L359.4,587.0 L359.4,587.9 L360.1,588.2 L361.0,590.3 L360.9,591.0 L361.3,592.0 L360.9,592.4 L360.7,593.5 L374.6,616.0 L372.9,630.1 L374.0,635.8 L357.5,635.8 L353.2,654.6Z" fill="#82609f"><title>Berrien - Inland Coastal Plain</title></path>
-<path d="M286.5,356.6 L293.3,366.6 L312.2,373.3 L313.6,380.1 L301.2,401.2 L287.8,396.9 L271.7,389.2 L262.9,372.8 L286.5,356.6Z" fill="#08786e"><title>Bibb - Macon</title></path>
+<path d="M286.5,356.6 L293.3,366.6 L312.2,373.3 L313.6,380.1 L301.2,401.2 L287.8,396.9 L271.7,389.2 L262.9,372.8 L286.5,356.6Z" fill="#08786e"><title>Bibb - Bibb</title></path>
 <path d="M349.5,413.6 L360.9,438.5 L356.5,434.0 L339.3,451.0 L333.9,461.8 L314.2,441.8 L316.2,438.3 L314.2,434.0 L349.5,413.6Z" fill="#c45b00"><title>Bleckley - Fall Line Sandhills</title></path>
 <path d="M517.5,651.1 L501.2,646.8 L492.0,656.9 L482.0,645.4 L482.0,632.1 L472.1,623.8 L483.8,626.4 L496.1,615.7 L508.2,615.7 L503.8,600.7 L519.1,605.0 L535.0,602.3 L544.0,607.5 L539.5,632.3 L517.5,651.1Z" fill="#b8860b"><title>Brantley - Golden Isles</title></path>
 <path d="M304.2,646.4 L317.1,653.6 L316.9,653.7 L317.3,653.7 L317.4,654.1 L317.5,653.9 L317.7,654.1 L318.1,654.1 L317.6,654.4 L317.7,654.8 L318.1,655.2 L318.4,655.7 L318.3,656.4 L318.6,656.8 L318.7,657.6 L319.0,657.6 L319.1,658.1 L319.4,658.4 L332.3,683.8 L320.5,686.7 L316.2,696.1 L332.5,714.6 L329.6,714.4 L328.2,714.3 L323.1,713.9 L323.1,713.9 L321.7,713.9 L320.6,713.8 L299.4,712.4 L299.4,712.4 L291.3,711.9 L290.9,711.9 L282.2,711.3 L283.2,652.7 L304.3,653.3 L304.2,646.4Z" fill="#82609f"><title>Brooks - Inland Coastal Plain</title></path>
@@ -169,7 +169,7 @@
 <text x="186.4" y="155.2" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round" paint-order="stroke">Metro Atlanta North</text>
 <text x="219.7" y="230.4" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round" paint-order="stroke">Dekalb</text>
 <text x="205.6" y="277.8" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round" paint-order="stroke">Metro Atlanta South</text>
-<text x="289.0" y="379.8" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round" paint-order="stroke">Macon</text>
+<text x="289.0" y="379.8" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round" paint-order="stroke">Bibb</text>
 <text x="318.1" y="415.1" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round" paint-order="stroke">Fall Line Sandhills</text>
 <text x="119.7" y="338.6" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round" paint-order="stroke">West Piedmont</text>
 <text x="180.5" y="91.9" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" stroke-linejoin="round" paint-order="stroke">North Georgia Mountains</text>
@@ -189,7 +189,7 @@
 <rect x="680" y="194" width="14" height="14" fill="#8c4824" stroke="#fff" stroke-width="0.5"/><text x="702" y="206">metro-atlanta-south</text>
 <rect x="680" y="216" width="14" height="14" fill="#087fa5" stroke="#fff" stroke-width="0.5"/><text x="702" y="228">greater-augusta-area</text>
 <rect x="680" y="238" width="14" height="14" fill="#17605c" stroke="#fff" stroke-width="0.5"/><text x="702" y="250">west-piedmont</text>
-<rect x="680" y="260" width="14" height="14" fill="#08786e" stroke="#fff" stroke-width="0.5"/><text x="702" y="272">macon</text>
+<rect x="680" y="260" width="14" height="14" fill="#08786e" stroke="#fff" stroke-width="0.5"/><text x="702" y="272">bibb-county</text>
 <rect x="680" y="282" width="14" height="14" fill="#c45b00" stroke="#fff" stroke-width="0.5"/><text x="702" y="294">fall-line-sandhills</text>
 <rect x="680" y="304" width="14" height="14" fill="#ad4f8c" stroke="#fff" stroke-width="0.5"/><text x="702" y="316">columbus-area</text>
 <rect x="680" y="326" width="14" height="14" fill="#2878a0" stroke="#fff" stroke-width="0.5"/><text x="702" y="338">greater-savannah-area</text>

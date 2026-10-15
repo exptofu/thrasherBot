@@ -9,7 +9,7 @@
 | Savannah Area | Greater Savannah Area |
 | Athens Area | Greater Athens Area |
 | Augusta Area | Greater Augusta Area |
-| Central Georgia | Macon, Fall Line Sandhills |
+| Central Georgia | Bibb County, Fall Line Sandhills |
 | West Georgia | West Piedmont, Columbus Area |
 | North Georgia | North Georgia Mountains, Broad River Watershed |
 | South Georgia | Inland Coastal Plain |
