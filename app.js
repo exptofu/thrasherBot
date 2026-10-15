@@ -387,15 +387,15 @@ function slugify(value) {
 }
 
 function formatRegionSlug(regionSlug) {
-  return regionSlug ? `${regionSlug}-chat` : 'unknown-chat';
+  return regionSlug ? `#${regionSlug}-chat` : 'unknown-chat';
 }
 
 function formatAreaSlug(categoryName, regionSlug) {
   const regionSlugs = REGION_GROUPS[categoryName] || [];
   if (regionSlugs.length <= 1 && regionSlug) {
-    return `${regionSlug}-rba`;
+    return `#${regionSlug}-rba`;
   }
-  return `${slugify(categoryName)}-rba`;
+  return `#${slugify(categoryName)}-rba`;
 }
 
 function renderSuggestionsFromCountyList() {
