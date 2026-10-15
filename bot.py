@@ -22,6 +22,13 @@ DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
 MAX_RETRIES = 5
 SCHEMA_VERSION = 2
+WELCOME_CHANNEL = "rules-and-info"
+WELCOME_MESSAGE = (
+    "Welcome to the Thrasher birding community! To fully join the server, click "
+    "**Set Nickname** below and enter your full name. The bot will set your server "
+    "nickname and assign the member role."
+)
+NICKNAME_BUTTON_ID = "thrasher:set_nickname"
 
 API = "https://api.ebird.org/v2"
 HEADERS = {"x-ebirdapitoken": EBIRD_KEY}
@@ -496,10 +503,19 @@ REQUIRED_PERMS = discord.Permissions(
 @app_commands.command(name="nickname", description="Set your server nickname and receive the member role.")
 @app_commands.guild_only()
 async def nickname_command(interaction: discord.Interaction, nickname: app_commands.Range[str, 1, 32]):
+    await set_member_nickname(interaction, nickname)
+
+
+async def set_member_nickname(interaction: discord.Interaction, nickname: str):
     guild = interaction.guild
     member = interaction.user
     if guild is None or not isinstance(member, discord.Member):
         await interaction.response.send_message("This command is only available in a server.", ephemeral=True)
+        return
+
+    nickname = nickname.strip()
+    if not nickname:
+        await interaction.response.send_message("Enter your full name to set your nickname.", ephemeral=True)
         return
 
     role = next((role for role in guild.roles if role.name.casefold() == "member"), None)
@@ -547,12 +563,66 @@ async def nickname_command(interaction: discord.Interaction, nickname: app_comma
     await interaction.followup.send("Nickname updated and member role assigned.", ephemeral=True)
 
 
+class NicknameModal(discord.ui.Modal, title="Set your server nickname"):
+    full_name = discord.ui.TextInput(
+        label="Full name",
+        placeholder="Enter your first and last name",
+        max_length=32,
+        required=True,
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await set_member_nickname(interaction, self.full_name.value)
+
+
+class NicknameView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(
+        label="Set Nickname",
+        style=discord.ButtonStyle.primary,
+        custom_id=NICKNAME_BUTTON_ID,
+    )
+    async def set_nickname(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(NicknameModal())
+
+
 class Bot(discord.Client):
     def __init__(self, *, intents: discord.Intents):
         super().__init__(intents=intents)
         self.tree = app_commands.CommandTree(self)
         self.tree.add_command(nickname_command)
         self.commands_synced = False
+        self.add_view(NicknameView())
+        self.welcome_panel_ready = False
+
+    async def ensure_welcome_panel(self, guild: discord.Guild):
+        channel = discord.utils.get(guild.text_channels, name=WELCOME_CHANNEL)
+        if channel is None:
+            log.warning("Welcome channel #%s was not found", WELCOME_CHANNEL)
+            return False
+
+        try:
+            async for message in channel.history(limit=100):
+                if message.author == self.user and message.content == WELCOME_MESSAGE:
+                    return True
+        except discord.Forbidden:
+            log.warning("Cannot read recent messages in #%s to find the welcome panel", WELCOME_CHANNEL)
+        except discord.HTTPException:
+            log.exception("Could not check #%s for the welcome panel", WELCOME_CHANNEL)
+
+        try:
+            await channel.send(
+                WELCOME_MESSAGE,
+                view=NicknameView(),
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            log.info("Posted nickname welcome panel in #%s", WELCOME_CHANNEL)
+            return True
+        except discord.HTTPException:
+            log.exception("Could not post the nickname welcome panel in #%s", WELCOME_CHANNEL)
+            return False
 
     async def on_ready(self):
         if not self.commands_synced:
@@ -586,6 +656,9 @@ class Bot(discord.Client):
             )
             await self.close()
             return
+
+        if not self.welcome_panel_ready:
+            self.welcome_panel_ready = await self.ensure_welcome_panel(channel.guild)
 
         if not poll.is_running():
             poll.start()
