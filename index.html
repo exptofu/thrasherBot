@@ -597,8 +597,6 @@
     function findCountyForPoint(lat, lon, accuracyMeters = 5000) {
       if (!countyGeoJson) return null;
       const point = [lon, lat];
-      const accuracyKm = Math.max(1, accuracyMeters / 1000);
-      const maxDistanceKm = Math.max(25, accuracyKm * 5);
 
       const exactMatches = countyGeoJson
         .filter((feature) => {
@@ -612,81 +610,9 @@
           }
           return false;
         })
-        .map((feature) => {
-          const centroid = countyCentroid(feature);
-          return {
-            name: feature.properties.NAME,
-            distance: centroid ? haversineKm(lat, lon, centroid.lat, centroid.lon) : Infinity
-          };
-        })
-        .sort((a, b) => a.distance - b.distance)
-        .map((item) => item.name);
+        .map((feature) => feature.properties.NAME);
 
-      if (exactMatches.length > 0) {
-        return exactMatches;
-      }
-
-      const nearBoundaryMatches = countyGeoJson
-        .map((feature) => {
-          const geometry = feature.geometry;
-          if (!geometry) return null;
-          let boundaryDistanceKm = Infinity;
-          if (geometry.type === 'Polygon') {
-            boundaryDistanceKm = polygonDistanceToBoundary(point, geometry.coordinates);
-          } else if (geometry.type === 'MultiPolygon') {
-            boundaryDistanceKm = geometry.coordinates.reduce((minDistance, polygon) => {
-              const distance = polygonDistanceToBoundary(point, polygon);
-              return Math.min(minDistance, distance);
-            }, Infinity);
-          }
-
-          const centroid = countyCentroid(feature);
-          const centroidDistanceKm = centroid ? haversineKm(lat, lon, centroid.lat, centroid.lon) : Infinity;
-          return {
-            name: feature.properties.NAME,
-            distance: centroidDistanceKm,
-            boundaryDistanceKm
-          };
-        })
-        .filter((item) => item && item.boundaryDistanceKm <= Math.max(0.5, accuracyKm * 0.25))
-        .sort((a, b) => a.boundaryDistanceKm - b.boundaryDistanceKm || a.distance - b.distance)
-        .slice(0, 2)
-        .map((item) => item.name);
-
-      if (nearBoundaryMatches.length > 0) {
-        return nearBoundaryMatches;
-      }
-
-      const nearbyMatches = countyGeoJson
-        .map((feature) => {
-          const centroid = countyCentroid(feature);
-          if (!centroid) return null;
-          return {
-            name: feature.properties.NAME,
-            distance: haversineKm(lat, lon, centroid.lat, centroid.lon)
-          };
-        })
-        .filter((item) => item && item.distance <= maxDistanceKm)
-        .sort((a, b) => a.distance - b.distance)
-        .slice(0, 2)
-        .map((item) => item.name);
-
-      if (nearbyMatches.length > 0) {
-        return nearbyMatches;
-      }
-
-      const nearest = countyGeoJson
-        .map((feature) => {
-          const centroid = countyCentroid(feature);
-          if (!centroid) return null;
-          return { name: feature.properties.NAME, distance: haversineKm(lat, lon, centroid.lat, centroid.lon) };
-        })
-        .filter(Boolean)
-        .sort((a, b) => a.distance - b.distance)
-        .slice(0, 2)
-        .map((item) => item.name);
-
-      return nearest;
+      return exactMatches;
     }
 
     function getSuggestedRegions(lat, lon, accuracyMeters = 5000) {
@@ -803,15 +729,13 @@
         return;
       }
 
-      if (!isGeorgiaLocation(location.lat, location.lon)) {
+      const counties = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
+      if (!counties.length) {
         selectedCounty = '';
         renderSuggestions([]);
         return;
       }
 
-      await loadCountyGeodata();
-      const accuracy = Number.isFinite(location.accuracy) ? location.accuracy : 5000;
-      const counties = findCountyForPoint(location.lat, location.lon, accuracy) || [];
       updateCountyOptions(counties);
     }
 
@@ -832,7 +756,7 @@
       }
 
       const countyNames = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
-      if (!isGeorgiaLocation(location.lat, location.lon) || countyNames.length === 0) {
+      if (!countyNames.length) {
         selectedCounty = '';
         const today = new Date();
         const formattedDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
