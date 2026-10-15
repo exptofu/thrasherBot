@@ -53,11 +53,9 @@ body {
   letter-spacing: 1px;
   font-weight: bold;
   color: #2b1f13;
-  /* Darkened for better readability */
-  border-bottom: 2px solid #7c6a52;
-  padding-bottom: 4px;
-  margin-top: 25px;
-  margin-bottom: 15px;
+  padding-bottom: 0px;
+  margin-top: 0px;
+  margin-bottom: 0px;
 }
 
 label {
@@ -184,7 +182,6 @@ input[type="number"] {
   color: #000000;
   /* Absolute highest contrast for dynamic generation output */
   box-shadow: inset 1px 1px 4px rgba(0, 0, 0, 0.05);
-  margin-top: 15px;
   width: 100%;
   max-width: 100%;
   min-height: 120px;
@@ -193,6 +190,7 @@ input[type="number"] {
   resize: none;
   box-sizing: border-box;
   overflow-y: auto;
+  margin-bottom: 5px;
 }
 
 .view-panel {
