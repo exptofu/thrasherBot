@@ -905,11 +905,19 @@ class Bot(discord.Client):
         if message.author.bot:
             return
 
+        if message.guild is not None:
+            perms = message.channel.permissions_for(message.guild.me)
+            if not perms.send_messages:
+                return
+
         found_coords = find_georgia_coordinates(message.content)
         if not found_coords:
             return
 
-        await message.channel.send(embed=build_georgia_coordinates_embed(message, found_coords))
+        try:
+            await message.channel.send(embed=build_georgia_coordinates_embed(message, found_coords))
+        except discord.Forbidden:
+            log.warning("Cannot post GPS embed in #%s (%s): missing send permissions", getattr(message.channel, "name", "unknown"), message.channel.id)
 
     async def on_ready(self):
         if not self.commands_synced:
