@@ -53,7 +53,7 @@ WELCOME_MESSAGE = (
     "(aka nickname)**. Integrity, safety and transparency are an important part of birding and "
     "using a false or misleading identity is contrary to that requirement.\n\n"
     "# ***🚨YOU MUST CLICK THIS BUTTON BELOW TO ACCESS THE DISCORD🚨***\n"
-    "*Click the Agree button below and submit your full name *with spaces* (if privacy is a concern, please provide at the very least a First name and Last initial).*"
+    "**Click the Agree button below** and submit your full name *with spaces* (if privacy is a concern, please provide at the very least a First name and Last initial)."
 )
 NICKNAME_BUTTON_ID = "thrasher:set_nickname"
 
