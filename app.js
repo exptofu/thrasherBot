@@ -564,10 +564,61 @@ function pointInPolygon(point, coordinates) {
 
 async function loadCountyGeodata() {
   if (countyGeoJson) return countyGeoJson;
-  const response = await fetch('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json');
-  const data = await response.json();
-  countyGeoJson = data.features.filter((feature) => feature.properties.STATE === '13');
-  return countyGeoJson;
+
+  const countySources = [
+    {
+      label: 'topojson',
+      fetch: async () => {
+        const response = await fetch('https://raw.githubusercontent.com/kthotav/TopoJSON-Maps/master/usa/usa-states/georgia/georgia-counties.json');
+        const topology = await response.json();
+        const converted = typeof topojson !== 'undefined' && topojson.feature
+          ? topojson.feature(topology, topology.objects['georgia-counties'])
+          : null;
+
+        if (!converted || !converted.features) {
+          throw new Error('TopoJSON feature conversion unavailable');
+        }
+
+        return converted.features.map((feature) => {
+          const properties = feature.properties || {};
+          return {
+            ...feature,
+            properties: {
+              ...properties,
+              STATE: properties.STATE || properties.STATEFP || '13',
+              NAME: properties.NAME || (typeof properties.NAMELSAD === 'string' ? properties.NAMELSAD.replace(/ County$/i, '') : '')
+            }
+          };
+        });
+      }
+    },
+    {
+      label: 'plotly',
+      fetch: async () => {
+        const response = await fetch('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json');
+        const data = await response.json();
+        return data.features.filter((feature) => feature.properties.STATE === '13');
+      }
+    }
+  ];
+
+  for (const source of countySources) {
+    try {
+      const data = await source.fetch();
+      countyGeoJson = Array.isArray(data) ? data.filter((feature) => {
+        const properties = feature && feature.properties ? feature.properties : {};
+        return String(properties.STATE || properties.STATEFP || '') === '13';
+      }) : [];
+
+      if (countyGeoJson.length) {
+        return countyGeoJson;
+      }
+    } catch (error) {
+      console.warn(`County geodata source failed (${source.label}):`, error);
+    }
+  }
+
+  return [];
 }
 
 function countyCentroid(feature) {
