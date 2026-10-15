@@ -478,6 +478,10 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         legend_items = []
         legend_x = MAP_WIDTH - 100
         legend_y = 52
+        legend_title = (
+            f'<text x="{legend_x}" y="{legend_y - 12}" font-size="13" font-weight="bold" fill="#fff">'
+            f'{escape("RBA Areas")}</text>'
+        )
         for index, (category, color) in enumerate(GROUP_COLORS.items()):
             item_y = legend_y + index * 22
             legend_items.append(
@@ -486,7 +490,7 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
             legend_items.append(
                 f'<text x="{legend_x + 24}" y="{item_y + 13}" font-size="12" fill="#fff">{escape(category)}</text>'
             )
-        legend = "\n".join(legend_items)
+        legend = "\n".join([legend_title, *legend_items])
     elif title == "YTD Checklists" and legend_scale_values:
         legend_items = []
         legend_x = MAP_WIDTH - 145
