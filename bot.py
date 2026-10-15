@@ -52,8 +52,8 @@ WELCOME_MESSAGE = (
     "* :five: **We require users to share your full name (first and last) as your display name "
     "(aka nickname)**. Integrity, safety and transparency are an important part of birding and "
     "using a false or misleading identity is contrary to that requirement.\n\n"
-    "# :point_right: Ready to join?\n"
-    "*Click the Agree button below and submit your full name (if privacy is a concern, please provide at the very least a First name and Last initial).*"
+    "# ***🚨YOU MUST CLICK THIS BUTTON BELOW TO ACCESS THE DISCORD🚨***\n"
+    "*Click the Agree button below and submit your full name *with spaces* (if privacy is a concern, please provide at the very least a First name and Last initial).*"
 )
 NICKNAME_BUTTON_ID = "thrasher:set_nickname"
 
