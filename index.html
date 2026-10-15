@@ -4,14 +4,36 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Georgia Birding Message Helper</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="styles.css?v=5" />
 </head>
 <body>
   <div class="journal-container">
 
-    <div class="journal-section-title">Observation details</div>
-
     <form id="birdForm">
+      <div class="journal-section-title">Observation details</div>
+      <div id="gpsMap" class="gps-map" aria-label="Map showing a centered GPS pin"></div>
+      <div class="gps-input-row">
+        <div class="gps-field">
+          <label>
+            Latitude
+            <input id="latitude" class="journal-input readonly-field" type="number" step="0.000001" placeholder="" tabindex="-1" readonly />
+          </label>
+        </div>
+
+        <div class="gps-field">
+          <label>
+            Longitude
+            <input id="longitude" class="journal-input readonly-field" type="number" step="0.000001" placeholder="" tabindex="-1" readonly />
+          </label>
+        </div>
+
+        <button type="button" id="useLocationBtn" class="journal-btn gps-button">Use GPS</button>
+      </div>
+      <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
+
+      
+
       <label>
         Species
         <input id="species" class="journal-input" type="text" placeholder="" required />
@@ -27,27 +49,7 @@
         <textarea id="description" class="journal-textarea" rows="4" placeholder=""></textarea>
       </label>
 
-      <div class="journal-section-title">GPS location</div>
-      <div class="gps-input-row">
-        <div class="gps-field">
-          <label>
-            Latitude
-            <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="" tabindex="-1" />
-          </label>
-        </div>
-
-        <div class="gps-field">
-          <label>
-            Longitude
-            <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="" tabindex="-1" />
-          </label>
-        </div>
-
-        <button type="button" id="useLocationBtn" class="journal-btn gps-button">Use GPS</button>
-      </div>
-
-      <div class="journal-section-title">Suggested post regions</div>
-      <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
+      
     </form>
 
     <div class="journal-section-title">Generated message</div>
@@ -58,6 +60,7 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script>
     const REGIONS = {
       "greater-athens": ["Barrow", "Walton", "Greene", "Morgan", "Oglethorpe", "Jackson", "Madison"],
@@ -156,6 +159,114 @@
 
     let latestLocation = null;
     let selectedCounty = '';
+    let gpsTrackingActive = false;
+    let gpsMap = null;
+    let gpsCenterPin = null;
+    let gpsAccuracyCircle = null;
+    let gpsPositionMarker = null;
+    let gpsPollingInterval = null;
+    let gpsAutoCenterUntil = 0;
+    let gpsTrackingStartedAt = 0;
+
+    function initLocationMap() {
+      if (gpsMap) return;
+
+      gpsMap = L.map('gpsMap', {
+        zoomControl: true,
+        scrollWheelZoom: true,
+        dragging: true,
+        attributionControl: true
+      }).setView([33.7490, -84.3880], 7);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(gpsMap);
+
+      gpsCenterPin = document.createElement('div');
+      gpsCenterPin.className = 'gps-center-pin';
+      gpsCenterPin.setAttribute('aria-hidden', 'true');
+      document.getElementById('gpsMap').appendChild(gpsCenterPin);
+
+      gpsAccuracyCircle = L.circle([33.7490, -84.3880], {
+        radius: 25,
+        color: '#3b82f6',
+        fillColor: '#60a5fa',
+        fillOpacity: 0.2,
+        weight: 2,
+        opacity: 0.8,
+        interactive: false
+      }).addTo(gpsMap);
+      gpsAccuracyCircle.setStyle({ opacity: 0, fillOpacity: 0 });
+
+      gpsPositionMarker = L.circleMarker([33.7490, -84.3880], {
+        radius: 7,
+        color: '#2563eb',
+        fillColor: '#2563eb',
+        fillOpacity: 1,
+        weight: 2,
+        interactive: false
+      }).addTo(gpsMap);
+      gpsPositionMarker.setStyle({ opacity: 0, fillOpacity: 0 });
+
+      const syncMapCenter = () => {
+        if (!gpsMap) return;
+        const center = gpsMap.getCenter();
+        gpsCenterPin.style.display = 'block';
+        setLocation(center.lat, center.lng, 25);
+      };
+
+      gpsMap.on('move', () => {
+        if (Date.now() > gpsAutoCenterUntil) {
+          syncMapCenter();
+        }
+      });
+      gpsMap.on('zoomend', syncMapCenter);
+      window.gpsMap = gpsMap;
+      window.gpsCenterPin = gpsCenterPin;
+      window.gpsPositionMarker = gpsPositionMarker;
+      window.gpsAccuracyCircle = gpsAccuracyCircle;
+      gpsCenterPin.style.display = 'block';
+      syncMapCenter();
+    }
+
+    function updateGpsTrackingMarker(position) {
+      if (!gpsMap || !gpsPositionMarker || !gpsAccuracyCircle) return;
+      const lat = position.coords.latitude;
+      const lon = position.coords.longitude;
+      const accuracy = Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : 25;
+      const center = [lat, lon];
+
+      gpsPositionMarker.setLatLng(center);
+      gpsAccuracyCircle.setLatLng(center);
+      gpsAccuracyCircle.setRadius(accuracy);
+
+      if (gpsAutoCenterUntil && Date.now() <= gpsAutoCenterUntil) {
+        gpsMap.setView(center, Math.max(gpsMap.getZoom(), 14), { animate: true });
+      }
+    }
+
+    function clearGpsTracking() {
+      if (gpsPollingInterval) {
+        clearInterval(gpsPollingInterval);
+        gpsPollingInterval = null;
+      }
+      gpsAutoCenterUntil = 0;
+      gpsTrackingStartedAt = 0;
+      if (gpsAccuracyCircle) {
+        gpsAccuracyCircle.setStyle({ opacity: 0, fillOpacity: 0 });
+      }
+      if (gpsPositionMarker) {
+        gpsPositionMarker.setStyle({ opacity: 0, fillOpacity: 0 });
+      }
+      if (!gpsTrackingActive) {
+        setGpsButtonState(false);
+      }
+      if (gpsCenterPin) {
+        gpsCenterPin.style.display = 'block';
+      }
+      setGpsButtonState(false);
+    }
 
     function setCopyButtonState(isSuccess) {
       const copyBtn = document.getElementById('copyBtn');
@@ -176,16 +287,30 @@
       gpsBtn.textContent = isLocating ? 'LOCATING' : 'Use GPS';
       gpsBtn.disabled = isLocating;
       gpsBtn.classList.toggle('is-locating', isLocating);
+      gpsBtn.classList.toggle('missing-gps', !gpsTrackingActive && !isLocating);
     }
 
     function resetGpsFields() {
-      form.latitude.value = '';
-      form.longitude.value = '';
-      latestLocation = null;
+      clearGpsTracking();
+      const defaultLat = 33.7490;
+      const defaultLon = -84.3880;
+
+      form.latitude.value = defaultLat;
+      form.longitude.value = defaultLon;
+      latestLocation = {
+        lat: defaultLat,
+        lon: defaultLon,
+        accuracy: 25
+      };
+      gpsTrackingActive = false;
       selectedCounty = '';
       if (form.suggestions) {
         form.suggestions.innerHTML = '';
       }
+      if (gpsMap) {
+        gpsMap.setView([defaultLat, defaultLon], gpsMap.getZoom(), { animate: false });
+      }
+      setGpsButtonState(false);
     }
 
     function applyFieldErrorState(field, hasError) {
@@ -199,8 +324,6 @@
       const gpsBtn = document.getElementById('useLocationBtn');
 
       applyFieldErrorState(form.species, !speciesHasValue);
-      applyFieldErrorState(form.latitude, !gpsHasValue);
-      applyFieldErrorState(form.longitude, !gpsHasValue);
       gpsBtn?.classList.toggle('missing-gps', !gpsHasValue);
 
       return speciesHasValue && gpsHasValue;
@@ -272,12 +395,21 @@
       return numeric.toFixed(axis === 'lat' ? 5 : 5);
     }
 
+    function isGeorgiaLocation(lat, lon) {
+      return Number.isFinite(lat) && Number.isFinite(lon)
+        && lat >= 30.35 && lat <= 35.0
+        && lon >= -85.6 && lon <= -81.0;
+    }
+
     async function setLocation(lat, lon, accuracy) {
-      form.latitude.value = lat;
-      form.longitude.value = lon;
+      const nextLat = Number(lat);
+      const nextLon = Number(lon);
+
+      form.latitude.value = nextLat;
+      form.longitude.value = nextLon;
       latestLocation = {
-        lat: Number(lat),
-        lon: Number(lon),
+        lat: nextLat,
+        lon: nextLon,
         accuracy: Number.isFinite(accuracy) ? Number(accuracy) : null
       };
 
@@ -287,7 +419,6 @@
         renderSuggestions([]);
       }
 
-      setGpsButtonState(false);
       validateRequiredFields();
       scheduleLiveMessageUpdate();
     }
@@ -297,21 +428,69 @@
         return;
       }
 
+      initLocationMap();
+      clearGpsTracking();
+      gpsTrackingActive = true;
       setGpsButtonState(true);
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setLocation(position.coords.latitude, position.coords.longitude, position.coords.accuracy);
-        },
-        (error) => {
-          console.warn('GPS lookup failed:', error);
+
+      const onPosition = (position) => {
+        if (!gpsTrackingStartedAt) {
+          gpsTrackingStartedAt = Date.now();
+        }
+
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const accuracy = position.coords.accuracy;
+
+        if (gpsAccuracyCircle) {
+          gpsAccuracyCircle.setStyle({ opacity: 0.8, fillOpacity: 0.2 });
+        }
+        if (gpsPositionMarker) {
+          gpsPositionMarker.setStyle({ opacity: 1, fillOpacity: 1 });
+        }
+
+        updateGpsTrackingMarker(position);
+        setLocation(latitude, longitude, accuracy);
+
+        if (!gpsAutoCenterUntil) {
+          gpsAutoCenterUntil = Date.now() + 1000;
+          gpsCenterPin.style.display = 'block';
+        }
+
+        if (Date.now() - gpsTrackingStartedAt >= 1000) {
+          gpsAutoCenterUntil = 0;
+          gpsTrackingStartedAt = 0;
+          if (gpsPollingInterval) {
+            clearInterval(gpsPollingInterval);
+            gpsPollingInterval = null;
+          }
           setGpsButtonState(false);
-        },
-        {
+        }
+      };
+
+      const onError = (error) => {
+        console.warn('GPS lookup failed:', error);
+        gpsTrackingActive = false;
+        clearGpsTracking();
+        validateRequiredFields();
+      };
+
+      gpsAutoCenterUntil = Date.now() + 1000;
+      gpsCenterPin.style.display = 'block';
+      gpsTrackingActive = true;
+      gpsPollingInterval = window.setInterval(() => {
+        navigator.geolocation.getCurrentPosition(onPosition, onError, {
           enableHighAccuracy: true,
           timeout: 10000,
-          maximumAge: 0
-        }
-      );
+          maximumAge: 1000
+        });
+      }, 250);
+
+      navigator.geolocation.getCurrentPosition(onPosition, onError, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 1000
+      });
     }
 
     function haversineKm(lat1, lon1, lat2, lon2) {
@@ -385,6 +564,8 @@
 
     function polygonDistanceToBoundary(point, coordinates) {
       const rings = Array.isArray(coordinates[0]) && Array.isArray(coordinates[0][0]) ? coordinates : [coordinates];
+      const originLat = Number(point[1]);
+      const originLon = Number(point[0]);
       let minDistanceKm = Infinity;
 
       for (const ringSet of rings) {
@@ -395,8 +576,8 @@
           const current = outer[i];
           const next = outer[(i + 1) % outer.length];
           const segmentDistance = haversineKm(
-            lat,
-            lon,
+            originLat,
+            originLon,
             (current[1] + next[1]) / 2,
             (current[0] + next[0]) / 2
           );
@@ -565,45 +746,37 @@
         return;
       }
 
-      const table = document.createElement('table');
-      table.className = 'suggestion-table';
-      table.innerHTML = `
-        <thead>
-          <tr>
-            <th>County</th>
-            <th>Region</th>
-            <th>Area</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      `;
+      const row = rows[0] || {};
+      const fields = [
+        { label: 'County', value: row.county && row.county !== '—' ? row.county : '' },
+        { label: 'Region', value: row.region || '' },
+        { label: 'Area RBA', value: row.category || '' }
+      ];
 
-      const tbody = table.querySelector('tbody');
-      rows.forEach((row) => {
-        const tr = document.createElement('tr');
-        tr.classList.toggle('selected', Boolean(row.selected));
-        tr.tabIndex = row.county && row.county !== '—' ? 0 : -1;
-        tr.style.fontWeight = row.selected ? 700 : 400;
-        tr.innerHTML = `
-          <td>${row.county}</td>
-          <td>${row.region}</td>
-          <td>${row.category}</td>
-        `;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'suggestion-input-row';
 
-        if (row.county && row.county !== '—') {
-          tr.addEventListener('click', () => selectCountyOption(row.county));
-          tr.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              selectCountyOption(row.county);
-            }
-          });
-        }
+      fields.forEach(({ label, value }) => {
+        const fieldWrap = document.createElement('div');
+        fieldWrap.className = 'suggestion-field';
 
-        tbody.appendChild(tr);
+        const labelEl = document.createElement('label');
+        labelEl.textContent = label;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'journal-input suggestion-readonly';
+        input.value = value;
+        input.readOnly = true;
+        input.setAttribute('aria-label', label);
+        input.setAttribute('aria-live', 'polite');
+
+        fieldWrap.appendChild(labelEl);
+        fieldWrap.appendChild(input);
+        wrapper.appendChild(fieldWrap);
       });
 
-      form.suggestions.appendChild(table);
+      form.suggestions.appendChild(wrapper);
     }
 
     function buildSuggestionRows(regionSuggestions, categorySuggestions) {
@@ -625,6 +798,12 @@
 
     async function updateSuggestedCountyMatches(location) {
       if (!location) {
+        selectedCounty = '';
+        renderSuggestions([]);
+        return;
+      }
+
+      if (!isGeorgiaLocation(location.lat, location.lon)) {
         selectedCounty = '';
         renderSuggestions([]);
         return;
@@ -653,16 +832,34 @@
       }
 
       const countyNames = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
-      const resolvedCounty = selectedCounty || countyNames[0] || 'Unknown County';
-      const selectedCountyName = resolvedCounty;
-      const countySlug = COUNTY_TO_REGION[(selectedCountyName || '').toLowerCase()];
+      if (!isGeorgiaLocation(location.lat, location.lon) || countyNames.length === 0) {
+        selectedCounty = '';
+        const today = new Date();
+        const formattedDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
+        const formattedTime = new Intl.DateTimeFormat('en-US', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        }).format(today).replace(' ', '').replace(':', ':');
+        const title = `${species}${hotspot ? ` - ${hotspot}` : ''} - ${formattedDate}`;
+        const gpsText = `${formatCoordinate(location.lat, 'lat')}, ${formatCoordinate(location.lon, 'lon')}`;
+        const notesText = description ? ` ${description}` : '';
+        form.output.value = `${title}\n> ${gpsText} @ ${formattedTime}.${notesText}`;
+        renderSuggestions([]);
+        return;
+      }
+
+      const validCounty = countyNames.find((county) => county && county.toLowerCase() === selectedCounty?.toLowerCase()) || countyNames[0] || 'Unknown County';
+      const selectedCountyName = validCounty;
+      selectedCounty = validCounty;
+      const countySlug = COUNTY_TO_REGION[(validCounty || '').toLowerCase()];
 
       const regionSuggestions = selectedCountyName && countySlug
         ? [countySlug]
-        : getSuggestedRegions(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000);
+        : [];
       const categorySuggestions = selectedCountyName
-        ? [COUNTY_TO_CATEGORY[selectedCountyName.toLowerCase()] || 'Unassigned']
-        : getSuggestedCategories(regionSuggestions);
+        ? [COUNTY_TO_CATEGORY[(validCounty || '').toLowerCase()] || 'Unassigned']
+        : [];
 
       const today = new Date();
       const formattedDate = `${String(today.getMonth() + 1).padStart(2, '0')}/${String(today.getDate()).padStart(2, '0')}/${today.getFullYear()}`;
@@ -677,16 +874,12 @@
       const text = `${title}\n> ${gpsText} @ ${formattedTime}.${notesText}`;
 
       form.output.value = text;
-      renderSuggestions(
-        selectedCountyName
-          ? [{
-              county: selectedCountyName,
-              region: formatRegionSlug(regionSuggestions[0]),
-              category: formatAreaSlug(categorySuggestions[0], regionSuggestions[0]),
-              selected: true
-            }]
-          : buildSuggestionRows(regionSuggestions, categorySuggestions).map((row) => ({ county: '—', region: row.region, category: row.category, selected: true }))
-      );
+      renderSuggestions([{
+        county: selectedCountyName,
+        region: regionSuggestions[0] ? formatRegionSlug(regionSuggestions[0]) : '',
+        category: categorySuggestions[0] ? formatAreaSlug(categorySuggestions[0], regionSuggestions[0]) : '',
+        selected: true
+      }]);
     }
 
     async function copyMessage() {
@@ -724,6 +917,7 @@
       }, 150);
     }
 
+    initLocationMap();
     document.getElementById('useLocationBtn').addEventListener('click', useMyGps);
     document.getElementById('copyBtn').addEventListener('click', copyMessage);
     form.species.addEventListener('input', () => {

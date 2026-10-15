@@ -53,7 +53,7 @@ label {
   width: 100%;
   background-color: transparent;
   border: none;
-  border-bottom: 1px solid #544637; /* Darker bottom line rule */
+  border-bottom: 2px dashed #544637; /* Dashed underline for editable inputs */
   border-radius: 0px !important;
   padding: 6px 4px;
   font-family: 'Georgia', serif;
@@ -63,6 +63,27 @@ label {
   transition: all 0.2s ease;
   -webkit-text-size-adjust: 100%;
   touch-action: manipulation;
+  background-color: #f7f3e8;
+}
+
+.readonly-field,
+.suggestion-readonly,
+input[readonly] {
+  border-bottom: 1px solid #544637;
+  background-color: transparent;
+  color: #110d0a;
+  cursor: default;
+  font-style: italic;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.readonly-field:focus,
+.suggestion-readonly:focus,
+input[readonly]:focus {
+  outline: 2px solid #2e4d31;
+  outline-offset: 3px;
+  background-color: rgba(84, 70, 55, 0.04);
 }
 
 input[type="number"]::-webkit-outer-spin-button,
@@ -81,14 +102,14 @@ input[type="number"] {
 .journal-select:focus {
   outline: 2px solid #2e4d31; /* Added explicit focus outline ring for accessibility */
   outline-offset: 3px;
-  background-color: #f7f3e8;
+  background-color: rgb(250, 240, 214);
 }
 
 .journal-input.field-error,
 .journal-textarea.field-error,
 .journal-select.field-error {
   background-color: rgba(186, 45, 45, 0.2);
-  border-bottom: 2px solid #ba2d2d;
+  border-bottom: 2px dashed #ba2d2d;
 }
 
 .journal-textarea {
@@ -168,6 +189,49 @@ input[type="number"] {
   }
 }
 
+.gps-map {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  border: 1px solid #544637;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #dfe9f2;
+  margin: 10px 0 14px;
+}
+
+.gps-map .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #dfe9f2;
+}
+
+.gps-center-pin {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 50% 50% 50% 0;
+  background: #b91c1c;
+  border: 2px solid #ffffff;
+  transform: translate(-50%, -100%) rotate(-45deg);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 500;
+}
+
+.gps-center-pin::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 50%;
+  left: 5px;
+  top: 5px;
+}
+
 .gps-input-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
@@ -213,60 +277,48 @@ input[type="number"] {
 }
 
 .suggestion-table-wrap {
-  margin-top: 8px;
-  border: 1px solid #544637;
-  border-radius: 2px;
-  overflow: hidden;
+  margin: 0 0 18px;
+  border: none;
+  background: transparent;
+  overflow: visible;
 }
 
-.suggestion-table-wrap table {
+.suggestion-input-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1.1fr) minmax(120px, 1.8fr) minmax(130px, 2.3fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.suggestion-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.suggestion-field label {
+  margin-bottom: 0;
+  font-weight: 700;
+  color: #110d0a;
+}
+
+.suggestion-readonly {
   width: 100%;
-  border-collapse: collapse;
-  background: #ffffff;
-}
-
-.suggestion-table-wrap tbody tr {
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-  touch-action: manipulation;
-}
-
-.suggestion-table-wrap tbody tr:nth-child(even) {
-  background-color: #f7f3e8; /* High-contrast alternating parchment lines */
-}
-
-.suggestion-table-wrap tbody tr:hover,
-.suggestion-table-wrap tbody tr:focus-visible {
-  background: #eadeca;
-  outline: none;
-}
-
-.suggestion-table-wrap tbody tr.selected {
-  background: #1c3320; /* Dark forest green for distinct select visibility */
-}
-
-.suggestion-table-wrap tbody tr.selected td,
-.suggestion-table-wrap tbody tr.selected .chip {
-  color: #ffffff !important;
-}
-
-.suggestion-table-wrap th,
-.suggestion-table-wrap td {
-  text-align: left;
-  padding: 10px 12px;
-  border-bottom: 1px solid #cbd5e1;
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid #544637;
+  border-radius: 0;
+  padding: 6px 4px;
+  font-family: 'Georgia', serif;
+  font-size: 16px;
   color: #110d0a;
-  font-size: 14px;
+  box-sizing: border-box;
+  cursor: default;
 }
 
-.suggestion-table-wrap thead th {
-  background: #ebdcb9;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: #110d0a;
-  font-weight: bold;
-  border-bottom: 2px solid #544637;
+.suggestion-readonly:focus {
+  outline: 2px solid #2e4d31;
+  outline-offset: 3px;
 }
 
 .chip {
