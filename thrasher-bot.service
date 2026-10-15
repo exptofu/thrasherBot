@@ -1,0 +1,17 @@
+[Unit]
+Description=Thrasher eBird Discord Bot
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=thrasher
+Group=thrasher
+WorkingDirectory=/opt/thrasherBot
+ExecStart=/opt/thrasherBot/.venv/bin/python /opt/thrasherBot/bot.py
+Restart=on-failure
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
