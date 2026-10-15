@@ -182,7 +182,7 @@ def field_text(text: str) -> str:
 
 
 def is_hotspot(o: dict) -> bool:
-    return o.get("locationPrivate") is False
+    return o.get("locationPrivate") is False and bool(o.get("locId"))
 
 
 def format_comments(members: list[dict], field: str, unknown_name: str) -> str:
@@ -227,6 +227,7 @@ def format_sighting(members: list[dict]) -> discord.Embed:
     if others:
         author += f" + {others} other{'s' if others > 1 else ''}"
 
+    loc_name = o.get("locName", "Unknown location")
     embed = discord.Embed(
         title=o["comName"],
         description=(
@@ -243,9 +244,9 @@ def format_sighting(members: list[dict]) -> discord.Embed:
     embed.add_field(
         name="Location",
         value=(
-            f"[{o['locName']}](https://ebird.org/hotspot/{o['locId']})"
-            if is_hotspot(o)
-            else o["locName"]
+            f"[{loc_name}](https://ebird.org/hotspot/{o['locId']})"
+            if is_hotspot(o) and o.get("locId")
+            else loc_name
         ),
         inline=False,
     )
@@ -344,7 +345,7 @@ def unwrap_thread(result):
 
 
 def scope_of(o: dict) -> str:
-    if is_hotspot(o):
+    if is_hotspot(o) and o.get("locId"):
         return o["locId"]
     return "county:" + o.get("subnational2Code", o.get("subnational2Name", "unknown"))
 
@@ -381,9 +382,10 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
                         log.exception("Failed to create alert thread for %s in %s", region, forum_name)
                         thread = None
             if thread is not None:
+                location_name = o.get("locName", "Unknown location")
                 message_text = (
                     f"[{o.get('subnational2Name', 'Unknown')}] [{o['comName']}]({post.jump_url}) - "
-                    f"{o['locName']} ({o['obsDt'][:10]})"
+                    f"{location_name} ({o['obsDt'][:10]})"
                 )
                 message_id = row[1] if row else None
                 updated = False
@@ -418,8 +420,9 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
         else:
             try:
                 county = o.get("subnational2Name", "Unknown")
+                location_name = o.get("locName", "Unknown location")
                 await text_channel.send(
-                    f"[{county}] [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
+                    f"[{county}] [{o['comName']}]({post.jump_url}) - {location_name} ({o['obsDt'][:10]})"
                 )
             except discord.HTTPException:
                 log.exception("Failed to post sighting link to %s", STATEWIDE_CHANNEL)
@@ -428,7 +431,7 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
 def post_title(o: dict) -> str:
     county = o.get("subnational2Name", "Unknown")
     title = f"[{county}] {o['comName']} ({o['obsDt'][:10]})"
-    if is_hotspot(o):
+    if is_hotspot(o) and o.get("locName"):
         title += f" @ {o['locName']}"
     return title[:100]
 
@@ -645,8 +648,6 @@ async def poll_once():
             log.info("%d new sightings to process", len(todo))
 
             cache: dict = {}
-            pending: dict[str, list[dict]] = {}
-            checklist_totals: dict[str, int] = {}
             for i, (k, o) in enumerate(todo.items(), 1):
                 log.info("Checklist %d/%d: %s (%s)", i, len(todo), k[0], o["comName"])
                 try:
@@ -656,19 +657,11 @@ async def poll_once():
                     continue
 
                 checklist_id = o["checklistId"]
-                pending.setdefault(checklist_id, []).append(o)
-                checklist_totals.setdefault(checklist_id, len(cache.get(o["subId"], {}).get("obs", [])))
-
-                if len(pending[checklist_id]) < checklist_totals[checklist_id]:
-                    continue
-
-                members = pending.pop(checklist_id)
-                rare_members = [m for m in members if normalize_species(m["comName"]) in RARE_BIRDS]
+                rare_members = [o] if normalize_species(o["comName"]) in RARE_BIRDS else []
                 if len(rare_members) > RARE_CHECKLIST_ALERT_THRESHOLD:
                     await flag_checklist(channel, checklist_id, rare_members)
                     continue
-                for item in members:
-                    await process_sighting(channel, item)
+                await process_sighting(channel, o)
     except aiohttp.ClientError:
         log.exception("eBird request failed")
         return
