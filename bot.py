@@ -753,7 +753,7 @@ async def poll_once():
             "SELECT sub_id, species_code, data FROM sightings"
         ).fetchall():
             age_days = observation_age_days(json.loads(data))
-            if age_days is not None and age_days > BACK_DAYS + 1:
+            if age_days is not None and age_days > BACK_DAYS + 2:
                 db.execute(
                     "DELETE FROM sightings WHERE sub_id=? AND species_code=?",
                     (sub_id, species_code),
