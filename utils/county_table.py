@@ -19,28 +19,33 @@ MAPPING_CHANNEL = "county-mapping"
 DESCRIPTION = (
     "**County to channel mapping**\n"
     "Each county lists its region role (ping it to reach that region's birders), "
-    "the region chat where sightings are posted, and its category."
+    "the region chat where sightings are posted, and the RBA forum for its region."
 )
 
 
 def build_rows() -> list[tuple[str, str, str, str]]:
     regions, region_groups = load_region_config()
-    category_of = {r: group for group, rs in region_groups.items() for r in rs}
+    forum_of = {
+        region: f"{group.lower().replace(' ', '-')}-rba"
+        for group, group_regions in region_groups.items()
+        for region in group_regions
+    }
     rows = []
     for region, counties in regions.items():
         for county in counties:
             channel = f"{region}-chat"
-            rows.append((county, region, channel, category_of[region]))
+            rows.append((county, region, channel, forum_of[region]))
     return sorted(rows, key=lambda row: row[0].lower())
 
 
 def render(rows, roles: dict[str, int], channels: dict[str, int]) -> list[str]:
     """Format one line per county, split into messages under Discord's length limit."""
     messages, current = [], ""
-    for county, region, channel, category in rows:
+    for county, region, channel, forum in rows:
         role = f"<@&{roles[region]}>" if region in roles else f"@{region}"
-        link = f"<#{channels[channel]}>" if channel in channels else f"#{channel}"
-        line = f"- **{county}**: {role} | {link} | {category}\n"
+        chat_link = f"<#{channels[channel]}>" if channel in channels else f"#{channel}"
+        forum_link = f"<#{channels[forum]}>" if forum in channels else f"#{forum}"
+        line = f"- **{county}**: {role} | {chat_link} | {forum_link}\n"
         if current and len(current) + len(line) > MESSAGE_LIMIT:
             messages.append(current)
             current = ""
@@ -84,7 +89,7 @@ async def main() -> int:
                 forum = self.get_channel(forum_id) or await self.fetch_channel(forum_id)
                 guild = forum.guild
                 roles = {role.name: role.id for role in guild.roles}
-                channels = {text.name: text.id for text in guild.text_channels}
+                channels = {channel.name: channel.id for channel in guild.channels}
                 messages = render(build_rows(), roles, channels)
                 if args.post:
                     target = discord.utils.get(guild.text_channels, name=MAPPING_CHANNEL)

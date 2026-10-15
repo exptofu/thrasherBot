@@ -6,6 +6,7 @@ import sqlite3
 
 import aiohttp
 import discord
+from discord import app_commands
 from discord.ext import tasks
 from dotenv import load_dotenv
 
@@ -492,8 +493,76 @@ REQUIRED_PERMS = discord.Permissions(
 )
 
 
+@app_commands.command(name="nickname", description="Set your server nickname and receive the member role.")
+@app_commands.guild_only()
+async def nickname_command(interaction: discord.Interaction, nickname: app_commands.Range[str, 1, 32]):
+    guild = interaction.guild
+    member = interaction.user
+    if guild is None or not isinstance(member, discord.Member):
+        await interaction.response.send_message("This command is only available in a server.", ephemeral=True)
+        return
+
+    role = next((role for role in guild.roles if role.name.casefold() == "member"), None)
+    bot_member = guild.me
+    if role is None:
+        await interaction.response.send_message("The server's member role was not found.", ephemeral=True)
+        return
+    if bot_member is None or not bot_member.guild_permissions.manage_roles or not bot_member.guild_permissions.manage_nicknames:
+        await interaction.response.send_message(
+            "The bot needs Manage Roles and Manage Nicknames permissions to use this command.",
+            ephemeral=True,
+        )
+        return
+    if role >= bot_member.top_role or member.top_role >= bot_member.top_role:
+        await interaction.response.send_message(
+            "The bot's highest role must be above both your highest role and the member role.",
+            ephemeral=True,
+        )
+        return
+
+    await interaction.response.defer(ephemeral=True)
+    role_added = role in member.roles
+    try:
+        if not role_added:
+            await member.add_roles(role, reason="User set their server nickname")
+            role_added = True
+        await member.edit(nick=nickname, reason="User changed their server nickname")
+    except discord.Forbidden:
+        message = (
+            "The member role was assigned, but the bot could not change your nickname."
+            if role_added
+            else "The bot could not assign the member role. Check its role permissions and hierarchy."
+        )
+        await interaction.followup.send(message, ephemeral=True)
+        return
+    except discord.HTTPException:
+        message = (
+            "The member role was assigned, but Discord could not update your nickname."
+            if role_added
+            else "Discord could not assign the member role. Please try again later."
+        )
+        await interaction.followup.send(message, ephemeral=True)
+        return
+
+    await interaction.followup.send("Nickname updated and member role assigned.", ephemeral=True)
+
+
 class Bot(discord.Client):
+    def __init__(self):
+        super().__init__(intents=discord.Intents.default())
+        self.tree = app_commands.CommandTree(self)
+        self.tree.add_command(nickname_command)
+        self.commands_synced = False
+
     async def on_ready(self):
+        if not self.commands_synced:
+            try:
+                await self.tree.sync()
+                self.commands_synced = True
+                log.info("Application commands synced")
+            except discord.HTTPException:
+                log.exception("Could not sync application commands")
+
         invite = discord.utils.oauth_url(
             self.user.id, permissions=REQUIRED_PERMS, scopes=("bot",)
         )
