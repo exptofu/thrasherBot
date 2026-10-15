@@ -164,8 +164,8 @@ function createGpsAccuracyCircle() {
       const point = gpsMap.project(this._center);
       const radiusPx = metersToPixels(gpsMap, this._radiusMeters, this._center.lat);
       const size = radiusPx * 2;
-      this._element.style.left = `${point.x - radiusPx}px`;
-      this._element.style.top = `${point.y - radiusPx}px`;
+      this._element.style.left = `${point.x}px`;
+      this._element.style.top = `${point.y}px`;
       this._element.style.width = `${size}px`;
       this._element.style.height = `${size}px`;
       if (this._element.style.display !== 'none') {
