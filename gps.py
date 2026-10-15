@@ -10,11 +10,17 @@ client = discord.Client(intents=intents)
 GA_LAT_MIN, GA_LAT_MAX = 30.3556, 35.0007
 GA_LON_MIN, GA_LON_MAX = -85.6052, -80.8397
 
-# Universal regex for DD, DDM, and DMS coordinate styles
+# Regex for decimal-degree formats like "34.05498° N, 84.67575° W",
+# plus the existing DD, DDM, and DMS coordinate styles.
 COORD_PATTERN = re.compile(
     r'(?P<lat_deg>-?\d+(?:\.\d+)?)(?:[°\s]*(?P<lat_min>\d+(?:\.\d+)?))?(?:[\'\s]*(?P<lat_sec>\d+(?:\.\d+)?))?[\"\s]*(?P<lat_dir>[NSns])?'
     r'[\s,;\/]+'
     r'(?P<lon_deg>-?\d+(?:\.\d+)?)(?:[°\s]*(?P<lon_min>\d+(?:\.\d+)?))?(?:[\'\s]*(?P<lon_sec>\d+(?:\.\d+)?))?[\"\s]*(?P<lon_dir>[EWew])?'
+)
+DECIMAL_DIRECTION_PATTERN = re.compile(
+    r'(?P<lat_value>-?\d+(?:\.\d+)?)\s*(?:°\s*)?(?P<lat_dir>[NSns])?'
+    r'[\s,;\/]+'
+    r'(?P<lon_value>-?\d+(?:\.\d+)?)\s*(?:°\s*)?(?P<lon_dir>[EWew])?'
 )
 
 
@@ -40,28 +46,41 @@ def find_georgia_coordinates(text: str) -> list[dict[str, str]]:
         return []
 
     found_coords: list[dict[str, str]] = []
-    for match in COORD_PATTERN.finditer(text):
-        if len(found_coords) >= 4:
-            break
+    seen: set[str] = set()
+    patterns = [COORD_PATTERN, DECIMAL_DIRECTION_PATTERN]
 
-        gd = match.groupdict()
-        try:
-            lat = convert_to_decimal(gd["lat_deg"], gd["lat_min"], gd["lat_sec"], gd["lat_dir"])
-            lon = convert_to_decimal(gd["lon_deg"], gd["lon_min"], gd["lon_sec"], gd["lon_dir"])
-        except (TypeError, ValueError):
-            continue
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            if len(found_coords) >= 4:
+                break
 
-        if (GA_LAT_MIN <= lat <= GA_LAT_MAX) and (GA_LON_MIN <= lon <= GA_LON_MAX):
-            lat_str = f"{lat:.5f}"
-            lon_str = f"{lon:.5f}"
-            found_coords.append(
-                {
-                    "original": match.group(0).strip(),
-                    "decimal": f"{lat_str}, {lon_str}",
-                    "google_url": f"https://maps.google.com/?q={lat_str},{lon_str}",
-                    "apple_url": f"https://maps.apple.com/?q={lat_str},{lon_str}",
-                }
-            )
+            gd = match.groupdict()
+            lat_raw = gd.get("lat_value") or gd.get("lat_deg")
+            lon_raw = gd.get("lon_value") or gd.get("lon_deg")
+            if lat_raw is None or lon_raw is None:
+                continue
+
+            try:
+                lat = convert_to_decimal(lat_raw, gd.get("lat_min"), gd.get("lat_sec"), gd.get("lat_dir"))
+                lon = convert_to_decimal(lon_raw, gd.get("lon_min"), gd.get("lon_sec"), gd.get("lon_dir"))
+            except (TypeError, ValueError):
+                continue
+
+            if (GA_LAT_MIN <= lat <= GA_LAT_MAX) and (GA_LON_MIN <= lon <= GA_LON_MAX):
+                lat_str = f"{lat:.5f}"
+                lon_str = f"{lon:.5f}"
+                key = f"{lat_str},{lon_str}"
+                if key in seen:
+                    continue
+                seen.add(key)
+                found_coords.append(
+                    {
+                        "original": match.group(0).strip(),
+                        "decimal": f"{lat_str}, {lon_str}",
+                        "google_url": f"https://maps.google.com/?q={lat_str},{lon_str}",
+                        "apple_url": f"https://maps.apple.com/?q={lat_str},{lon_str}",
+                    }
+                )
 
     return found_coords
 
