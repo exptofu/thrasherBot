@@ -24,8 +24,9 @@
 
     <div id="observationView" class="view-panel">
       <div class="wizard-header">
-        <button type="button" id="exitObservationBtn" class="journal-btn secondary">Exit</button>
-        <div class="journal-title">Observation details</div>
+        <div class="journal-title">Edit Observation</div>
+        <button type="button" id="exitObservationBtn" aria-label="Close observation detail" class="icon-btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x preview-icon"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+        
       </div>
 
       <div id="locationStep" class="wizard-page active">
@@ -48,12 +49,13 @@
           <button type="button" id="useLocationBtn" class="journal-btn gps-button">Use GPS</button>
         </div>
 
+        <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
+
         <label>
           Observation time
           <input id="observationTime" class="journal-input" type="datetime-local" />
         </label>
 
-        <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
 
         <div class="form-actions">
           <button type="button" id="toDetailsBtn" class="journal-btn">Next</button>
@@ -61,10 +63,7 @@
       </div>
 
       <div id="detailsStep" class="wizard-page">
-        <div class="reference-bar">
-          <span id="refGps">GPS: not set</span>
-          <span id="refTime">Time: not set</span>
-        </div>
+        
 
         <label>
           Species
@@ -81,6 +80,11 @@
           <textarea id="description" class="journal-textarea" rows="4"></textarea>
         </label>
 
+        <div class="reference-bar">
+          <span id="refGps">GPS: not set</span>
+          <span id="refTime">Time: not set</span>
+        </div>
+
         <div class="form-actions stacked">
           <button type="button" id="backToLocationBtn" class="journal-btn secondary">Back</button>
           <button type="button" id="saveObservationBtn" class="journal-btn">Save observation</button>
@@ -90,11 +94,11 @@
 
     <div id="detailView" class="view-panel">
       <div class="wizard-header">
-        <div class="journal-title">Observation detail</div>
+        <div class="journal-title">Observation</div>
         <div class="detail-top-actions">
-          <button type="button" id="editDetailBtn" class="mini-btn">Edit</button>
-          <button type="button" id="deleteDetailBtn" class="mini-btn danger">Delete</button>
-          <button type="button" id="closeDetailBtn" class="icon-btn" aria-label="Close observation detail">&#10006;</button>
+          <button type="button" id="editDetailBtn" aria-label="Edit" class="mini-btn"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-pencil preview-icon"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></svg></button>
+          <button type="button" id="deleteDetailBtn" aria-label="Delete" class="mini-btn danger"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash preview-icon"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+          <button type="button" id="closeDetailBtn" aria-label="Close observation detail" class="icon-btn"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x preview-icon"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
         </div>
       </div>
 
@@ -109,7 +113,7 @@
         <button type="button" id="copyBtn" class="journal-btn">Copy to clipboard</button>
       </div>
     </div>
-    <button type="button" id="floatingNewObservationBtn" class="fab" aria-label="Create new observation">&#x002B;</button>
+    <button type="button" id="floatingNewObservationBtn" class="fab" aria-label="Create new observation"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-plus-corner preview-icon"><path d="M11.35 22H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v5.35"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/><path d="M14 19h6"/><path d="M17 16v6"/></svg></button>
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@3.3.0/dist/maplibre-gl.js" crossorigin=""></script>

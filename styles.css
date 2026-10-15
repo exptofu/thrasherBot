@@ -19,7 +19,7 @@
 }
 
 .journal-title {
-  font-size: 15px;
+  font-size: 18px;
   font-weight: bold;
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -360,17 +360,6 @@ input[type="number"] {
   display: block;
 }
 
-.reference-bar {
-  flex-wrap: wrap;
-  border: 1px solid #d6c9b4;
-  background: rgba(122, 92, 62, 0.04);
-  border-radius: 6px;
-  padding: 10px 12px;
-  margin-bottom: 18px;
-  font-size: 0.92rem;
-  color: #2b1f13;
-}
-
 .reference-bar span {
   display: inline-flex;
   align-items: center;
@@ -379,7 +368,7 @@ input[type="number"] {
 }
 
 .detail-header {
-  margin: 18px 0 20px;
+  margin: 5px 0 20px;
   padding-bottom: 10px;
   border-bottom: 1px solid rgba(84, 70, 55, 0.3);
 }
@@ -401,17 +390,18 @@ input[type="number"] {
   font-family: 'Georgia', serif;
   cursor: pointer;
   transition: all 0.15s ease;
-  border: 1px solid #544637;
+  border: 0px solid #544637;
   background: #f3efe7;
   color: #110d0a;
 }
 
 .mini-btn {
-  padding: 6px 10px;
   font-size: 0.76rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
+  height: 38px;
+  width: 38px;
 }
 
 .mini-btn.danger,
@@ -446,32 +436,31 @@ input[type="number"] {
 .fab {
   position: sticky;
   float: right;
-  right: 22px;
+  right: 12px;
   bottom: 22px;
   width: 58px;
   height: 58px;
   border: none;
   border-radius: 50%;
-  background: #b92f2f;
+  background: #3eb140;
   color: #ffffff;
   font-size: 2.2rem;
   font-weight: 700;
-  box-shadow: 0 8px 22px rgba(185, 47, 47, 0.35);
+  box-shadow: 0 8px 22px rgba(0,0,0, 0.35);
   cursor: pointer;
   z-index: 30;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   line-height: 1;
-  margin-left: auto;
-  margin-top: 12px;
+  padding: 0 0 2px 2px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
 .fab:hover,
 .fab:focus-visible {
   transform: translateY(-2px);
-  box-shadow: 0 12px 26px rgba(185, 47, 47, 0.4);
+  box-shadow: 0 12px 26px rgba(0,0,0, 0.4);
   outline: none;
 }
 
@@ -535,7 +524,7 @@ input[type="number"] {
   outline-offset: 2px;
 }
 
-.detail-meta {
+.detail-meta, .reference-bar {
   margin-top: 8px;
   color: #4d3c2b;
   font-size: 0.96rem;
@@ -770,7 +759,7 @@ input[type="number"] {
 
 body {
   margin: 0;
-  background-color: #355831;
+  background-color: #49351f;
   /* Softened desk background slightly to help paper surface pop */
   background-size: 60px 60px;
   background-position: 0 0, 30px 30px;
