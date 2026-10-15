@@ -293,7 +293,8 @@ async def ensure_region_forums(channel: discord.ForumChannel):
         if category is None:
             category = await guild.create_category(group)
             categories[group] = category
-        for region in regions:
+        ordered_regions = sorted(regions)
+        for region in ordered_regions:
             forum = forums.get(region)
             if forum is None:
                 forum = await guild.create_forum(
@@ -304,7 +305,8 @@ async def ensure_region_forums(channel: discord.ForumChannel):
                 )
                 forums[region] = forum
             elif forum.category_id != category.id:
-                await forum.edit(category=category)
+                forum = await forum.edit(category=category)
+                forums[region] = forum
 
             text_name = f"{region}-banter"
             text = text_channels.get(text_name)
@@ -317,7 +319,30 @@ async def ensure_region_forums(channel: discord.ForumChannel):
                 )
                 text_channels[text_name] = text
             elif text.category_id != category.id:
-                await text.edit(category=category)
+                text = await text.edit(category=category)
+                text_channels[text_name] = text
+
+        expected_names = [
+            name
+            for region in ordered_regions
+            for name in (region, f"{region}-banter")
+        ]
+        expected_set = set(expected_names)
+        current_names = [
+            text.name
+            for text in sorted(guild.channels, key=lambda ch: (ch.position, ch.id))
+            if text.category_id == category.id and text.name in expected_set
+        ]
+        pairs_are_adjacent = all(
+            text_channels[f"{region}-banter"].position == forums[region].position + 1
+            for region in ordered_regions
+        )
+        if current_names != expected_names or not pairs_are_adjacent:
+            for region in ordered_regions:
+                forum = forums[region]
+                text = text_channels[f"{region}-banter"]
+                await forum.move(end=True, category=category)
+                await text.move(after=forum)
 
 
 async def get_rba_thread(channel: discord.ForumChannel, region: str):
