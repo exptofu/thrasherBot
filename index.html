@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <title>GA Bird Post Builder</title>
+  <title>Georgia Birding Message Helper</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -13,18 +13,18 @@
 
     <form id="birdForm">
       <label>
-        Bird species
-        <input id="species" class="journal-input" type="text" placeholder="e.g. Northern Cardinal" required />
+        Species
+        <input id="species" class="journal-input" type="text" placeholder="" required />
       </label>
 
       <label>
-        Hotspot name (optional)
-        <input id="hotspot" class="journal-input" type="text" placeholder="e.g. Jekyll Island" />
+        Hotspot (optional)
+        <input id="hotspot" class="journal-input" type="text" placeholder="" />
       </label>
 
       <label>
-        Brief description (optional)
-        <textarea id="description" class="journal-textarea" rows="4" placeholder="What did you see? behavior, count, habitat notes, etc."></textarea>
+        Notes (optional)
+        <textarea id="description" class="journal-textarea" rows="4" placeholder=""></textarea>
       </label>
 
       <div class="journal-section-title">GPS location</div>
@@ -32,14 +32,14 @@
         <div class="gps-field">
           <label>
             Latitude
-            <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="" readonly tabindex="-1" />
+            <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="" tabindex="-1" />
           </label>
         </div>
 
         <div class="gps-field">
           <label>
             Longitude
-            <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="" readonly tabindex="-1" />
+            <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="" tabindex="-1" />
           </label>
         </div>
 
@@ -51,7 +51,7 @@
     </form>
 
     <div class="journal-section-title">Generated message</div>
-    <textarea id="discordOutput" class="journal-output-box" readonly placeholder="Generated Discord message will appear here..."></textarea>
+    <textarea id="discordOutput" class="journal-output-box" readonly placeholder="Fill in the required fields..."></textarea>
 
     <div class="form-actions">
       <button type="button" id="copyBtn" class="journal-btn">Copy to clipboard</button>

@@ -153,8 +153,7 @@ input[type="number"] {
 
 @media (max-width: 480px) {
   .journal-container {
-    padding: 20px 15px 20px 35px;
-    background-image: linear-gradient(90deg, transparent 24px, #cc7a7a 24px, #cc7a7a 26px, transparent 26px);
+    padding: 20px 15px 20px 20px;
   }
 
   .journal-output-box {
