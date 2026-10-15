@@ -12,10 +12,25 @@ from dotenv import load_dotenv
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
-UNREGISTERED_MESSAGE = (
-    "@unregistered - if you are getting this ping, you have not completed registration.\n"
-    "Please read the messages in #rules-and-info and follow the prompts!"
+UNREGISTERED_MESSAGE_TEMPLATE = (
+    "{role_mention} - Welcome! If you are getting this ping, you have not completed registration (and cannot access most channels!). "
+    "Please read the messages in {channel_mention} and follow the prompts."
 )
+
+
+def build_unregistered_message(
+    guild: discord.Guild,
+    channel_name: str,
+    role_name: str,
+) -> str:
+    channel = discord.utils.get(guild.text_channels, name=channel_name)
+    role = discord.utils.get(guild.roles, name=role_name)
+    channel_mention = f"<#{channel.id}>" if channel else f"#{channel_name}"
+    role_mention = f"<@&{role.id}>" if role else f"@{role_name}"
+    return UNREGISTERED_MESSAGE_TEMPLATE.format(
+        role_mention=role_mention,
+        channel_mention=channel_mention,
+    )
 
 
 async def assign_unregistered_members(
@@ -35,15 +50,42 @@ async def assign_unregistered_members(
             f"The role '{unregistered_role_name}' was not found in guild '{guild.name}'."
         )
 
-    eligible = [
-        member
-        for member in guild.members
-        if not member.bot and member_role not in member.roles
-    ]
+    eligible = []
+    fixed_conflicts = []
+
+    for member in guild.members:
+        if member.bot:
+            continue
+
+        has_member = member_role in member.roles
+        has_unregistered = unregistered_role in member.roles
+
+        if has_member and has_unregistered:
+            fixed_conflicts.append(member)
+            continue
+
+        if has_member or has_unregistered:
+            continue
+
+        eligible.append(member)
 
     print(
-        f"Found {len(eligible)} members without the '{member_role_name}' role in '{guild.name}'."
+        f"Found {len(eligible)} members without either role in '{guild.name}'."
     )
+    if fixed_conflicts:
+        print(f"Found {len(fixed_conflicts)} members with both roles; fixing them to member-only.")
+
+    for member in fixed_conflicts:
+        print(f"  - {member} ({member.id}) [both roles]")
+        if not apply:
+            continue
+        try:
+            await member.remove_roles(unregistered_role, reason="User completed registration")
+            print(f"    [applied] removed '{unregistered_role_name}' from {member}")
+        except discord.Forbidden:
+            print(f"    [forbidden] could not remove '{unregistered_role_name}' from {member}")
+        except discord.HTTPException as exc:
+            print(f"    [http] could not remove '{unregistered_role_name}' from {member}: {exc}")
 
     for member in eligible:
         print(f"  - {member} ({member.id})")
@@ -71,12 +113,13 @@ async def send_unregistered_notice(
         print(f"No #{channel_name} text channel was found in '{guild.name}'.")
         return None
 
+    reminder = build_unregistered_message(guild, channel_name, "unregistered")
     print(f"Posting reminder to #{channel_name} in '{guild.name}'.")
     if not apply:
-        print(f"Preview only; message would be: {UNREGISTERED_MESSAGE}")
+        print(f"Preview only; message would be: {reminder}")
         return channel
 
-    message = await channel.send(UNREGISTERED_MESSAGE)
+    message = await channel.send(reminder)
     print(f"Sent reminder message {message.id} to #{channel_name}.")
     return channel
 
@@ -137,7 +180,10 @@ async def main() -> int:
             finally:
                 await self.close()
 
-    client = UnregisteredClient(intents=discord.Intents.default())
+    intents = discord.Intents.default()
+    intents.members = True
+
+    client = UnregisteredClient(intents=intents)
     try:
         await client.start(token)
     except discord.LoginFailure:
