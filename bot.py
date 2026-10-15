@@ -52,7 +52,7 @@ WELCOME_MESSAGE = (
     "* :five: **We require users to share your full name (first and last) as your display name "
     "(aka nickname)**. Integrity, safety and transparency are an important part of birding and "
     "using a false or misleading identity is contrary to that requirement.\n\n"
-    "# ***🚨YOU MUST CLICK THIS BUTTON BELOW TO ACCESS THE DISCORD🚨***\n"
+    "# ***🚨 YOU MUST CLICK THIS BUTTON BELOW TO ACCESS THE DISCORD 🚨***\n"
     "**Click the Agree button below** and submit your full name *with spaces* (if privacy is a concern, please provide at the very least a First name and Last initial)."
 )
 NICKNAME_BUTTON_ID = "thrasher:set_nickname"
@@ -985,8 +985,8 @@ async def set_member_nickname(interaction: discord.Interaction, nickname: str):
 class NicknameModal(discord.ui.Modal, title="Set your server nickname"):
     full_name = discord.ui.TextInput(
         label="Full name",
-        placeholder="Enter your first and last name",
-        max_length=32,
+        placeholder="Firstname Lastname",
+        max_length=50,
         required=True,
     )
 
