@@ -761,6 +761,15 @@ async function updateSuggestedCountyMatches(location) {
     return;
   }
 
+  if (!countyGeoJson) {
+    try {
+      await loadCountyGeodata();
+    } catch (error) {
+      renderSuggestions([]);
+      return;
+    }
+  }
+
   const counties = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
   if (!counties.length) {
     selectedCounty = '';
@@ -769,6 +778,31 @@ async function updateSuggestedCountyMatches(location) {
   }
 
   updateCountyOptions(counties);
+}
+
+async function refreshCountySuggestionsForLocation(location) {
+  if (!location) {
+    selectedCounty = '';
+    renderSuggestions([]);
+    return;
+  }
+
+  if (!countyGeoJson) {
+    try {
+      await loadCountyGeodata();
+    } catch (error) {
+      renderSuggestions([]);
+      return;
+    }
+  }
+
+  const countyNames = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
+  if (countyNames.length) {
+    updateCountyOptions(countyNames);
+  } else {
+    selectedCounty = '';
+    renderSuggestions([]);
+  }
 }
 
 async function generateMessage() {
@@ -789,11 +823,13 @@ async function generateMessage() {
         renderSuggestions([]);
       }
     }
+    await refreshCountySuggestionsForLocation(location);
     return;
   }
 
   if (!validateRequiredFields()) {
     form.output.value = '';
+    await refreshCountySuggestionsForLocation(location);
     return;
   }
 
