@@ -116,6 +116,7 @@ function initLocationMap() {
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
+    detectRetina: true,
     attribution: '&copy; OpenStreetMap contributors'
   }).addTo(gpsMap);
 
@@ -672,12 +673,28 @@ async function updateSuggestedCountyMatches(location) {
 }
 
 async function generateMessage() {
-  const species = toCamelCaseSpecies(form.species.value.trim());
+  const speciesValue = form.species.value.trim();
+  const species = toCamelCaseSpecies(speciesValue);
   const hotspot = toCamelCaseSpecies(form.hotspot.value.trim());
   const description = form.description.value.trim();
   const location = latestLocation;
 
+  if (!speciesValue) {
+    form.output.value = '';
+    if (location) {
+      const countyNames = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
+      if (countyNames.length) {
+        updateCountyOptions(countyNames);
+      } else {
+        selectedCounty = '';
+        renderSuggestions([]);
+      }
+    }
+    return;
+  }
+
   if (!validateRequiredFields()) {
+    form.output.value = '';
     return;
   }
 
