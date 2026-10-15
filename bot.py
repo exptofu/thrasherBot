@@ -22,6 +22,7 @@ BACK_DAYS = int(os.environ.get("EBIRD_BACK_DAYS", "14"))
 POLL_MINUTES = int(os.environ.get("POLL_MINUTES", "15"))
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
+PRUNE_OLD_SIGHTINGS = os.environ.get("PRUNE_OLD_SIGHTINGS", "true").strip().lower() not in {"0", "false", "no", "off"}
 MAX_RETRIES = 5
 SCHEMA_VERSION = 2
 WELCOME_CHANNEL = "rules-and-info"
@@ -577,23 +578,26 @@ async def poll_once():
         log.exception("eBird request failed")
         return
 
-    # Purge records that dropped off the API, then groups/posts with no sightings left.
-    for sub_id, species in known - current:
+    if PRUNE_OLD_SIGHTINGS:
+        # Purge records that dropped off the API, then groups/posts with no sightings left.
+        for sub_id, species in known - current:
+            db.execute(
+                "DELETE FROM sightings WHERE sub_id=? AND species_code=?", (sub_id, species)
+            )
         db.execute(
-            "DELETE FROM sightings WHERE sub_id=? AND species_code=?", (sub_id, species)
+            """DELETE FROM groups WHERE NOT EXISTS (
+                   SELECT 1 FROM sightings s
+                   WHERE s.species_code = groups.species_code
+                     AND s.checklist_id = groups.checklist_id)"""
         )
-    db.execute(
-        """DELETE FROM groups WHERE NOT EXISTS (
-               SELECT 1 FROM sightings s
-               WHERE s.species_code = groups.species_code
-                 AND s.checklist_id = groups.checklist_id)"""
-    )
-    db.execute(
-        """DELETE FROM posts WHERE NOT EXISTS (
-               SELECT 1 FROM sightings s
-               WHERE s.species_code = posts.species_code AND s.scope = posts.scope)"""
-    )
-    db.commit()
+        db.execute(
+            """DELETE FROM posts WHERE NOT EXISTS (
+                   SELECT 1 FROM sightings s
+                   WHERE s.species_code = posts.species_code AND s.scope = posts.scope)"""
+        )
+        db.commit()
+    else:
+        log.info("Pruning disabled by PRUNE_OLD_SIGHTINGS; keeping historical sightings in SQLite.")
 
 
 @tasks.loop(minutes=POLL_MINUTES)
