@@ -110,7 +110,7 @@ def rba_forum_name(category: str, regions: list[str]) -> str:
 
 
 def region_alert_thread_name(region: str) -> str:
-    return f"eBird RBA - {region.replace('-', ' ').title()}"
+    return "eBird RBA"
 
 
 def region_of(o: dict) -> str | None:
@@ -167,7 +167,7 @@ db.executescript(
         thread_id INTEGER NOT NULL,
         PRIMARY KEY (species_code, scope)
     );
-    -- One persistent alert thread per region's RBA forum.
+    -- One persistent alert thread per category RBA forum.
     CREATE TABLE IF NOT EXISTS region_alert_threads (
         region TEXT PRIMARY KEY,
         thread_id INTEGER NOT NULL,
@@ -404,18 +404,21 @@ def scope_of(o: dict) -> str:
 
 
 async def notify_region_chat(client: discord.Client, channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
-    """Create a per-region alert thread and append each new alert as a message."""
+    """Post new alerts into the category's single eBird RBA thread."""
     category = REGION_TO_CATEGORY.get(region)
     if category:
         forum_name = rba_forum_name(category, REGION_GROUPS.get(category, []))
         target_forum = discord.utils.get(channel.guild.channels, name=forum_name)
         if isinstance(target_forum, discord.ForumChannel):
             thread_name = region_alert_thread_name(region)
+            forum_key = category
             row = db.execute(
                 "SELECT thread_id, message_id FROM region_alert_threads WHERE region=?",
-                (region,),
+                (forum_key,),
             ).fetchone()
             thread = await get_thread(client, row[0]) if row else None
+            if thread is not None and getattr(thread, "name", None) != thread_name:
+                thread = None
             if thread is None:
                 try:
                     async for existing in target_forum.archived_threads(limit=100):
@@ -427,8 +430,8 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
                 if thread is None:
                     try:
                         created = await target_forum.create_thread(
-                            name=thread_name,
-                            content=f"eBird alerts for {region.replace('-', ' ').title()}"
+                            name="eBird RBA",
+                            content="eBird RBA relay",
                         )
                         thread = unwrap_thread(created)
                     except discord.HTTPException:
@@ -444,7 +447,7 @@ async def notify_region_chat(client: discord.Client, channel: discord.ForumChann
                     message = await thread.send(message_text)
                     db.execute(
                         "INSERT OR REPLACE INTO region_alert_threads VALUES (?, ?, ?)",
-                        (region, thread.id, message.id),
+                        (forum_key, thread.id, message.id),
                     )
                     db.commit()
                 except discord.HTTPException:
