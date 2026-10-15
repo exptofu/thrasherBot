@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>GA Bird Post Builder</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
@@ -50,13 +50,13 @@
 
       <div class="journal-section-title">Suggested post regions</div>
       <label>
-        Select county
-        <select id="countySelect" class="journal-select" aria-label="Select county">
+        Select county / post region
+        <select id="countySelect" class="journal-select" aria-label="Select county or post region">
           <option value="">No county match yet</option>
         </select>
       </label>
 
-      <div id="regionSuggestions" class="suggestion-table-wrap"></div>
+      <div id="regionSuggestions" class="suggestion-table-wrap" aria-live="polite"></div>
 
       <div class="form-actions">
         <button type="button" id="generateBtn" class="journal-btn">Generate Discord message</button>
@@ -228,11 +228,24 @@
     function updateGpsStatus(text, tone = 'muted') {
       form.gpsAccuracy.textContent = text;
       const colors = {
-        muted: '#94a3b8',
-        success: '#a7f3d0',
-        error: '#fca5a5'
+        muted: '#475569',
+        success: '#166534',
+        error: '#7f1d1d'
       };
       form.gpsAccuracy.style.color = colors[tone] || colors.muted;
+    }
+
+    function selectCountyOption(county) {
+      if (!county) return;
+      const countyOptions = [...form.countySelect.options].map((option) => option.value).filter(Boolean);
+      if (!countyOptions.includes(county)) {
+        countyOptions.push(county);
+      }
+      form.countySelect.innerHTML = countyOptions
+        .map((optionCounty) => `<option value="${optionCounty}" ${optionCounty === county ? 'selected' : ''}>${optionCounty}</option>`)
+        .join('');
+      form.countySelect.value = county;
+      updateCountyOptions(countyOptions);
     }
 
     function formatCoordinate(value, axis) {
@@ -530,12 +543,25 @@
       const tbody = table.querySelector('tbody');
       rows.forEach((row) => {
         const tr = document.createElement('tr');
+        tr.classList.toggle('selected', Boolean(row.selected));
+        tr.tabIndex = row.county && row.county !== '—' ? 0 : -1;
         tr.style.fontWeight = row.selected ? 700 : 400;
         tr.innerHTML = `
           <td>${row.county}</td>
           <td>${row.region}</td>
           <td>${row.category}</td>
         `;
+
+        if (row.county && row.county !== '—') {
+          tr.addEventListener('click', () => selectCountyOption(row.county));
+          tr.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              selectCountyOption(row.county);
+            }
+          });
+        }
+
         tbody.appendChild(tr);
       });
 
