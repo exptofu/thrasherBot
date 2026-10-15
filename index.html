@@ -1,45 +1,641 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Georgia County Region Editor</title>
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="app-shell">
-      <aside class="sidebar">
-        <h1>Georgia County Regions</h1>
-        <p class="subtitle">Click a county to assign it to a region.</p>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GA Bird Post Builder</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="journal-container">
+    <h1 class="journal-title">Bird Post Builder</h1>
 
-        <div class="panel">
-          <h2>Current region legend</h2>
-          <ul id="regionLegend" class="legend-list"></ul>
-        </div>
+    <div class="journal-section-title">Observation details</div>
 
-        <div class="actions">
-          <button id="exportButton" type="button">Export JSON</button>
-          <button id="resetButton" class="secondary" type="button">Reset defaults</button>
-        </div>
-      </aside>
+    <form id="birdForm">
+      <label>
+        Bird species
+        <input id="species" class="journal-input" type="text" placeholder="e.g. Northern Cardinal" required />
+      </label>
 
-      <main class="map-panel">
-        <div id="mapContainer" aria-live="polite"></div>
+      <label>
+        Hotspot name (optional)
+        <input id="hotspot" class="journal-input" type="text" placeholder="e.g. Lake Herrick" />
+      </label>
 
-        <div id="countyModal" class="county-modal hidden" role="dialog" aria-modal="true" aria-labelledby="countyName">
-          <div class="modal-card">
-            <div class="modal-header">
-              <h3 id="countyName">County</h3>
-              <button id="closeModal" type="button" aria-label="Close county selector">×</button>
-            </div>
+      <label>
+        Brief description (optional)
+        <textarea id="description" class="journal-textarea" rows="4" placeholder="What did you see? behavior, count, habitat notes, etc."></textarea>
+      </label>
 
-            <label for="regionSelect">Region</label>
-            <select id="regionSelect"></select>
-          </div>
-        </div>
-      </main>
+      <div class="journal-section-title">GPS location</div>
+      <div class="gps-actions">
+        <button type="button" id="useLocationBtn" class="journal-btn">Use my GPS</button>
+      </div>
+
+      <label>
+        Latitude
+        <input id="latitude" class="journal-input" type="number" step="0.000001" placeholder="33.955000" />
+      </label>
+
+      <label>
+        Longitude
+        <input id="longitude" class="journal-input" type="number" step="0.000001" placeholder="-83.382000" />
+      </label>
+
+      <div id="gpsAccuracy" class="journal-status-box">Accuracy: no location captured yet</div>
+      <div class="gps-actions">
+        <button type="button" id="manualCoordsBtn" class="journal-btn">Use manual coords</button>
+      </div>
+
+      <div class="journal-section-title">Suggested post regions</div>
+      <label>
+        Select county
+        <select id="countySelect" class="journal-select" aria-label="Select county">
+          <option value="">No county match yet</option>
+        </select>
+      </label>
+
+      <div id="regionSuggestions" class="suggestion-table-wrap"></div>
+
+      <div class="form-actions">
+        <button type="button" id="generateBtn" class="journal-btn">Generate Discord message</button>
+      </div>
+    </form>
+
+    <div class="journal-section-title">Generated message</div>
+    <textarea id="discordOutput" class="journal-output-box" readonly placeholder="Generated Discord message will appear here..."></textarea>
+
+    <div class="form-actions">
+      <button type="button" id="copyBtn" class="journal-btn">Copy to clipboard</button>
     </div>
+  </div>
 
-    <script src="app.js"></script>
-  </body>
+  <script>
+    const REGIONS = {
+      "greater-athens": ["Barrow", "Walton", "Greene", "Morgan", "Oglethorpe", "Jackson", "Madison"],
+      "athens": ["Clarke", "Oconee"],
+      "greater-savannah": ["Chatham", "Bryan", "Liberty", "Effingham"],
+      "gwinnett-county": ["Gwinnett"],
+      "cobb-county": ["Cobb"],
+      "metro-atlanta-north": ["Forsyth", "Douglas", "Cherokee", "Hall", "Bartow", "Paulding"],
+      "dekalb-county": ["DeKalb"],
+      "metro-atlanta-south": ["Coweta", "Henry", "Rockdale", "Newton", "Clayton", "Fayette", "Spalding", "Butts"],
+      "greater-macon": ["Bibb", "Jones", "Twiggs", "Houston", "Peach", "Crawford", "Monroe"],
+      "fall-line-sandhills": ["Pike", "Upson", "Lamar", "Wilkinson", "Baldwin", "Jasper", "Putnam", "Hancock", "Washington", "Pulaski", "Bleckley", "Laurens", "Johnson", "Taylor", "Macon", "Dooly", "Schley", "Dodge", "Treutlen"],
+      "west-piedmont": ["Carroll", "Heard", "Haralson", "Polk"],
+      "north-georgia-mountains": ["Gilmer", "Pickens", "Dawson", "Union", "Fannin", "Lumpkin", "White", "Towns", "Rabun", "Habersham"],
+      "okefenokee-basin": ["Atkinson", "Ware", "Bacon", "Pierce", "Brantley", "Clinch", "Charlton"],
+      "greater-valdosta": ["Colquitt", "Cook", "Brooks", "Lowndes", "Berrien", "Lanier", "Echols"],
+      "lake-seminole-watershed": ["Sumter", "Crisp", "Randolph", "Terrell", "Lee", "Worth", "Turner", "Clay", "Calhoun", "Dougherty", "Tift", "Early", "Miller", "Baker", "Mitchell", "Seminole", "Decatur", "Grady", "Thomas"],
+      "three-rivers-basin": ["Wilcox", "Telfair", "Ben Hill", "Irwin", "Coffee", "Jeff Davis", "Wheeler", "Montgomery", "Toombs", "Appling", "Tattnall", "Long", "Wayne"],
+      "broad-river-watershed": ["Elbert", "Hart", "Stephens", "Franklin", "Banks"],
+      "greater-columbus": ["Talbot", "Marion", "Stewart", "Webster", "Quitman", "Harris", "Muscogee", "Chattahoochee", "Troup", "Meriwether"],
+      "golden-isles": ["McIntosh", "Glynn", "Camden"],
+      "greater-augusta": ["Taliaferro", "Warren", "Glascock", "Jenkins", "Burke", "Jefferson", "McDuffie", "Lincoln", "Wilkes"],
+      "augusta": ["Richmond", "Columbia"],
+      "fulton-county": ["Fulton"],
+      "ridge-and-valleys": ["Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray"],
+      "greater-statesboro": ["Emanuel", "Evans", "Candler", "Bulloch", "Screven"]
+    };
+
+    const REGION_GROUPS = {
+      "Metro Atlanta": ["metro-atlanta-south", "metro-atlanta-north", "fulton-county", "dekalb-county", "gwinnett-county", "cobb-county"],
+      "Southeast Georgia": ["golden-isles"],
+      "Savannah Area": ["greater-savannah"],
+      "Athens Area": ["greater-athens", "athens"],
+      "Augusta Area": ["greater-augusta", "augusta"],
+      "Central Georgia": ["fall-line-sandhills", "greater-macon"],
+      "West Georgia": ["west-piedmont", "greater-columbus"],
+      "Statesboro Area": ["greater-statesboro"],
+      "North Georgia": ["broad-river-watershed", "north-georgia-mountains", "ridge-and-valleys"],
+      "South Georgia": ["okefenokee-basin", "lake-seminole-watershed", "three-rivers-basin", "greater-valdosta"]
+    };
+
+    const COUNTY_TO_REGION = {};
+    for (const [regionSlug, counties] of Object.entries(REGIONS)) {
+      for (const county of counties) {
+        COUNTY_TO_REGION[county.toLowerCase()] = regionSlug;
+      }
+    }
+
+    const COUNTY_TO_CATEGORY = {};
+    for (const [categoryName, regionSlugs] of Object.entries(REGION_GROUPS)) {
+      for (const regionSlug of regionSlugs) {
+        for (const county of REGIONS[regionSlug] || []) {
+          COUNTY_TO_CATEGORY[county.toLowerCase()] = categoryName;
+        }
+      }
+    }
+
+    const REGION_LABELS = {
+      "greater-athens": "Greater Athens",
+      "athens": "Athens",
+      "greater-savannah": "Greater Savannah",
+      "gwinnett-county": "Gwinnett",
+      "cobb-county": "Cobb",
+      "metro-atlanta-north": "Metro Atlanta North",
+      "dekalb-county": "Dekalb",
+      "metro-atlanta-south": "Metro Atlanta South",
+      "greater-macon": "Greater Macon",
+      "fall-line-sandhills": "Fall Line Sandhills",
+      "west-piedmont": "West Piedmont",
+      "north-georgia-mountains": "North Georgia Mountains",
+      "okefenokee-basin": "Okefenokee Basin",
+      "greater-valdosta": "Greater Valdosta",
+      "lake-seminole-watershed": "Lake Seminole Watershed",
+      "three-rivers-basin": "Three Rivers Basin",
+      "broad-river-watershed": "Broad River Watershed",
+      "greater-columbus": "Greater Columbus",
+      "golden-isles": "Golden Isles",
+      "greater-augusta": "Greater Augusta",
+      "augusta": "Augusta",
+      "fulton-county": "Fulton",
+      "ridge-and-valleys": "Ridge and Valleys",
+      "greater-statesboro": "Greater Statesboro"
+    };
+
+    const REGION_BOUNDS = {
+      "athens": { minLat: 33.82, maxLat: 34.12, minLon: -83.58, maxLon: -83.12 },
+      "greater-athens": { minLat: 33.70, maxLat: 34.25, minLon: -83.85, maxLon: -83.08 },
+      "greater-savannah": { minLat: 31.82, maxLat: 32.33, minLon: -81.42, maxLon: -80.90 },
+      "gwinnett-county": { minLat: 33.78, maxLat: 34.20, minLon: -84.16, maxLon: -83.80 },
+      "cobb-county": { minLat: 33.72, maxLat: 34.08, minLon: -84.80, maxLon: -84.48 },
+      "metro-atlanta-north": { minLat: 33.76, maxLat: 34.33, minLon: -84.78, maxLon: -83.90 },
+      "dekalb-county": { minLat: 33.63, maxLat: 33.92, minLon: -84.35, maxLon: -84.12 },
+      "metro-atlanta-south": { minLat: 33.38, maxLat: 33.82, minLon: -84.82, maxLon: -84.20 },
+      "greater-macon": { minLat: 32.52, maxLat: 33.25, minLon: -84.22, maxLon: -83.48 },
+      "fall-line-sandhills": { minLat: 32.22, maxLat: 33.34, minLon: -84.30, maxLon: -82.64 },
+      "west-piedmont": { minLat: 33.18, maxLat: 34.20, minLon: -85.20, maxLon: -84.66 },
+      "north-georgia-mountains": { minLat: 33.72, maxLat: 35.10, minLon: -85.40, maxLon: -81.65 },
+      "okefenokee-basin": { minLat: 30.50, maxLat: 31.70, minLon: -82.92, maxLon: -81.75 },
+      "greater-valdosta": { minLat: 30.68, maxLat: 31.34, minLon: -83.98, maxLon: -83.05 },
+      "lake-seminole-watershed": { minLat: 30.60, maxLat: 32.50, minLon: -85.52, maxLon: -83.62 },
+      "three-rivers-basin": { minLat: 31.12, maxLat: 32.75, minLon: -83.00, maxLon: -81.75 },
+      "broad-river-watershed": { minLat: 33.46, maxLat: 34.62, minLon: -83.32, maxLon: -82.70 },
+      "greater-columbus": { minLat: 32.10, maxLat: 33.20, minLon: -85.18, maxLon: -84.66 },
+      "golden-isles": { minLat: 30.84, maxLat: 31.75, minLon: -81.95, maxLon: -81.15 },
+      "greater-augusta": { minLat: 33.10, maxLat: 34.10, minLon: -82.98, maxLon: -81.75 },
+      "augusta": { minLat: 33.24, maxLat: 33.70, minLon: -82.23, maxLon: -81.86 },
+      "fulton-county": { minLat: 33.55, maxLat: 34.05, minLon: -84.68, maxLon: -84.32 },
+      "ridge-and-valleys": { minLat: 34.04, maxLat: 35.02, minLon: -85.50, maxLon: -84.52 },
+      "greater-statesboro": { minLat: 32.08, maxLat: 32.90, minLon: -82.35, maxLon: -81.45 }
+    };
+
+    const REGION_CENTERS = {
+      "athens": { lat: 33.97, lon: -83.35 },
+      "greater-athens": { lat: 33.96, lon: -83.46 },
+      "greater-savannah": { lat: 32.08, lon: -81.17 },
+      "gwinnett-county": { lat: 33.95, lon: -84.00 },
+      "cobb-county": { lat: 33.87, lon: -84.58 },
+      "metro-atlanta-north": { lat: 34.00, lon: -84.20 },
+      "dekalb-county": { lat: 33.77, lon: -84.22 },
+      "metro-atlanta-south": { lat: 33.60, lon: -84.44 },
+      "greater-macon": { lat: 32.92, lon: -83.79 },
+      "fall-line-sandhills": { lat: 32.75, lon: -83.52 },
+      "west-piedmont": { lat: 33.67, lon: -84.95 },
+      "north-georgia-mountains": { lat: 34.40, lon: -83.98 },
+      "okefenokee-basin": { lat: 31.15, lon: -82.30 },
+      "greater-valdosta": { lat: 30.95, lon: -83.45 },
+      "lake-seminole-watershed": { lat: 31.62, lon: -84.67 },
+      "three-rivers-basin": { lat: 31.95, lon: -82.35 },
+      "broad-river-watershed": { lat: 34.06, lon: -82.90 },
+      "greater-columbus": { lat: 32.62, lon: -84.82 },
+      "golden-isles": { lat: 31.32, lon: -81.45 },
+      "greater-augusta": { lat: 33.55, lon: -82.33 },
+      "augusta": { lat: 33.47, lon: -81.98 },
+      "fulton-county": { lat: 33.77, lon: -84.39 },
+      "ridge-and-valleys": { lat: 34.45, lon: -85.00 },
+      "greater-statesboro": { lat: 32.40, lon: -81.85 }
+    };
+
+    let countyGeoJson = null;
+
+    const form = {
+      species: document.getElementById('species'),
+      hotspot: document.getElementById('hotspot'),
+      description: document.getElementById('description'),
+      latitude: document.getElementById('latitude'),
+      longitude: document.getElementById('longitude'),
+      gpsAccuracy: document.getElementById('gpsAccuracy'),
+      output: document.getElementById('discordOutput'),
+      suggestions: document.getElementById('regionSuggestions'),
+      countySelect: document.getElementById('countySelect')
+    };
+
+    let latestLocation = null;
+
+    function updateGpsStatus(text, tone = 'muted') {
+      form.gpsAccuracy.textContent = text;
+      const colors = {
+        muted: '#94a3b8',
+        success: '#a7f3d0',
+        error: '#fca5a5'
+      };
+      form.gpsAccuracy.style.color = colors[tone] || colors.muted;
+    }
+
+    function formatCoordinate(value, axis) {
+      if (value === null || value === undefined || !Number.isFinite(Number(value))) {
+        return 'N/A';
+      }
+      const numeric = Number(value);
+      return numeric.toFixed(axis === 'lat' ? 5 : 5);
+    }
+
+    async function setLocation(lat, lon, accuracy) {
+      form.latitude.value = lat;
+      form.longitude.value = lon;
+      latestLocation = {
+        lat: Number(lat),
+        lon: Number(lon),
+        accuracy: Number.isFinite(accuracy) ? Number(accuracy) : null
+      };
+
+      try {
+        await updateSuggestedCountyMatches(latestLocation);
+      } catch (error) {
+        form.countySelect.innerHTML = '<option value="">No county match yet</option>';
+      }
+
+      const accuracyText = Number.isFinite(accuracy) ? `Accuracy: ±${Math.round(accuracy)}m` : 'Accuracy: manual entry';
+      updateGpsStatus(accuracyText, 'success');
+    }
+
+    function useManualCoordinates() {
+      const lat = Number(form.latitude.value);
+      const lon = Number(form.longitude.value);
+      if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+        updateGpsStatus('Enter valid coordinates before generating.', 'error');
+        return null;
+      }
+      if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        updateGpsStatus('Coordinates are outside valid Earth ranges.', 'error');
+        return null;
+      }
+      setLocation(lat, lon, null);
+      return latestLocation;
+    }
+
+    function useMyGps() {
+      if (!navigator.geolocation) {
+        updateGpsStatus('This browser does not support GPS lookup.', 'error');
+        return;
+      }
+
+      updateGpsStatus('Requesting high-accuracy GPS…', 'muted');
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation(position.coords.latitude, position.coords.longitude, position.coords.accuracy);
+        },
+        (error) => {
+          updateGpsStatus(`GPS failed: ${error.message}`, 'error');
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0
+        }
+      );
+    }
+
+    function matchesRegion(lat, lon, bounds) {
+      return lat >= bounds.minLat && lat <= bounds.maxLat && lon >= bounds.minLon && lon <= bounds.maxLon;
+    }
+
+    function haversineKm(lat1, lon1, lat2, lon2) {
+      const toRad = (value) => (value * Math.PI) / 180;
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+      return 2 * 6371 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function pointInRing(point, ring) {
+      let inside = false;
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const xi = ring[i][0];
+        const yi = ring[i][1];
+        const xj = ring[j][0];
+        const yj = ring[j][1];
+        const intersect = (yi > point[1]) !== (yj > point[1]) &&
+          (point[0] < ((xj - xi) * (point[1] - yi)) / (yj - yi || 1) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function pointInPolygon(point, coordinates) {
+      const rings = Array.isArray(coordinates[0][0]) ? coordinates : [coordinates];
+      for (const ringSet of rings) {
+        const outer = ringSet[0];
+        const holes = ringSet.slice(1);
+        if (!pointInRing(point, outer)) continue;
+        const insideHole = holes.some((hole) => pointInRing(point, hole));
+        if (!insideHole) return true;
+      }
+      return false;
+    }
+
+    async function loadCountyGeodata() {
+      if (countyGeoJson) return countyGeoJson;
+      const response = await fetch('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json');
+      const data = await response.json();
+      countyGeoJson = data.features.filter((feature) => feature.properties.STATE === '13');
+      return countyGeoJson;
+    }
+
+    function countyCentroid(feature) {
+      const geometry = feature.geometry;
+      if (!geometry || !geometry.coordinates) return null;
+
+      let polygon = null;
+      if (geometry.type === 'Polygon') {
+        polygon = geometry.coordinates[0];
+      } else if (geometry.type === 'MultiPolygon') {
+        polygon = geometry.coordinates[0][0];
+      }
+
+      if (!polygon || !polygon.length) return null;
+
+      const center = polygon.reduce((acc, current) => {
+        acc[0] += current[0];
+        acc[1] += current[1];
+        return acc;
+      }, [0, 0]);
+
+      return {
+        lat: center[1] / polygon.length,
+        lon: center[0] / polygon.length
+      };
+    }
+
+    function findCountyForPoint(lat, lon, accuracyMeters = 5000) {
+      if (!countyGeoJson) return null;
+      const point = [lon, lat];
+      const accuracyKm = Math.max(1, accuracyMeters / 1000);
+      const maxDistanceKm = Math.max(25, accuracyKm * 5);
+
+      const exactMatches = countyGeoJson
+        .filter((feature) => {
+          const geometry = feature.geometry;
+          if (!geometry) return false;
+          if (geometry.type === 'Polygon') {
+            return pointInPolygon(point, geometry.coordinates);
+          }
+          if (geometry.type === 'MultiPolygon') {
+            return geometry.coordinates.some((polygon) => pointInPolygon(point, polygon));
+          }
+          return false;
+        })
+        .map((feature) => {
+          const centroid = countyCentroid(feature);
+          return {
+            name: feature.properties.NAME,
+            distance: centroid ? haversineKm(lat, lon, centroid.lat, centroid.lon) : Infinity
+          };
+        })
+        .sort((a, b) => a.distance - b.distance)
+        .map((item) => item.name);
+
+      if (exactMatches.length > 0) {
+        return exactMatches;
+      }
+
+      const nearbyMatches = countyGeoJson
+        .map((feature) => {
+          const centroid = countyCentroid(feature);
+          if (!centroid) return null;
+          return {
+            name: feature.properties.NAME,
+            distance: haversineKm(lat, lon, centroid.lat, centroid.lon)
+          };
+        })
+        .filter((item) => item && item.distance <= maxDistanceKm)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 2)
+        .map((item) => item.name);
+
+      if (nearbyMatches.length > 0) {
+        return nearbyMatches;
+      }
+
+      const nearest = countyGeoJson
+        .map((feature) => {
+          const centroid = countyCentroid(feature);
+          if (!centroid) return null;
+          return { name: feature.properties.NAME, distance: haversineKm(lat, lon, centroid.lat, centroid.lon) };
+        })
+        .filter(Boolean)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 2)
+        .map((item) => item.name);
+
+      return nearest;
+    }
+
+    function getSuggestedRegions(lat, lon, accuracyMeters = 5000) {
+      const accuracyKm = Math.max(1, accuracyMeters / 1000);
+      const exactCountyMatches = findCountyForPoint(lat, lon, accuracyMeters);
+
+      if (exactCountyMatches && exactCountyMatches.length > 0) {
+        const regionLabels = [...new Set(exactCountyMatches
+          .map((county) => COUNTY_TO_REGION[county.toLowerCase()])
+          .filter(Boolean)
+          .map((slug) => REGION_LABELS[slug] || slug))];
+        return regionLabels.slice(0, 2);
+      }
+
+      const fallback = Object.keys(REGION_BOUNDS)
+        .map((slug) => ({ slug, label: REGION_LABELS[slug] || slug, distanceKm: haversineKm(lat, lon, REGION_CENTERS[slug].lat, REGION_CENTERS[slug].lon) }))
+        .filter((entry) => entry.distanceKm <= Math.max(25, accuracyKm * 5))
+        .sort((a, b) => a.distanceKm - b.distanceKm)
+        .slice(0, 5)
+        .map((entry) => entry.label);
+
+      return [...new Set(fallback)];
+    }
+
+    function getSuggestedCategories(regionLabels) {
+      const regionNames = new Set(regionLabels);
+      const categories = [];
+      for (const [category, slugs] of Object.entries(REGION_GROUPS)) {
+        const categoryMatches = slugs.filter((slug) => {
+          const label = REGION_LABELS[slug];
+          return label && regionNames.has(label);
+        });
+        if (categoryMatches.length > 0) {
+          categories.push(category);
+        }
+      }
+      return categories;
+    }
+
+    function updateCountyOptions(countyNames) {
+      const counties = [...new Set(countyNames || [])].filter(Boolean);
+      if (!counties.length) {
+        form.countySelect.innerHTML = '<option value="">No county match yet</option>';
+        renderSuggestions([]);
+        return;
+      }
+
+      const previousSelection = form.countySelect.value;
+      form.countySelect.innerHTML = counties
+        .map((county) => `<option value="${county}" ${county === previousSelection ? 'selected' : ''}>${county}</option>`)
+        .join('');
+
+      if (!form.countySelect.value) {
+        form.countySelect.value = counties[0];
+      }
+
+      const selectedCounty = form.countySelect.value;
+      const rows = counties.map((county) => {
+        const slug = COUNTY_TO_REGION[county.toLowerCase()];
+        const region = slug ? REGION_LABELS[slug] || slug : 'Unknown';
+        const category = COUNTY_TO_CATEGORY[county.toLowerCase()] || 'Unassigned';
+        return {
+          county,
+          region,
+          category,
+          selected: county === selectedCounty
+        };
+      });
+
+      renderSuggestions(rows);
+    }
+
+    function renderSuggestions(rows) {
+      form.suggestions.innerHTML = '';
+
+      if (!rows.length) {
+        form.suggestions.innerHTML = '<div class="chip">No clear fit</div>';
+        return;
+      }
+
+      const table = document.createElement('table');
+      table.className = 'suggestion-table';
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>County</th>
+            <th>Post region</th>
+            <th>Category</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+
+      const tbody = table.querySelector('tbody');
+      rows.forEach((row) => {
+        const tr = document.createElement('tr');
+        tr.style.fontWeight = row.selected ? 700 : 400;
+        tr.innerHTML = `
+          <td>${row.county}</td>
+          <td>${row.region}</td>
+          <td>${row.category}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      form.suggestions.appendChild(table);
+    }
+
+    function buildSuggestionRows(regionSuggestions, categorySuggestions) {
+      const byRegion = new Map();
+      for (const region of regionSuggestions) {
+        byRegion.set(region, categorySuggestions.filter((category) => {
+          const regionLabels = Object.entries(REGION_GROUPS)
+            .filter(([name]) => name === category)
+            .flatMap(([, slugs]) => slugs.map((slug) => REGION_LABELS[slug] || slug));
+          return regionLabels.includes(region);
+        }).join(', ') || '—');
+      }
+
+      return [...byRegion.entries()].map(([region, category]) => ({ region, category }));
+    }
+
+    async function updateSuggestedCountyMatches(location) {
+      if (!location) {
+        form.countySelect.innerHTML = '<option value="">No county match yet</option>';
+        renderSuggestions([]);
+        return;
+      }
+
+      await loadCountyGeodata();
+      const accuracy = Number.isFinite(location.accuracy) ? location.accuracy : 5000;
+      const counties = findCountyForPoint(location.lat, location.lon, accuracy) || [];
+      updateCountyOptions(counties);
+    }
+
+    async function generateMessage() {
+      const species = form.species.value.trim();
+      const hotspot = form.hotspot.value.trim();
+      const description = form.description.value.trim();
+      const location = useManualCoordinates() || latestLocation;
+
+      if (!species || !location) {
+        updateGpsStatus('Enter the species and a valid GPS coordinate.', 'error');
+        return;
+      }
+
+      try {
+        await loadCountyGeodata();
+      } catch (error) {
+        updateGpsStatus('Could not load county boundaries. Falling back to a coarse match.', 'error');
+      }
+
+      const countySelection = form.countySelect.value;
+      const countyNames = findCountyForPoint(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000) || [];
+      const selectedCounty = countySelection || countyNames[0] || '';
+      const countySlug = COUNTY_TO_REGION[(selectedCounty || '').toLowerCase()];
+
+      const regionSuggestions = selectedCounty && countySlug
+        ? [REGION_LABELS[countySlug] || countySlug]
+        : getSuggestedRegions(location.lat, location.lon, Number.isFinite(location.accuracy) ? location.accuracy : 5000);
+      const categorySuggestions = selectedCounty
+        ? [COUNTY_TO_CATEGORY[selectedCounty.toLowerCase()] || 'Unassigned']
+        : getSuggestedCategories(regionSuggestions);
+      const text = [
+        `**Species:** ${species}`,
+        hotspot ? `**Hotspot:** ${hotspot}` : '',
+        `**GPS:** ${formatCoordinate(location.lat, 'lat')}, ${formatCoordinate(location.lon, 'lon')}${Number.isFinite(location.accuracy) ? ` (±${Math.round(location.accuracy)}m)` : ''}`,
+        description ? `**Description:** ${description}` : ''
+      ].filter(Boolean).join('\n');
+
+      form.output.value = text;
+      renderSuggestions(
+        selectedCounty
+          ? [{ county: selectedCounty, region: regionSuggestions[0], category: categorySuggestions[0] || '—', selected: true }]
+          : buildSuggestionRows(regionSuggestions, categorySuggestions).map((row) => ({ county: '—', region: row.region, category: row.category, selected: true }))
+      );
+    }
+
+    async function copyMessage() {
+      const text = form.output.value.trim();
+      if (!text) {
+        updateGpsStatus('Generate a message before copying.', 'error');
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(text);
+        updateGpsStatus('Discord message copied to clipboard.', 'success');
+      } catch (error) {
+        form.output.focus();
+        form.output.select();
+        document.execCommand('copy');
+        updateGpsStatus('Manual copy used. Select the message and press Ctrl/Cmd + C.', 'success');
+      }
+    }
+
+    document.getElementById('useLocationBtn').addEventListener('click', useMyGps);
+    document.getElementById('manualCoordsBtn').addEventListener('click', useManualCoordinates);
+    document.getElementById('generateBtn').addEventListener('click', generateMessage);
+    document.getElementById('copyBtn').addEventListener('click', copyMessage);
+
+    renderSuggestions([]);
+  </script>
+</body>
 </html>
