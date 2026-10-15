@@ -88,7 +88,7 @@ REGION_GROUPS = {
     "Coastal Georgia": ["glynn", "chatham-effingham", "colonial-coast"],
 }
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
-rba_threads: dict[str, int] = {}
+rba_threads: dict[tuple[str, str], int] = {}
 
 
 def region_of(o: dict) -> str | None:
@@ -250,14 +250,15 @@ def scope_of(o: dict) -> str:
     return "county:" + o.get("subnational2Code", o.get("subnational2Name", "unknown"))
 
 
-async def get_rba_thread(channel: discord.ForumChannel, region: str):
-    """Find or create the <region>_rba post in the region's discussion forum."""
+async def get_rba_thread(channel: discord.ForumChannel, region: str, county: str):
+    """Find or create the <county>_RBA post in the region's discussion forum."""
     forum = discord.utils.get(channel.guild.forums, name=region)
     if not forum:
         log.warning("No forum channel named %s; skipping RBA message", region)
         return None
-    name = f"{region}_rba"
-    thread = await get_thread(client, rba_threads[region]) if region in rba_threads else None
+    name = f"{county}_RBA"[:100]
+    key = (region, county)
+    thread = await get_thread(client, rba_threads[key]) if key in rba_threads else None
     if not thread:
         thread = discord.utils.get(forum.threads, name=name)
     if not thread:
@@ -267,22 +268,22 @@ async def get_rba_thread(channel: discord.ForumChannel, region: str):
                 break
     if not thread:
         thread = (
-            await forum.create_thread(name=name, content="New sightings for this region.")
+            await forum.create_thread(name=name, content=f"New sightings for {county} County.")
         ).thread
-    rba_threads[region] = thread.id
+    rba_threads[key] = thread.id
     return thread
 
 
 async def notify_rba(channel: discord.ForumChannel, region: str, post: discord.Thread, o: dict):
     try:
-        rba = await get_rba_thread(channel, region)
+        county = o.get("subnational2Name", "Unknown").removesuffix(" County")
+        rba = await get_rba_thread(channel, region, county)
         if not rba:
             return
         if rba.archived:
             await rba.edit(archived=False)
         await rba.send(
-            f"New: [{o['comName']}]({post.jump_url}) - {o.get('subnational2Name', 'Unknown')} "
-            f"County, {o['locName']} ({o['obsDt'][:10]})"
+            f"New: [{o['comName']}]({post.jump_url}) - {o['locName']} ({o['obsDt'][:10]})"
         )
     except discord.HTTPException:
         log.exception("Failed to post RBA message for %s", region)
