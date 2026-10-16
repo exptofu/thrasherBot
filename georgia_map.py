@@ -33,8 +33,8 @@ REGIONS = {
         "Pike", "Upson", "Lamar", "Wilkinson", "Baldwin", "Jasper", "Putnam", "Hancock", "Washington", "Pulaski",
         "Bleckley", "Laurens", "Johnson", "Taylor", "Macon", "Dooly", "Schley", "Dodge", "Treutlen",
     ],
-    "west-piedmont": ["Carroll", "Heard", "Haralson", "Polk"],
-    "north-georgia-mountains": [
+    "west-piedmont": ["Carroll", "Heard", "Haralson"],
+    "blue-ridge": [
         "Gilmer", "Pickens", "Dawson", "Union", "Fannin", "Lumpkin", "White", "Towns", "Rabun", "Habersham",
     ],
     "okefenokee-basin": [
@@ -57,7 +57,7 @@ REGIONS = {
     "greater-augusta": ["Taliaferro", "Warren", "Glascock", "Jenkins", "Burke", "Jefferson", "McDuffie", "Lincoln", "Wilkes"],
     "augusta": ["Richmond", "Columbia",],
     "fulton-county": ["Fulton"],
-    "ridge-and-valleys": ["Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray"],
+    "ridge-and-valleys": ["Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray", "Polk"],
     "greater-statesboro": ["Emanuel", "Evans", "Candler", "Bulloch", "Screven"],
 }
 
@@ -73,7 +73,7 @@ REGION_LABELS = {
     "greater-macon": "Greater Macon",
     "fall-line-sandhills": "Fall Line Sandhills",
     "west-piedmont": "West Piedmont",
-    "north-georgia-mountains": "North Georgia Mountains",
+    "blue-ridge": "Blue Ridge",
     "okefenokee-basin": "Okefenokee Basin",
     "greater-valdosta": "Greater Valdosta",
     "lake-seminole-watershed": "Lake Seminole Watershed",
@@ -109,7 +109,7 @@ REGION_GROUPS = {
     "Augusta Area": ["greater-augusta", "augusta",],
     "Central Georgia": ["fall-line-sandhills", "greater-macon",],
     "West Georgia": ["west-piedmont", "greater-columbus"],
-    "North Georgia": ["broad-river-watershed", "north-georgia-mountains", "ridge-and-valleys"],
+    "North Georgia": ["broad-river-watershed", "blue-ridge", "ridge-and-valleys"],
     "South Georgia": ["okefenokee-basin", "lake-seminole-watershed", "three-rivers-basin", "greater-valdosta"],
     "Statesboro Area": ["greater-statesboro"],
 }
@@ -202,7 +202,7 @@ COLORS = build_region_colors(REGION_GROUPS, GROUP_COLORS)
 
 # Small offsets keep labels readable in the most crowded parts of the map.
 LABEL_OFFSETS = {"fulton-county": (-10, 14), "fall-line-sandhills": (45, 40), 
-                "metro-atlanta-north":(0,-20),"west-piedmont":(0,20),"greater-augusta":(30,30),"greater-athens":(0,30)}
+                "metro-atlanta-north":(0,-20),"west-piedmont":(0,0),"greater-augusta":(30,30),"greater-athens":(0,30)}
 
 
 def load_ytd_county_data(path: Path | None = None) -> dict[str, int]:
