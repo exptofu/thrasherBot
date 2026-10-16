@@ -9,8 +9,8 @@ const REGIONS = {
   "metro-atlanta-south": ["Coweta", "Henry", "Rockdale", "Newton", "Clayton", "Fayette", "Spalding", "Butts"],
   "greater-macon": ["Bibb", "Jones", "Twiggs", "Houston", "Peach", "Crawford", "Monroe"],
   "fall-line-sandhills": ["Pike", "Upson", "Lamar", "Wilkinson", "Baldwin", "Jasper", "Putnam", "Hancock", "Washington", "Pulaski", "Bleckley", "Laurens", "Johnson", "Taylor", "Macon", "Dooly", "Schley", "Dodge", "Treutlen"],
-  "west-piedmont": ["Carroll", "Heard", "Haralson", "Polk"],
-  "north-georgia-mountains": ["Gilmer", "Pickens", "Dawson", "Union", "Fannin", "Lumpkin", "White", "Towns", "Rabun", "Habersham"],
+  "west-piedmont": ["Carroll", "Heard", "Haralson"],
+  "blue-ridge": ["Gilmer", "Pickens", "Dawson", "Union", "Fannin", "Lumpkin", "White", "Towns", "Rabun", "Habersham"],
   "okefenokee-basin": ["Atkinson", "Ware", "Bacon", "Pierce", "Brantley", "Clinch", "Charlton"],
   "greater-valdosta": ["Colquitt", "Cook", "Brooks", "Lowndes", "Berrien", "Lanier", "Echols"],
   "lake-seminole-watershed": ["Sumter", "Crisp", "Randolph", "Terrell", "Lee", "Worth", "Turner", "Clay", "Calhoun", "Dougherty", "Tift", "Early", "Miller", "Baker", "Mitchell", "Seminole", "Decatur", "Grady", "Thomas"],
@@ -21,8 +21,8 @@ const REGIONS = {
   "greater-augusta": ["Taliaferro", "Warren", "Glascock", "Jenkins", "Burke", "Jefferson", "McDuffie", "Lincoln", "Wilkes"],
   "augusta": ["Richmond", "Columbia"],
   "fulton-county": ["Fulton"],
-  "ridge-and-valleys": ["Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray"],
-  "greater-statesboro": ["Emanuel", "Evans", "Candler", "Bulloch", "Screven"]
+  "ridge-and-valleys": ["Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray", "Polk"],
+  "greater-statesboro": ["Emanuel", "Evans", "Candler", "Bulloch", "Screven"],
 };
 
 const REGION_GROUPS = {
@@ -33,9 +33,9 @@ const REGION_GROUPS = {
   "Augusta Area": ["greater-augusta", "augusta"],
   "Central Georgia": ["fall-line-sandhills", "greater-macon"],
   "West Georgia": ["west-piedmont", "greater-columbus"],
+  "North Georgia": ["broad-river-watershed", "blue-ridge", "ridge-and-valleys"],
+  "South Georgia": ["okefenokee-basin", "lake-seminole-watershed", "three-rivers-basin", "greater-valdosta"],
   "Statesboro Area": ["greater-statesboro"],
-  "North Georgia": ["broad-river-watershed", "north-georgia-mountains", "ridge-and-valleys"],
-  "South Georgia": ["okefenokee-basin", "lake-seminole-watershed", "three-rivers-basin", "greater-valdosta"]
 };
 
 const COUNTY_TO_REGION = {};
@@ -59,14 +59,14 @@ const REGION_LABELS = {
   "athens": "Athens",
   "greater-savannah": "Greater Savannah",
   "gwinnett-county": "Gwinnett",
-  "cobb-county": "Cobb",
   "metro-atlanta-north": "Metro Atlanta North",
   "dekalb-county": "Dekalb",
+  "cobb-county": "Cobb",
   "metro-atlanta-south": "Metro Atlanta South",
   "greater-macon": "Greater Macon",
   "fall-line-sandhills": "Fall Line Sandhills",
   "west-piedmont": "West Piedmont",
-  "north-georgia-mountains": "North Georgia Mountains",
+  "blue-ridge": "Blue Ridge",
   "okefenokee-basin": "Okefenokee Basin",
   "greater-valdosta": "Greater Valdosta",
   "lake-seminole-watershed": "Lake Seminole Watershed",
@@ -78,9 +78,8 @@ const REGION_LABELS = {
   "augusta": "Augusta",
   "fulton-county": "Fulton",
   "ridge-and-valleys": "Ridge and Valleys",
-  "greater-statesboro": "Greater Statesboro"
+  "greater-statesboro": "Greater Statesboro",
 };
-
 let countyGeoJson = null;
 
 const form = {
