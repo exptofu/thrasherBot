@@ -274,24 +274,27 @@ async def ensure_region_channels(
             category.edit(position=position),
         )
 
-    for group, regions in region_groups.items():
-        expected_names = [name for name, _, _ in category_channel_specs(group, regions, region_counties)]
-        expected_set = set(expected_names)
-        current_names = [
-            item.name
-            for item in sorted(guild.channels, key=lambda item: (item.position, item.id))
-            if item.name in expected_set and getattr(item, "category_id", None) == regional_category.id
-        ]
-        if current_names != expected_names:
-            for name in expected_names:
-                item = managed_channels[name]
-                if moves_applied:
-                    await asyncio.sleep(move_delay_seconds)
-                await _on(
-                    f"channel #{name} ({item.id}): reordering",
-                    item.move(end=True, category=regional_category),
-                )
-                moves_applied += 1
+    planned_order = [
+        name
+        for group, regions in region_groups.items()
+        for name, _, _ in category_channel_specs(group, regions, region_counties)
+    ]
+    planned_set = set(planned_order)
+    current_names = [
+        item.name
+        for item in sorted(guild.channels, key=lambda item: (item.position, item.id))
+        if item.name in planned_set and getattr(item, "category_id", None) == regional_category.id
+    ]
+    if current_names != planned_order:
+        for name in planned_order:
+            item = managed_channels[name]
+            if moves_applied:
+                await asyncio.sleep(move_delay_seconds)
+            await _on(
+                f"channel #{name} ({item.id}): reordering",
+                item.move(end=True, category=regional_category),
+            )
+            moves_applied += 1
 
 
 def regional_preview_plan(region_groups: dict[str, list[str]]) -> dict[str, list[str]]:
