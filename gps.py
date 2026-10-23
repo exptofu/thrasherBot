@@ -13,14 +13,14 @@ GA_LON_MIN, GA_LON_MAX = -85.6052, -80.8397
 # Regex for decimal-degree formats like "34.05498° N, 84.67575° W",
 # plus the existing DD, DDM, and DMS coordinate styles.
 COORD_PATTERN = re.compile(
-    r'(?P<lat_deg>-?\d+(?:\.\d+)?)(?:[°\s]*(?P<lat_min>\d+(?:\.\d+)?))?(?:[\'\s]*(?P<lat_sec>\d+(?:\.\d+)?))?[\"\s]*(?P<lat_dir>[NSns])?'
-    r'[\s,;\/]+'
-    r'(?P<lon_deg>-?\d+(?:\.\d+)?)(?:[°\s]*(?P<lon_min>\d+(?:\.\d+)?))?(?:[\'\s]*(?P<lon_sec>\d+(?:\.\d+)?))?[\"\s]*(?P<lon_dir>[EWew])?'
+    r'(?P<lat_deg>-?\d+(?:\.\d+)?)(?:[° \t]*(?P<lat_min>\d+(?:\.\d+)?))?(?:[\' \t]*(?P<lat_sec>\d+(?:\.\d+)?))?[" \t]*(?P<lat_dir>[NSns])?'
+    r'[ \t,;\/]+'
+    r'(?P<lon_deg>-?\d+(?:\.\d+)?)(?:[° \t]*(?P<lon_min>\d+(?:\.\d+)?))?(?:[\' \t]*(?P<lon_sec>\d+(?:\.\d+)?))?[" \t]*(?P<lon_dir>[EWew])?'
 )
 DECIMAL_DIRECTION_PATTERN = re.compile(
-    r'(?P<lat_value>-?\d+(?:\.\d+)?)\s*(?:°\s*)?(?P<lat_dir>[NSns])?'
-    r'[\s,;\/]+'
-    r'(?P<lon_value>-?\d+(?:\.\d+)?)\s*(?:°\s*)?(?P<lon_dir>[EWew])?'
+    r'(?P<lat_value>-?\d+(?:\.\d+)?)[ \t]*(?:°[ \t]*)?(?P<lat_dir>[NSns])?'
+    r'[ \t,;\/]+'
+    r'(?P<lon_value>-?\d+(?:\.\d+)?)[ \t]*(?:°[ \t]*)?(?P<lon_dir>[EWew])?'
 )
 
 
