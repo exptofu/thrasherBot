@@ -236,11 +236,11 @@ def format_coordinate_links(text: str) -> str:
         if decimal in seen:
             continue
         seen.add(decimal)
-        coords.append(f"{decimal} — [Google Maps]({coord['google_url']}) | [Apple Maps]({coord['apple_url']})")
+        coords.append(f"{decimal} - [🇬 Google Maps]({coord['google_url']}) | [🍎 Apple Maps]({coord['apple_url']})")
 
     if not coords:
         return text
-    return text.rstrip() + "\n\nGPS: " + " | ".join(coords)
+    return text.rstrip() + "\n\n**GPS:**\n" + "\n".join(coords)
 
 
 def format_comments(members: list[dict], field: str, unknown_name: str, include_coordinates: bool = False) -> str:

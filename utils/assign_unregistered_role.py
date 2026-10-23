@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
 
 UNREGISTERED_MESSAGE_TEMPLATE = (
-    "{role_mention} - Welcome! If you are getting this ping, you have not completed registration (and cannot access most channels!). "
+    "{role_mention} - Welcome! If you are getting this notification and/or this message is highlighted in yellow, **you have not completed registration** (and cannot access most channels!).\n"
     "Please read the rules in {channel_mention} and press the agree button."
 )
 

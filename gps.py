@@ -87,7 +87,7 @@ def find_georgia_coordinates(text: str) -> list[dict[str, str]]:
 
 def build_georgia_coordinates_embed(message: discord.Message, found_coords: list[dict[str, str]]) -> discord.Embed:
     embed = discord.Embed(
-        title="📍 Georgia Coordinates Detected",
+        title="📍 GPS Relay",
         # description=f"Found {len(found_coords)} valid location match{'es' if len(found_coords) > 1 else ''} inside Georgia.",
         color=discord.Color.teal(),
     )
@@ -97,7 +97,7 @@ def build_georgia_coordinates_embed(message: discord.Message, found_coords: list
             name=f"Match #{idx}",
             value=f"**Original:** `{coord['original']}`\n"
             # f"**Decimals:** `{coord['decimal']}`\n"
-            f"[🌐 Google Maps]({coord['google_url']}) | [🍏 Apple Maps]({coord['apple_url']})",
+            f"[🇬 Google Maps]({coord['google_url']}) | [🍎 Apple Maps]({coord['apple_url']})",
             inline=False,
         )
 
