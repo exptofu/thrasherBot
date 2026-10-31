@@ -651,6 +651,43 @@ input[type="number"] {
   z-index: 500;
 }
 
+.gps-locating-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 600;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.38);
+  color: #f8fafc;
+  font-size: 0.9rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: progress;
+  pointer-events: auto;
+}
+
+.gps-locating-overlay.is-visible {
+  display: flex;
+}
+
+.gps-locating-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(248, 250, 252, 0.35);
+  border-top-color: #f8fafc;
+  border-radius: 50%;
+  animation: gps-locating-spin 0.8s linear infinite;
+}
+
+@keyframes gps-locating-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .detail-map-pin {
   position: absolute;
   margin-top:12px;

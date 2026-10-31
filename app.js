@@ -107,7 +107,14 @@ let gpsAutoCenterUntil = 0;
 let gpsTrackingStartedAt = 0;
 
 // How long to keep refining the position after the user taps "Use GPS".
-const GPS_CALIBRATION_MS = 5000;
+const GPS_CALIBRATION_MS = 3000;
+
+function setGpsLocatingOverlayVisible(visible) {
+  const overlay = document.getElementById('gpsLocatingOverlay');
+  if (!overlay) return;
+  overlay.classList.toggle('is-visible', visible);
+  overlay.setAttribute('aria-hidden', visible ? 'false' : 'true');
+}
 
 function normalizeLatLngInput(latLng) {
   if (Array.isArray(latLng) && latLng.length >= 2) {
@@ -247,7 +254,7 @@ function initLocationMap() {
   gpsPositionMarker = createGpsPositionMarker();
   gpsPositionMarker.setStyle({ opacity: 0, fillOpacity: 0 });
 
-  const syncMapCenter = () => {
+  const renderMapOverlays = () => {
     if (!gpsMap) return;
     const center = gpsMap.getCenter();
     const pixel = gpsMap.project(center);
@@ -256,7 +263,13 @@ function initLocationMap() {
     gpsCenterPin.style.top = `${pixel.y}px`;
     gpsAccuracyCircle.render();
     gpsPositionMarker.render();
+  };
+
+  const syncMapCenter = () => {
+    if (!gpsMap) return;
+    renderMapOverlays();
     if (!gpsTrackingStartedAt) {
+      const center = gpsMap.getCenter();
       setLocation(center.lat, center.lng, 25);
     }
   };
@@ -264,6 +277,10 @@ function initLocationMap() {
   gpsMap.on('move', () => {
     if (Date.now() > gpsAutoCenterUntil) {
       syncMapCenter();
+    } else {
+      // While locating, re-project the overlays on every pan so the blue GPS dot
+      // stays glued to its geographic point instead of riding along with the map.
+      renderMapOverlays();
     }
   });
   gpsMap.on('zoomend', syncMapCenter);
@@ -350,6 +367,10 @@ function clearGpsTracking() {
   gpsAutoCenterUntil = 0;
   gpsTrackingStartedAt = 0;
   gpsTrackingActive = false;
+  if (gpsMap) {
+    gpsMap.dragPan.enable();
+  }
+  setGpsLocatingOverlayVisible(false);
   if (gpsAccuracyCircle) {
     gpsAccuracyCircle.setStyle({ opacity: 0, fillOpacity: 0 });
   }
@@ -525,6 +546,11 @@ function useMyGps() {
   clearGpsTracking();
   gpsTrackingActive = true;
   setGpsButtonState(true);
+  // Lock the map while locating so the auto-center animation isn't fought by the user.
+  if (gpsMap) {
+    gpsMap.dragPan.disable();
+  }
+  setGpsLocatingOverlayVisible(true);
 
   const onPosition = (position) => {
     if (!gpsTrackingStartedAt) {
@@ -555,7 +581,9 @@ function useMyGps() {
       // Snap exactly onto the final fix so the center pin matches the reported location.
       if (gpsMap) {
         gpsMap.setView([latitude, longitude], Math.max(gpsMap.getZoom(), 14), { animate: false });
+        gpsMap.dragPan.enable();
       }
+      setGpsLocatingOverlayVisible(false);
       gpsAutoCenterUntil = 0;
       gpsTrackingStartedAt = 0;
       if (gpsPollingInterval) {
