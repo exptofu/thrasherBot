@@ -106,6 +106,9 @@ let gpsPollingInterval = null;
 let gpsAutoCenterUntil = 0;
 let gpsTrackingStartedAt = 0;
 
+// How long to keep refining the position after the user taps "Use GPS".
+const GPS_CALIBRATION_MS = 5000;
+
 function normalizeLatLngInput(latLng) {
   if (Array.isArray(latLng) && latLng.length >= 2) {
     return { lng: Number(latLng[1]), lat: Number(latLng[0]) };
@@ -541,11 +544,11 @@ function useMyGps() {
     setLocation(latitude, longitude, accuracy);
 
     if (!gpsAutoCenterUntil) {
-      gpsAutoCenterUntil = Date.now() + 1000;
+      gpsAutoCenterUntil = Date.now() + GPS_CALIBRATION_MS;
       gpsCenterPin.style.display = 'block';
     }
 
-    if (Date.now() - gpsTrackingStartedAt >= 1000) {
+    if (Date.now() - gpsTrackingStartedAt >= GPS_CALIBRATION_MS) {
       gpsAutoCenterUntil = 0;
       gpsTrackingStartedAt = 0;
       if (gpsPollingInterval) {
@@ -562,7 +565,7 @@ function useMyGps() {
     validateRequiredFields();
   };
 
-  gpsAutoCenterUntil = Date.now() + 1000;
+  gpsAutoCenterUntil = Date.now() + GPS_CALIBRATION_MS;
   gpsCenterPin.style.display = 'block';
   gpsTrackingActive = true;
   gpsPollingInterval = window.setInterval(() => {
@@ -957,8 +960,8 @@ async function generateMessage() {
     }).format(today).replace(' ', '').replace(':', ':');
     const title = `${species}${hotspot ? ` - ${hotspot}` : ''} - ${formattedDate}`;
     const gpsText = `${formatCoordinate(location.lat, 'lat')}, ${formatCoordinate(location.lon, 'lon')}`;
-    const notesText = description ? ` ${description}` : '';
-    form.output.value = `${title}\n> ${gpsText} @ ${formattedTime}.${notesText}`;
+    const notesText = description ? `\n${description}` : '';
+    form.output.value = `${title}\n${gpsText} @ ${formattedTime}.${notesText}`;
     renderSuggestions([]);
     return;
   }
@@ -984,8 +987,8 @@ async function generateMessage() {
   }).format(today).replace(' ', '').replace(':', ':');
   const title = `${species}${hotspot ? ` - ${hotspot}` : ''} (${selectedCountyName}) - ${formattedDate}`;
   const gpsText = `${formatCoordinate(location.lat, 'lat')}, ${formatCoordinate(location.lon, 'lon')}`;
-  const notesText = description ? ` ${description}` : '';
-  const text = `${title}\n> ${gpsText} @ ${formattedTime}.${notesText}`;
+  const notesText = description ? `\n${description}` : '';
+  const text = `${title}\n${gpsText} @ ${formattedTime}.${notesText}`;
 
   form.output.value = text;
   renderSuggestions([{
@@ -1177,9 +1180,9 @@ function buildDiscordTextFromCurrentForm() {
 
   const title = `${species}${hotspot ? ` - ${toCamelCaseSpecies(hotspot)}` : ''}${countyLabel} - ${formatDate}`;
   const gpsText = `${Number.isFinite(latitude) ? latitude.toFixed(5) : '0.00000'}, ${Number.isFinite(longitude) ? longitude.toFixed(5) : '0.00000'}`;
-  const notesText = notes ? ` ${notes}` : '';
+  const notesText = notes ? `\n${notes}` : '';
 
-  return `${title}\n> ${gpsText} @ ${formatTime}.${notesText}`;
+  return `${title}\n${gpsText} @ ${formatTime}.${notesText}`;
 }
 
 function renderOverview() {
