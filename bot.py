@@ -1094,7 +1094,10 @@ class Bot(discord.Client):
             return False
 
     async def on_message(self, message):
-        if message.author.bot:
+        # Webhook posts (e.g. GroupMe -> Discord bridges) arrive with author.bot set but
+        # carry a webhook_id; they still need GPS processing. Skip real bot users so the
+        # relay cannot answer its own embeds.
+        if message.author.bot and message.webhook_id is None:
             return
 
         if message.guild is not None:
