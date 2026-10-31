@@ -256,7 +256,9 @@ function initLocationMap() {
     gpsCenterPin.style.top = `${pixel.y}px`;
     gpsAccuracyCircle.render();
     gpsPositionMarker.render();
-    setLocation(center.lat, center.lng, 25);
+    if (!gpsTrackingStartedAt) {
+      setLocation(center.lat, center.lng, 25);
+    }
   };
 
   gpsMap.on('move', () => {
@@ -526,7 +528,13 @@ function useMyGps() {
 
   const onPosition = (position) => {
     if (!gpsTrackingStartedAt) {
+      // Start the calibration window on the first fix, not on the click, so a slow
+      // browser permission prompt does not eat the whole auto-center window.
       gpsTrackingStartedAt = Date.now();
+      gpsAutoCenterUntil = gpsTrackingStartedAt + GPS_CALIBRATION_MS;
+      if (gpsCenterPin) {
+        gpsCenterPin.style.display = 'block';
+      }
     }
 
     const latitude = position.coords.latitude;
@@ -543,12 +551,11 @@ function useMyGps() {
     updateGpsTrackingMarker(position);
     setLocation(latitude, longitude, accuracy);
 
-    if (!gpsAutoCenterUntil) {
-      gpsAutoCenterUntil = Date.now() + GPS_CALIBRATION_MS;
-      gpsCenterPin.style.display = 'block';
-    }
-
     if (Date.now() - gpsTrackingStartedAt >= GPS_CALIBRATION_MS) {
+      // Snap exactly onto the final fix so the center pin matches the reported location.
+      if (gpsMap) {
+        gpsMap.setView([latitude, longitude], Math.max(gpsMap.getZoom(), 14), { animate: false });
+      }
       gpsAutoCenterUntil = 0;
       gpsTrackingStartedAt = 0;
       if (gpsPollingInterval) {
@@ -565,7 +572,6 @@ function useMyGps() {
     validateRequiredFields();
   };
 
-  gpsAutoCenterUntil = Date.now() + GPS_CALIBRATION_MS;
   gpsCenterPin.style.display = 'block';
   gpsTrackingActive = true;
   gpsPollingInterval = window.setInterval(() => {
