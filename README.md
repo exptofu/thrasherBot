@@ -23,6 +23,7 @@ Georgia's 159 counties are grouped into 16 regions in the `REGIONS` dict in `bot
 
 - Tags each new alert post with its county's region.
 - Posts a link to the county's `<region>-chat` text channel when a net-new sighting appears. Rare-bird sightings are also linked in `state-wide-rarities`.
+- Archives a species/location RBA post once its newest matching sighting is more than `EBIRD_BACK_DAYS * 2` days old. Activity is measured from the newest sighting, so a post with an old first report stays open while birds are still being found there.
 
 The bot needs View Channel, Send Messages, Send Messages in Threads, Read Message History, and Manage Threads in the alert forum. Its invite link on a permission error includes these permissions.
 

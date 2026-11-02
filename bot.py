@@ -740,6 +740,82 @@ async def update_existing_sightings(
     return known
 
 
+def newest_observation_age_days() -> dict[tuple[str, str], int]:
+    """Map each species/scope post to the age of its newest stored sighting."""
+    newest: dict[tuple[str, str], int] = {}
+    for species_code, scope, data in db.execute(
+        "SELECT species_code, scope, data FROM sightings"
+    ):
+        age_days = observation_age_days(json.loads(data))
+        if age_days is None:
+            continue
+        key = (species_code, scope)
+        if key not in newest or age_days < newest[key]:
+            newest[key] = age_days
+    return newest
+
+
+async def archive_inactive_posts() -> None:
+    """Archive RBA posts with no matching sighting inside the BACK_DAYS * 2 window.
+
+    Activity is measured per post (species + hotspot/county scope) from the newest sighting,
+    so a post stays open while birds keep being found even if the first sighting is older.
+    """
+    cutoff_days = BACK_DAYS * 2
+    newest = newest_observation_age_days()
+    archived = 0
+    for species_code, scope, thread_id in db.execute(
+        "SELECT species_code, scope, thread_id FROM posts"
+    ).fetchall():
+        newest_age = newest.get((species_code, scope))
+        if newest_age is not None and newest_age <= cutoff_days:
+            continue
+        thread = await get_thread(client, thread_id)
+        if thread is None:
+            log.info(
+                "RBA thread %s (%s / %s) no longer exists; removing its posts row",
+                thread_id,
+                species_code,
+                scope,
+            )
+            db.execute(
+                "DELETE FROM posts WHERE species_code=? AND scope=?", (species_code, scope)
+            )
+            db.commit()
+            continue
+        if thread.archived:
+            continue
+        detail = (
+            f"newest sighting {newest_age} days old"
+            if newest_age is not None
+            else "no stored sightings"
+        )
+        try:
+            await thread.edit(
+                archived=True, reason=f"No RBA activity in the last {cutoff_days} days"
+            )
+        except discord.HTTPException:
+            log.exception(
+                "Failed to archive RBA thread %s (%s / %s); %s",
+                thread_id,
+                species_code,
+                scope,
+                detail,
+            )
+            continue
+        archived += 1
+        log.info(
+            "Archived RBA thread %s (%s / %s): %s (> %d days)",
+            thread_id,
+            species_code,
+            scope,
+            detail,
+            cutoff_days,
+        )
+    if archived:
+        log.info("Archived %d inactive RBA post(s)", archived)
+
+
 async def poll_once():
     channel = client.get_channel(CHANNEL_ID) or await client.fetch_channel(CHANNEL_ID)
     try:
@@ -790,6 +866,9 @@ async def poll_once():
         log.exception("eBird request failed")
         return
 
+    # Archive before pruning so stale posts still have their sightings to inspect.
+    await archive_inactive_posts()
+
     if PRUNE_OLD_SIGHTINGS:
         # Prune based on the sighting's own observation date to avoid deleting records
         # the moment they fall out of the API window while still respecting the retention cutoff.
@@ -797,17 +876,17 @@ async def poll_once():
             "SELECT sub_id, species_code, data FROM sightings"
         ).fetchall():
             age_days = observation_age_days(json.loads(data))
-            if age_days is not None and age_days > BACK_DAYS + 2:
+            if age_days is not None and age_days > BACK_DAYS * 2:
                 db.execute(
                     "DELETE FROM sightings WHERE sub_id=? AND species_code=?",
                     (sub_id, species_code),
                 )
                 log.info(
-                    "Pruned stale sighting %s/%s: %d days old (>= %d)",
+                    "Pruned stale sighting %s/%s: %d days old (>= %d days)",
                     sub_id,
                     species_code,
                     age_days,
-                    BACK_DAYS,
+                    BACK_DAYS * 2,
                 )
         db.execute(
             """DELETE FROM groups WHERE NOT EXISTS (
