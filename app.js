@@ -1228,12 +1228,15 @@ function showView(viewId) {
   });
   const shouldShowFab = viewId === 'overviewView' || viewId === 'detailView';
   floatingNewObservationBtn.style.display = shouldShowFab ? 'inline-flex' : 'none';
+  // The document is the scroll container, so start each view at the top.
+  window.scrollTo(0, 0);
 }
 
 function showWizardStep(stepId) {
   locationStep.classList.toggle('active', stepId === 'location');
   detailsStep.classList.toggle('active', stepId === 'details');
   updateReferenceSummary();
+  window.scrollTo(0, 0);
 }
 
 function escapeHTML(value) {
@@ -1706,26 +1709,16 @@ function bindJournalEvents() {
   });
 }
 
-function syncViewportHeight() {
-  const viewportHeight = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-  document.documentElement.style.setProperty('--viewport-height', `${viewportHeight}px`);
-}
-
 function initializeJournalApp() {
   if (window.__thrasherJournalAppInitialized) {
     return;
   }
 
   window.__thrasherJournalAppInitialized = true;
-  syncViewportHeight();
 
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', syncViewportHeight, { passive: true });
-    window.visualViewport.addEventListener('scroll', syncViewportHeight, { passive: true });
-  }
-
-  window.addEventListener('resize', syncViewportHeight, { passive: true });
-  window.addEventListener('orientationchange', syncViewportHeight, { passive: true });
+  // Viewport height is handled in CSS (100dvh with a 100vh fallback). Writing a
+  // px value to the root element on every visualViewport scroll forced style
+  // recalcs while scrolling, which was a source of mobile scroll jank.
 
   bindJournalEvents();
   renderOverview();

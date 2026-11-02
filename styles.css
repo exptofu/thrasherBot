@@ -26,12 +26,12 @@ body {
   position: relative;
   max-width: 650px;
   margin: 30px auto;
-  height: calc(var(--viewport-height) - 60px);
-  max-height: 840px;
+  /* The document (not this card) is the single scroll surface: avoids nested
+     scrolling on mobile and is friendlier for screen readers and zoom. */
   min-height: 420px;
-  overflow-y: auto;
+  min-height: calc(var(--viewport-height) - 80px);
+  overflow: visible;
   box-sizing: border-box;
-  scroll-behavior: smooth;
 }
 
 .journal-title {
