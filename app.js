@@ -221,6 +221,8 @@ function createGpsAccuracyCircle() {
     _center: { lng: -84.3880, lat: 33.7490 },
     _radiusMeters: 25,
     _element: element,
+    _visible: false,
+    _sizePx: '',
     setLatLng(latLng) {
       this._center = normalizeLatLngInput(latLng);
       this.render();
@@ -233,21 +235,25 @@ function createGpsAccuracyCircle() {
       const opacity = Number(style.opacity ?? 1);
       const fillOpacity = Number(style.fillOpacity ?? 1);
       const visible = opacity > 0 && fillOpacity > 0;
+      this._visible = visible;
       this._element.style.opacity = String(opacity);
       this._element.style.display = visible ? 'block' : 'none';
       this._element.style.background = `rgba(96, 165, 250, ${Math.max(0, Math.min(1, fillOpacity))})`;
       this._element.style.borderColor = `rgba(59, 130, 246, ${Math.max(0, Math.min(1, opacity))})`;
     },
+    isVisible() {
+      return this._visible;
+    },
     render() {
-      if (!gpsMap) return;
+      if (!gpsMap || !this._visible) return;
       const point = gpsMap.project(this._center);
-      const radiusPx = metersToPixels(gpsMap, this._radiusMeters, this._center.lat);
-      const size = radiusPx * 2;
       this._element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
-      this._element.style.width = `${size}px`;
-      this._element.style.height = `${size}px`;
-      if (this._element.style.display !== 'none') {
-        this._element.style.display = 'block';
+      // Width/height only change with zoom, so avoid re-writing them while panning.
+      const sizePx = `${Math.round(metersToPixels(gpsMap, this._radiusMeters, this._center.lat) * 2)}px`;
+      if (sizePx !== this._sizePx) {
+        this._sizePx = sizePx;
+        this._element.style.width = sizePx;
+        this._element.style.height = sizePx;
       }
     }
   };
@@ -259,6 +265,7 @@ function createGpsPositionMarker() {
   return {
     _center: { lng: -84.3880, lat: 33.7490 },
     _element: element,
+    _visible: false,
     setLatLng(latLng) {
       this._center = normalizeLatLngInput(latLng);
       this.render();
@@ -267,16 +274,17 @@ function createGpsPositionMarker() {
       const opacity = Number(style.opacity ?? 1);
       const fillOpacity = Number(style.fillOpacity ?? 1);
       const visible = opacity > 0 && fillOpacity > 0;
+      this._visible = visible;
       this._element.style.opacity = String(opacity);
       this._element.style.display = visible ? 'block' : 'none';
     },
+    isVisible() {
+      return this._visible;
+    },
     render() {
-      if (!gpsMap) return;
+      if (!gpsMap || !this._visible) return;
       const point = gpsMap.project(this._center);
       this._element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
-      if (this._element.style.display !== 'none') {
-        this._element.style.display = 'block';
-      }
     }
   };
 }
@@ -295,6 +303,13 @@ function scheduleMapCenterLocation(delay = 180) {
   }, delay);
 }
 
+function capMapPixelRatio(map) {
+  if (!map || typeof map.setPixelRatio !== 'function') return;
+  // iPhones render at 3x; drawing a 3x canvas for a 360px map is heavy on older
+  // GPUs. Capping at 2x cuts fill rate ~55% with little visible difference.
+  map.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+}
+
 function initLocationMap() {
   if (gpsMap) return;
 
@@ -307,10 +322,11 @@ function initLocationMap() {
     attributionControl: true,
     dragRotate: false,
     touchZoomRotate: true,
-    touchPitch: true
+    touchPitch: false
   });
 
   gpsMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  capMapPixelRatio(gpsMap);
   gpsMap.dragPan.enable(MAP_DRAG_PAN_INERTIA);
 
   gpsMap.setView = function(center, zoom, options = {}) {
@@ -336,11 +352,12 @@ function initLocationMap() {
 
   const renderMapOverlays = () => {
     if (!gpsMap) return;
-    const center = gpsMap.getCenter();
-    const pixel = gpsMap.project(center);
-    gpsCenterPin.style.display = 'block';
-    gpsCenterPin.style.left = `${pixel.x}px`;
-    gpsCenterPin.style.top = `${pixel.y}px`;
+    // The red pin is CSS-anchored to the middle of the map, so there is no need to
+    // reposition it on every move; doing so forced extra style/layout work per frame.
+    if (gpsCenterPin.style.display !== 'block') {
+      gpsCenterPin.style.display = 'block';
+    }
+    // The blue dot and accuracy circle skip all work while hidden (before a GPS fix).
     gpsAccuracyCircle.render();
     gpsPositionMarker.render();
   };
@@ -393,10 +410,11 @@ function initDetailMap(lat, lon) {
       attributionControl: true,
       dragRotate: false,
       touchZoomRotate: true,
-      touchPitch: true
+      touchPitch: false
     });
 
     detailMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    capMapPixelRatio(detailMap);
     detailMap.dragPan.enable(MAP_DRAG_PAN_INERTIA);
 
     detailMapPin = document.createElement('div');

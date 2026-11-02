@@ -590,6 +590,9 @@ input[type="number"] {
   overflow: hidden;
   background: #dfe9f2;
   margin: 10px 0 14px;
+  /* Keep map repaints contained so the scrolling card/its shadow aren't repainted
+     every frame while dragging (noticeable on older iOS devices). */
+  contain: paint;
 }
 
 .detail-map {
