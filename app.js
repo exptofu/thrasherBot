@@ -105,9 +105,15 @@ let detailMapPin = null;
 let gpsPollingInterval = null;
 let gpsAutoCenterUntil = 0;
 let gpsTrackingStartedAt = 0;
+let mapCenterLocationTimer = null;
 
 // How long to keep refining the position after the user taps "Use GPS".
 const GPS_CALIBRATION_MS = 3000;
+
+// MapLibre's drag-pan defaults are deceleration: 2500, maxSpeed: 1400, which glides
+// for ~1.9s. Raising deceleration and capping maxSpeed makes the map settle quickly
+// once the finger is lifted.
+const MAP_DRAG_PAN_INERTIA = { deceleration: 5000, maxSpeed: 1000 };
 
 const MAP_STYLE_STREET = 'https://tiles.openfreemap.org/styles/bright';
 const MAPTILER_API_KEY = 'MsqOGsIOFUDG3kceyb6O';
@@ -237,8 +243,7 @@ function createGpsAccuracyCircle() {
       const point = gpsMap.project(this._center);
       const radiusPx = metersToPixels(gpsMap, this._radiusMeters, this._center.lat);
       const size = radiusPx * 2;
-      this._element.style.left = `${point.x}px`;
-      this._element.style.top = `${point.y}px`;
+      this._element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
       this._element.style.width = `${size}px`;
       this._element.style.height = `${size}px`;
       if (this._element.style.display !== 'none') {
@@ -268,13 +273,26 @@ function createGpsPositionMarker() {
     render() {
       if (!gpsMap) return;
       const point = gpsMap.project(this._center);
-      this._element.style.left = `${point.x}px`;
-      this._element.style.top = `${point.y}px`;
+      this._element.style.transform = `translate(${point.x}px, ${point.y}px) translate(-50%, -50%)`;
       if (this._element.style.display !== 'none') {
         this._element.style.display = 'block';
       }
     }
   };
+}
+
+function applyMapCenterLocation() {
+  if (!gpsMap || gpsTrackingStartedAt) return;
+  const center = gpsMap.getCenter();
+  setLocation(center.lat, center.lng, 25);
+}
+
+function scheduleMapCenterLocation(delay = 180) {
+  clearTimeout(mapCenterLocationTimer);
+  mapCenterLocationTimer = window.setTimeout(() => {
+    mapCenterLocationTimer = null;
+    applyMapCenterLocation();
+  }, delay);
 }
 
 function initLocationMap() {
@@ -293,6 +311,7 @@ function initLocationMap() {
   });
 
   gpsMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  gpsMap.dragPan.enable(MAP_DRAG_PAN_INERTIA);
 
   gpsMap.setView = function(center, zoom, options = {}) {
     const target = normalizeLatLngInput(center);
@@ -326,22 +345,29 @@ function initLocationMap() {
     gpsPositionMarker.render();
   };
 
+  let overlayRenderFrame = 0;
+
+  const scheduleOverlayRender = () => {
+    if (overlayRenderFrame) return;
+    overlayRenderFrame = window.requestAnimationFrame(() => {
+      overlayRenderFrame = 0;
+      renderMapOverlays();
+    });
+  };
+
   const syncMapCenter = () => {
-    if (!gpsMap) return;
     renderMapOverlays();
-    if (!gpsTrackingStartedAt) {
-      const center = gpsMap.getCenter();
-      setLocation(center.lat, center.lng, 25);
-    }
+    scheduleMapCenterLocation();
   };
 
   gpsMap.on('move', () => {
+    // 'move' can fire far more often than the screen refreshes while dragging, so
+    // paint the overlays at most once per frame to keep touch panning smooth.
+    scheduleOverlayRender();
     if (Date.now() > gpsAutoCenterUntil) {
-      syncMapCenter();
-    } else {
-      // While locating, re-project the overlays on every pan so the blue GPS dot
-      // stays glued to its geographic point instead of riding along with the map.
-      renderMapOverlays();
+      // The county lookup and form updates are expensive, so only run them once
+      // the pan settles instead of on every frame (avoids the mobile jitter).
+      scheduleMapCenterLocation();
     }
   });
   gpsMap.on('zoomend', syncMapCenter);
@@ -371,6 +397,7 @@ function initDetailMap(lat, lon) {
     });
 
     detailMap.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    detailMap.dragPan.enable(MAP_DRAG_PAN_INERTIA);
 
     detailMapPin = document.createElement('div');
     detailMapPin.innerHTML = '<svg width="40" height="40" viewBox="0 0 24 24"><path d="M12,11.5A2.5,2.5 0 0,1 9.5,9A2.5,2.5 0 0,1 12,6.5A2.5,2.5 0 0,1 14.5,9A2.5,2.5 0 0,1 12,11.5M12,2A7,7 0 0,0 5,9C5,14.25 12,22 12,22C12,22 19,14.25 19,9A7,7 0 0,0 12 ,2Z" /></svg>';
@@ -429,7 +456,7 @@ function clearGpsTracking() {
   gpsTrackingStartedAt = 0;
   gpsTrackingActive = false;
   if (gpsMap) {
-    gpsMap.dragPan.enable();
+    gpsMap.dragPan.enable(MAP_DRAG_PAN_INERTIA);
   }
   setGpsLocatingOverlayVisible(false);
   if (gpsAccuracyCircle) {
@@ -642,7 +669,7 @@ function useMyGps() {
       // Snap exactly onto the final fix so the center pin matches the reported location.
       if (gpsMap) {
         gpsMap.setView([latitude, longitude], Math.max(gpsMap.getZoom(), 14), { animate: false });
-        gpsMap.dragPan.enable();
+        gpsMap.dragPan.enable(MAP_DRAG_PAN_INERTIA);
       }
       setGpsLocatingOverlayVisible(false);
       gpsAutoCenterUntil = 0;

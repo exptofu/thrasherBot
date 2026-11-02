@@ -618,10 +618,13 @@ input[type="number"] {
 .gps-position-marker,
 .gps-accuracy-circle {
   position: absolute;
+  left: 0;
+  top: 0;
   display: none;
   pointer-events: none;
   z-index: 350;
   transform: translate(-50%, -50%);
+  will-change: transform;
 }
 
 .gps-position-marker {
