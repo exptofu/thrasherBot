@@ -109,6 +109,67 @@ let gpsTrackingStartedAt = 0;
 // How long to keep refining the position after the user taps "Use GPS".
 const GPS_CALIBRATION_MS = 3000;
 
+const MAP_STYLE_STREET = 'https://tiles.openfreemap.org/styles/bright';
+const MAPTILER_API_KEY = 'MsqOGsIOFUDG3kceyb6O';
+// hybrid-v4 = MapTiler "Satellite Hybrid" (imagery + place labels).
+// Use 'satellite-v4' or 'satellite' instead for label-free "Satellite Plain" imagery.
+const MAP_STYLE_SATELLITE = `https://api.maptiler.com/maps/hybrid-v4/style.json?key=${MAPTILER_API_KEY}`;
+
+const MAP_VIEW_STORAGE_KEY = 'thrasher_map_view';
+
+function getStoredMapView() {
+  try {
+    return localStorage.getItem(MAP_VIEW_STORAGE_KEY);
+  } catch (error) {
+    return null;
+  }
+}
+
+function saveMapViewPreference(enabled) {
+  try {
+    localStorage.setItem(MAP_VIEW_STORAGE_KEY, enabled ? 'satellite' : 'street');
+  } catch (error) {
+    // Storage can be unavailable (private mode); the toggle still works for this session.
+  }
+}
+
+let satelliteViewEnabled = getStoredMapView() === 'satellite';
+
+function currentMapStyleUrl() {
+  return satelliteViewEnabled ? MAP_STYLE_SATELLITE : MAP_STYLE_STREET;
+}
+
+function updateMapStyleToggleButtons() {
+  document.querySelectorAll('[data-map-style-toggle]').forEach((button) => {
+    button.textContent = satelliteViewEnabled ? 'Map' : 'Satellite';
+    button.setAttribute('aria-pressed', satelliteViewEnabled ? 'true' : 'false');
+    button.setAttribute(
+      'aria-label',
+      satelliteViewEnabled ? 'Switch to street map view' : 'Switch to satellite view'
+    );
+  });
+}
+
+function setSatelliteView(enabled) {
+  const next = Boolean(enabled);
+  if (next === satelliteViewEnabled) return;
+  satelliteViewEnabled = next;
+  saveMapViewPreference(next);
+  [gpsMap, detailMap].forEach((map) => {
+    if (map) {
+      map.setStyle(currentMapStyleUrl(), { diff: false });
+    }
+  });
+  updateMapStyleToggleButtons();
+}
+
+function bindMapStyleToggles() {
+  document.querySelectorAll('[data-map-style-toggle]').forEach((button) => {
+    button.addEventListener('click', () => setSatelliteView(!satelliteViewEnabled));
+  });
+  updateMapStyleToggleButtons();
+}
+
 function setGpsLocatingOverlayVisible(visible) {
   const overlay = document.getElementById('gpsLocatingOverlay');
   if (!overlay) return;
@@ -221,7 +282,7 @@ function initLocationMap() {
 
   gpsMap = new maplibregl.Map({
     container: 'gpsMap',
-    style: 'https://tiles.openfreemap.org/styles/bright',
+    style: currentMapStyleUrl(),
     center: [-84.3880, 33.7490],
     zoom: 7,
     maxZoom: 20,
@@ -299,7 +360,7 @@ function initDetailMap(lat, lon) {
   if (!detailMap) {
     detailMap = new maplibregl.Map({
       container: 'detailMap',
-      style: 'https://tiles.openfreemap.org/styles/bright',
+      style: currentMapStyleUrl(),
       center: [targetLon, targetLat],
       zoom: 15,
       maxZoom: 20,
@@ -1069,6 +1130,7 @@ function scheduleLiveMessageUpdate() {
 }
 
 initLocationMap();
+bindMapStyleToggles();
 document.getElementById('useLocationBtn').addEventListener('click', useMyGps);
 document.getElementById('copyBtn').addEventListener('click', copyMessage);
 form.species.addEventListener('input', () => {

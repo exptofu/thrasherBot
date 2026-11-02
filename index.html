@@ -40,6 +40,7 @@
 
       <div id="locationStep" class="wizard-page active">
         <div id="gpsMap" class="gps-map" aria-label="Map showing a centered GPS pin">
+          <button type="button" class="map-style-toggle" data-map-style-toggle aria-pressed="false" aria-label="Switch to satellite view">Satellite</button>
           <div id="gpsLocatingOverlay" class="gps-locating-overlay" role="status" aria-live="polite" aria-hidden="true">
             <span class="gps-locating-spinner" aria-hidden="true"></span>
             <span>Locating...</span>
@@ -124,7 +125,9 @@
         <button type="button" id="copyBtn" class="journal-btn">Copy to clipboard</button>
       </div>
 
-      <div id="detailMap" class="gps-map detail-map" aria-label="Map showing the saved observation location"></div>
+      <div id="detailMap" class="gps-map detail-map" aria-label="Map showing the saved observation location">
+        <button type="button" class="map-style-toggle" data-map-style-toggle aria-pressed="false" aria-label="Switch to satellite view">Satellite</button>
+      </div>
 
       
     </div>
@@ -133,7 +136,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@3.3.0/dist/maplibre-gl.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
-  <script src="app.js?v=20261013-map-marker-fix"></script>
+  <script src="app.js?v=20261101-map-style-storage"></script>
 
 </body>
 </html>
