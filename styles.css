@@ -443,8 +443,8 @@ input[type="number"] {
 
 .fab {
   position: fixed;
-  right: 16px;
-  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  right: 45px;
+  bottom: 90px;
   width: 58px;
   height: 58px;
   border: none;
@@ -465,9 +465,9 @@ input[type="number"] {
 }
 
 @media (min-width: 700px) {
-  /* Keep the button aligned with the right edge of the centered card. */
+  /* Keep the button 45px inside the right edge of the centered card. */
   .fab {
-    right: calc(50vw - 325px + 20px);
+    right: calc(50vw - 325px + 45px);
   }
 }
 
