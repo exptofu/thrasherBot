@@ -670,7 +670,7 @@ async def flag_checklist(channel: discord.ForumChannel, checklist_id: str, membe
         log.exception("Failed to post moderator review for checklist %s to #%s", checklist_id, RARITY_CHANNEL)
         return
 
-    self.add_view(view, message_id=message.id)
+    client.add_view(view, message_id=message.id)
     db.execute(
         "INSERT INTO review_queue (checklist_id, data, channel_id, message_id) VALUES (?,?,?,?)",
         (checklist_id, json.dumps(members), rarity_channel.id, message.id),
@@ -755,15 +755,19 @@ def newest_observation_age_days() -> dict[tuple[str, str], int]:
     return newest
 
 
-async def archive_inactive_posts() -> None:
+async def archive_inactive_posts() -> set[tuple[str, str]]:
     """Archive RBA posts with no matching sighting inside the BACK_DAYS * 2 window.
 
     Activity is measured per post (species + hotspot/county scope) from the newest sighting,
     so a post stays open while birds keep being found even if the first sighting is older.
+
+    Returns the (species_code, scope) keys that could not be archived so the prune does not
+    drop their posts rows before a later poll can retry.
     """
     cutoff_days = BACK_DAYS * 2
     newest = newest_observation_age_days()
     archived = 0
+    failed: set[tuple[str, str]] = set()
     for species_code, scope, thread_id in db.execute(
         "SELECT species_code, scope, thread_id FROM posts"
     ).fetchall():
@@ -802,6 +806,7 @@ async def archive_inactive_posts() -> None:
                 scope,
                 detail,
             )
+            failed.add((species_code, scope))
             continue
         archived += 1
         log.info(
@@ -814,6 +819,7 @@ async def archive_inactive_posts() -> None:
         )
     if archived:
         log.info("Archived %d inactive RBA post(s)", archived)
+    return failed
 
 
 async def poll_once():
@@ -867,7 +873,7 @@ async def poll_once():
         return
 
     # Archive before pruning so stale posts still have their sightings to inspect.
-    await archive_inactive_posts()
+    archive_failures = await archive_inactive_posts()
 
     if PRUNE_OLD_SIGHTINGS:
         # Prune based on the sighting's own observation date to avoid deleting records
@@ -894,11 +900,24 @@ async def poll_once():
                    WHERE s.species_code = groups.species_code
                      AND s.checklist_id = groups.checklist_id)"""
         )
-        db.execute(
-            """DELETE FROM posts WHERE NOT EXISTS (
+        # Keep rows whose thread archiving failed so the next poll can retry; deleting the
+        # row here would lose the only reference to the thread.
+        for species_code, scope in db.execute(
+            """SELECT species_code, scope FROM posts WHERE NOT EXISTS (
                    SELECT 1 FROM sightings s
                    WHERE s.species_code = posts.species_code AND s.scope = posts.scope)"""
-        )
+        ).fetchall():
+            if (species_code, scope) in archive_failures:
+                log.warning(
+                    "Keeping posts row for %s/%s so the RBA thread can be archived later",
+                    species_code,
+                    scope,
+                )
+                continue
+            db.execute(
+                "DELETE FROM posts WHERE species_code=? AND scope=?",
+                (species_code, scope),
+            )
         db.commit()
     else:
         log.info("Pruning disabled by PRUNE_OLD_SIGHTINGS; keeping historical sightings in SQLite.")

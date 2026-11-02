@@ -46,6 +46,17 @@ python utils/sync_category_permissions.py
 python utils/sync_category_permissions.py --apply
 ```
 
+### Manual archive backfill
+
+`utils/archive_orphaned_posts.py` archives threads the bot created in the alert forum whose sightings are no longer in `sightings.db`. The bot's automatic archive pass can only see posts that still have database rows, so these threads are otherwise left open forever. Member-created posts are never touched, and pinned posts are skipped unless `--include-pinned` is passed. Preview, then apply:
+
+```powershell
+python utils/archive_orphaned_posts.py
+python utils/archive_orphaned_posts.py --apply
+```
+
+It opens the database read-only, needs Manage Threads, and leaves a thread open when its newest stored sighting or its last message is inside `EBIRD_BACK_DAYS * 2` days. `--days` overrides the window, `--db` points at another database file, `--allow-empty-posts` permits `--apply` when the `posts` table is empty (for example after a schema reset), and `--include-pinned` also archives pinned bot posts.
+
 ## Region map
 
 ```powershell
