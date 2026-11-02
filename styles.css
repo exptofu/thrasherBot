@@ -442,10 +442,9 @@ input[type="number"] {
 }
 
 .fab {
-  position: sticky;
-  float: right;
-  right: 12px;
-  bottom: 22px;
+  position: fixed;
+  right: 16px;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   width: 58px;
   height: 58px;
   border: none;
@@ -463,6 +462,13 @@ input[type="number"] {
   line-height: 1;
   padding: 0 0 2px 2px;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+@media (min-width: 700px) {
+  /* Keep the button aligned with the right edge of the centered card. */
+  .fab {
+    right: calc(50vw - 325px + 20px);
+  }
 }
 
 .fab:hover,
@@ -600,6 +606,17 @@ input[type="number"] {
   margin-top: 12px;
 }
 
+@media (min-width: 700px) {
+  /* On wider screens the card has room, so give the maps more vertical space. */
+  .gps-map {
+    height: clamp(380px, 52vh, 520px);
+  }
+
+  .gps-map.detail-map {
+    height: clamp(240px, 32vh, 340px);
+  }
+}
+
 .gps-map .maplibregl-map,
 .gps-map .maplibregl-canvas-container,
 .gps-map .maplibregl-canvas {
@@ -717,6 +734,40 @@ input[type="number"] {
 }
 
 .map-style-toggle:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.gps-recenter-btn {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 550;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #544637;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.95);
+  color: #2b2118;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.gps-recenter-btn[hidden] {
+  display: none;
+}
+
+.gps-recenter-btn:hover {
+  background: #ffffff;
+}
+
+.gps-recenter-btn:focus-visible {
   outline: 2px solid #2563eb;
   outline-offset: 2px;
 }

@@ -106,6 +106,8 @@ let gpsPollingInterval = null;
 let gpsAutoCenterUntil = 0;
 let gpsTrackingStartedAt = 0;
 let mapCenterLocationTimer = null;
+let gpsAnchor = null;
+let detailMapAnchor = null;
 
 // How long to keep refining the position after the user taps "Use GPS".
 const GPS_CALIBRATION_MS = 3000;
@@ -360,6 +362,7 @@ function initLocationMap() {
     // The blue dot and accuracy circle skip all work while hidden (before a GPS fix).
     gpsAccuracyCircle.render();
     gpsPositionMarker.render();
+    updateGpsRecenterButton();
   };
 
   let overlayRenderFrame = 0;
@@ -434,7 +437,10 @@ function initDetailMap(lat, lon) {
     detailMap.on('load', () => {
       detailMap.resize();
     });
+    detailMap.on('move', updateDetailRecenterButton);
   }
+
+  detailMapAnchor = { lat: targetLat, lng: targetLon };
 
   if (detailMap) {
     detailMap.jumpTo({ center: [targetLon, targetLat], zoom: 15 });
@@ -443,6 +449,8 @@ function initDetailMap(lat, lon) {
       detailMapMarker.setLngLat([targetLon, targetLat]);
     }
   }
+
+  updateDetailRecenterButton();
 
   window.detailMap = detailMap;
   window.detailMapPin = detailMapPin;
@@ -456,6 +464,8 @@ function updateGpsTrackingMarker(position) {
   const accuracy = Number.isFinite(position.coords.accuracy) ? position.coords.accuracy : 25;
   const center = [lat, lon];
 
+  gpsAnchor = { lat, lng: lon };
+
   gpsPositionMarker.setLatLng(center);
   gpsAccuracyCircle.setLatLng(center);
   gpsAccuracyCircle.setRadius(accuracy);
@@ -463,6 +473,54 @@ function updateGpsTrackingMarker(position) {
   if (gpsAutoCenterUntil && Date.now() <= gpsAutoCenterUntil) {
     gpsMap.setView(center, Math.max(gpsMap.getZoom(), 14), { animate: true });
   }
+}
+
+function updateGpsRecenterButton() {
+  const button = document.getElementById('gpsRecenterBtn');
+  if (!button) return;
+  if (!gpsMap || !gpsAnchor || gpsTrackingStartedAt) {
+    button.hidden = true;
+    return;
+  }
+  const centerPoint = gpsMap.project(gpsMap.getCenter());
+  const anchorPoint = gpsMap.project(gpsAnchor);
+  const distance = Math.hypot(anchorPoint.x - centerPoint.x, anchorPoint.y - centerPoint.y);
+  const shouldHide = distance <= 48;
+  if (button.hidden !== shouldHide) {
+    button.hidden = shouldHide;
+  }
+}
+
+function recenterGpsMap() {
+  if (!gpsMap || !gpsAnchor) return;
+  gpsMap.setView([gpsAnchor.lat, gpsAnchor.lng], Math.max(gpsMap.getZoom(), 14), { animate: true });
+  updateGpsRecenterButton();
+}
+
+function updateDetailRecenterButton() {
+  const button = document.getElementById('detailMapRecenterBtn');
+  if (!button) return;
+  if (!detailMap || !detailMapAnchor) {
+    button.hidden = true;
+    return;
+  }
+  const centerPoint = detailMap.project(detailMap.getCenter());
+  const anchorPoint = detailMap.project(detailMapAnchor);
+  const distance = Math.hypot(anchorPoint.x - centerPoint.x, anchorPoint.y - centerPoint.y);
+  const shouldHide = distance <= 48;
+  if (button.hidden !== shouldHide) {
+    button.hidden = shouldHide;
+  }
+}
+
+function recenterDetailMap() {
+  if (!detailMap || !detailMapAnchor) return;
+  detailMap.easeTo({
+    center: [detailMapAnchor.lng, detailMapAnchor.lat],
+    zoom: Math.max(detailMap.getZoom(), 15),
+    duration: 450
+  });
+  updateDetailRecenterButton();
 }
 
 function clearGpsTracking() {
@@ -473,10 +531,12 @@ function clearGpsTracking() {
   gpsAutoCenterUntil = 0;
   gpsTrackingStartedAt = 0;
   gpsTrackingActive = false;
+  gpsAnchor = null;
   if (gpsMap) {
     gpsMap.dragPan.enable(MAP_DRAG_PAN_INERTIA);
   }
   setGpsLocatingOverlayVisible(false);
+  updateGpsRecenterButton();
   if (gpsAccuracyCircle) {
     gpsAccuracyCircle.setStyle({ opacity: 0, fillOpacity: 0 });
   }
@@ -1177,6 +1237,8 @@ function scheduleLiveMessageUpdate() {
 initLocationMap();
 bindMapStyleToggles();
 document.getElementById('useLocationBtn').addEventListener('click', useMyGps);
+document.getElementById('gpsRecenterBtn').addEventListener('click', recenterGpsMap);
+document.getElementById('detailMapRecenterBtn').addEventListener('click', recenterDetailMap);
 document.getElementById('copyBtn').addEventListener('click', copyMessage);
 form.species.addEventListener('input', () => {
   validateRequiredFields();
@@ -1593,10 +1655,12 @@ function startObservationWizard(entryId = null) {
     if (typeof initLocationMap === 'function') {
       initLocationMap();
     }
+    gpsAnchor = { lat: savedLat, lng: savedLon };
     if (gpsMap) {
       gpsMap.setView([savedLat, savedLon], 15, { animate: false });
       gpsMap.resize();
     }
+    updateGpsRecenterButton();
     state.editingEntryId = entryId;
   } else {
     setDefaultObservationTime();
