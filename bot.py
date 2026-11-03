@@ -186,6 +186,7 @@ db.executescript(
         checklist_id TEXT NOT NULL,
         scope TEXT NOT NULL,
         message_id INTEGER NOT NULL,
+        thread_id INTEGER,
         PRIMARY KEY (species_code, checklist_id)
     );
     -- Rare checklists that need moderator release before posting to the main RBA forum.
@@ -198,6 +199,15 @@ db.executescript(
     );
     PRAGMA user_version = {SCHEMA_VERSION};
     """
+)
+# Existing databases predate thread tracking; add it without dropping live rows.
+if "thread_id" not in {row[1] for row in db.execute("PRAGMA table_info(groups)")}:
+    db.execute("ALTER TABLE groups ADD COLUMN thread_id INTEGER")
+db.execute(
+    """UPDATE groups SET thread_id = (
+           SELECT thread_id FROM posts
+           WHERE posts.species_code = groups.species_code AND posts.scope = groups.scope)
+       WHERE thread_id IS NULL"""
 )
 db.commit()
 
@@ -513,7 +523,7 @@ async def send_group(
     embed = format_sighting(members)
 
     existing = db.execute(
-        "SELECT message_id FROM groups WHERE species_code=? AND checklist_id=?",
+        "SELECT message_id, thread_id FROM groups WHERE species_code=? AND checklist_id=?",
         (species, checklist_id),
     ).fetchone()
     row = db.execute(
@@ -528,17 +538,75 @@ async def send_group(
         getattr(thread, "id", None),
         existing[0] if existing else None,
     )
-    should_notify_region = not existing
 
-    if thread and existing:
-        try:
-            msg = await thread.fetch_message(existing[0])
-            await msg.edit(embed=embed)
-            log.debug("Edited existing group message for %s %s in thread %s", species, checklist_id, thread.id)
-            return
-        except discord.NotFound:
-            log.warning("Existing group message %s for %s %s was missing; recreating it.", existing[0], species, checklist_id)
-            pass
+    # Find where the tracked message actually lives. It can be in a different thread
+    # than the current scope when a submitter edits the checklist's location.
+    existing_message = None
+    existing_thread = None
+    relocated_starter = None
+    if existing:
+        candidates = dict.fromkeys(
+            candidate
+            for candidate in (existing[1], getattr(thread, "id", None))
+            if candidate
+        )
+        for candidate in candidates:
+            candidate_thread = await get_thread(client, candidate)
+            if candidate_thread is None:
+                continue
+            try:
+                existing_message = await candidate_thread.fetch_message(existing[0])
+            except discord.NotFound:
+                continue
+            existing_thread = candidate_thread
+            break
+
+    if existing_message is not None and thread is not None and existing_thread.id == thread.id:
+        await existing_message.edit(embed=embed)
+        db.execute(
+            "UPDATE groups SET scope=?, thread_id=? WHERE species_code=? AND checklist_id=?",
+            (scope, thread.id, species, checklist_id),
+        )
+        db.commit()
+        log.debug("Edited existing group message for %s %s in thread %s", species, checklist_id, thread.id)
+        return
+
+    if existing_message is not None:
+        # The checklist moved to a different location/thread. Remove the stale message so
+        # the sighting is only recorded where it belongs, then post it in the new thread.
+        if existing_message.id == existing_thread.id:
+            # Deleting a forum thread's starter would delete the whole thread, which may
+            # contain other checklists. Mark the post as moved instead.
+            relocated_starter = existing_message
+            log.info(
+                "Marking group message %s for %s %s as moved instead of deleting the thread starter",
+                existing_message.id,
+                species,
+                checklist_id,
+            )
+        else:
+            try:
+                await existing_message.delete()
+                log.info(
+                    "Deleted relocated group message %s for %s %s from thread %s",
+                    existing_message.id,
+                    species,
+                    checklist_id,
+                    existing_thread.id,
+                )
+            except discord.HTTPException:
+                log.warning(
+                    "Could not delete relocated group message %s for %s %s",
+                    existing_message.id,
+                    species,
+                    checklist_id,
+                )
+        existing = None
+    elif existing:
+        log.warning("Existing group message %s for %s %s was missing; recreating it.", existing[0], species, checklist_id)
+        existing = None
+
+    should_notify_region = not existing
 
     if thread:
         if thread.archived:
@@ -546,6 +614,7 @@ async def send_group(
             await thread.edit(archived=False)
         log.debug("Sending update to existing thread %s for %s %s", thread.id, species, checklist_id)
         message = await thread.send(embed=embed)
+        group_thread = thread
     else:
         first = min(members, key=lambda m: m["obsDt"])
         region = region_of(first)
@@ -559,15 +628,41 @@ async def send_group(
         message = created.message if hasattr(created, "message") else None
         if message is None:
             message = await thread_obj.send(embed=embed)
+        group_thread = thread_obj
         db.execute(
             "INSERT OR REPLACE INTO posts VALUES (?,?,?)", (species, scope, thread_obj.id)
         )
     db.execute(
-        "INSERT OR REPLACE INTO groups VALUES (?,?,?,?)",
-        (species, checklist_id, scope, message.id),
+        "INSERT OR REPLACE INTO groups (species_code, checklist_id, scope, message_id, thread_id) "
+        "VALUES (?,?,?,?,?)",
+        (species, checklist_id, scope, message.id, group_thread.id),
     )
     db.commit()
-    log.debug("Stored group %s %s in thread %s with message %s", species, checklist_id, getattr(thread, "id", "?"), message.id)
+    log.debug("Stored group %s %s in thread %s with message %s", species, checklist_id, getattr(group_thread, "id", "?"), message.id)
+    if relocated_starter is not None:
+        moved_embed = embed.copy()
+        moved_embed.color = discord.Color.dark_grey()
+        moved_embed.description = (
+            f"**This sighting moved to a different location.** "
+            f"See [the updated post]({message.jump_url})."
+            f"\n\n{moved_embed.description or ''}"
+        )
+        try:
+            await relocated_starter.edit(embed=moved_embed)
+            log.info(
+                "Marked thread starter %s for %s %s as moved to message %s",
+                relocated_starter.id,
+                species,
+                checklist_id,
+                message.id,
+            )
+        except discord.HTTPException:
+            log.warning(
+                "Could not mark thread starter %s for %s %s as moved",
+                relocated_starter.id,
+                species,
+                checklist_id,
+            )
     if should_notify_region and not thread and region:
         await notify_region_chat(client, channel, region, created.thread, first)
     if should_notify_region and not thread and (

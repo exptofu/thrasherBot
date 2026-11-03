@@ -27,6 +27,15 @@ Georgia's 159 counties are grouped into 16 regions in the `REGIONS` dict in `bot
 
 The bot needs View Channel, Send Messages, Send Messages in Threads, Read Message History, and Manage Threads in the alert forum. Its invite link on a permission error includes these permissions.
 
+## Checklist location edits
+
+Each species/checklist message is tracked in the `groups` table together with the thread it was posted in. If a submitter edits an eBird checklist's location after the bot has posted it, the bot treats the sighting as moved:
+
+- The stale message is deleted and reposted in the thread for the corrected hotspot or county.
+- If the stale message is the thread starter (its message ID equals the thread ID), it is kept and its embed is edited to say the sighting moved, with a link to the updated post. Deleting a forum starter would delete the whole thread and any other checklists posted there.
+
+Existing databases get the `groups.thread_id` column added automatically with `ALTER TABLE` and backfilled from `posts`; no schema reset or data loss is needed.
+
 ## Regional setup
 
 Regional channels are managed separately from bot startup. Run this job to add missing tags, create or move channels, sync category permissions, and order categories and chats:

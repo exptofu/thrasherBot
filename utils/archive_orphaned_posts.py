@@ -137,6 +137,7 @@ async def archive_stale_threads(
     apply: bool,
     allow_empty_posts: bool,
     include_pinned: bool,
+    report: bool,
 ) -> int:
     forum = client.get_channel(forum_id) or await client.fetch_channel(forum_id)
     if not isinstance(forum, discord.ForumChannel):
@@ -155,10 +156,34 @@ async def archive_stale_threads(
     active = [thread for thread in threads if not thread.archived]
 
     bot_id = client.user.id if client.user else None
+    bot_threads = [thread for thread in active if thread.owner_id == bot_id]
+    foreign = [thread for thread in active if thread.owner_id != bot_id]
+
+    if report:
+        print(
+            f"{'thread id':<20}{'auto':>6}{'idle':>7}{'pinned':>8}{'sighting':>10}  name"
+        )
+        now = datetime.now(timezone.utc)
+        for thread in sorted(bot_threads, key=thread_last_activity):
+            post = posts.get(thread.id)
+            age = newest.get((post["species_code"], post["scope"])) if post else None
+            idle_days = (now - thread_last_activity(thread)).days
+            sighting = "no row" if post is None else ("none" if age is None else f"{age}d")
+            pinned = bool(getattr(thread.flags, "pinned", False))
+            print(
+                f"{thread.id:<20}{thread.auto_archive_duration or 0:>6}{idle_days:>6}d"
+                f"{str(pinned):>8}{sighting:>10}  {thread.name}"
+            )
+        print(
+            f"{len(bot_threads)} active bot thread(s), {len(foreign)} thread(s) created by "
+            f"someone else. auto is each thread's auto_archive_duration in minutes."
+        )
+        return 0
+
     targets, pinned_skipped, foreign = classify_threads(
         active, bot_id, posts, newest, cutoff_days, cutoff_time, include_pinned=include_pinned
     )
-    print(f"Scanning {len(active) - len(foreign)} active thread(s) created by the bot.")
+    print(f"Scanning {len(bot_threads)} active thread(s) created by the bot.")
     if foreign:
         print(f"Skipping {len(foreign)} active thread(s) that the bot did not create:")
         for thread in foreign[:10]:
@@ -241,6 +266,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also archive pinned bot posts; pinned posts are skipped by default.",
     )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Only list active bot posts with idle time, pin state, and auto-archive duration.",
+    )
     return parser.parse_args()
 
 
@@ -271,6 +301,7 @@ async def main() -> int:
                     apply=args.apply,
                     allow_empty_posts=args.allow_empty_posts,
                     include_pinned=args.include_pinned,
+                    report=args.report,
                 )
             except Exception as error:  # pragma: no cover - user-facing maintenance script
                 print(f"Archive run failed: {error}")
