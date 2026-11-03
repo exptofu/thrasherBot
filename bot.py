@@ -287,7 +287,9 @@ def format_sighting(members: list[dict]) -> discord.Embed:
     """Build one embed from every observer's record of the same checklist."""
     members = sorted(members, key=lambda m: sub_num(m["subId"]))
     o = members[0]
-    if o.get("obsReviewed") and o.get("obsValid"):
+    if o.get("missing"):
+        status, color = "⚠️ Missing", discord.Color.red()
+    elif o.get("obsReviewed") and o.get("obsValid"):
         status, color = "✅ Confirmed", discord.Color.green()
     elif o.get("obsReviewed"):
         status, color = "❌ Rejected", discord.Color.red()
@@ -812,6 +814,8 @@ async def update_existing_sightings(
             continue
         saved = json.loads(row[4])
         merged = {**saved, **latest}
+        # A sighting that reappeared is no longer missing; force a refresh of the embed.
+        merged.pop("missing", None)
         scope = scope_of(merged)
         group = (row[1], row[2], scope)
         groups.setdefault(group, []).append(merged)
@@ -833,6 +837,94 @@ async def update_existing_sightings(
             )
         db.commit()
     return known
+
+
+async def mark_missing_sightings(
+    client: discord.Client, current: set[tuple[str, str]]
+) -> None:
+    """Mark posts whose sightings all dropped out of the feed but are not pruned yet.
+
+    The status becomes "Missing" (red) until the sighting reappears or its retention
+    window expires. The flag is stored in the sighting data so the embed is only edited
+    on the transition.
+    """
+    members_by_group: dict[tuple[str, str], list[tuple[str, dict]]] = {}
+    for sub_id, species_code, checklist_id, data in db.execute(
+        "SELECT sub_id, species_code, checklist_id, data FROM sightings"
+    ):
+        try:
+            record = json.loads(data)
+        except (json.JSONDecodeError, TypeError):
+            continue
+        if not isinstance(record, dict):
+            continue
+        members_by_group.setdefault((species_code, checklist_id), []).append(
+            (sub_id, record)
+        )
+    if not members_by_group:
+        return
+
+    thread_by_scope = {
+        (species_code, scope): thread_id
+        for species_code, scope, thread_id in db.execute(
+            "SELECT species_code, scope, thread_id FROM posts"
+        )
+    }
+    marked = 0
+    for species_code, checklist_id, scope, message_id, thread_id in db.execute(
+        "SELECT species_code, checklist_id, scope, message_id, thread_id FROM groups"
+    ).fetchall():
+        members = members_by_group.get((species_code, checklist_id))
+        if not members:
+            continue
+        # Keep the post normal while at least one observer's checklist is still in the feed.
+        if any((sub_id, species_code) in current for sub_id, _ in members):
+            continue
+        if all(record.get("missing") for _, record in members):
+            continue
+
+        message = None
+        for candidate in dict.fromkeys(
+            candidate
+            for candidate in (thread_id, thread_by_scope.get((species_code, scope)))
+            if candidate
+        ):
+            try:
+                thread = await get_thread(client, candidate)
+                if thread is None:
+                    continue
+                message = await thread.fetch_message(message_id)
+            except discord.HTTPException:
+                continue
+            break
+        if message is None:
+            log.debug(
+                "Skipping missing status for %s %s: message %s not found",
+                species_code,
+                checklist_id,
+                message_id,
+            )
+            continue
+
+        try:
+            await message.edit(
+                embed=format_sighting(
+                    [{**record, "missing": True} for _, record in members]
+                )
+            )
+        except discord.HTTPException:
+            log.warning("Could not mark %s %s as missing", species_code, checklist_id)
+            continue
+        for sub_id, record in members:
+            record["missing"] = True
+            db.execute(
+                "UPDATE sightings SET data=? WHERE sub_id=? AND species_code=?",
+                (json.dumps(record), sub_id, species_code),
+            )
+        db.commit()
+        marked += 1
+    if marked:
+        log.info("Marked %d sighting group(s) as missing", marked)
 
 
 def newest_observation_age_days() -> dict[tuple[str, str], int]:
@@ -963,6 +1055,10 @@ async def poll_once():
                     await flag_checklist(channel, checklist_id, rare_members)
                     continue
                 await process_sighting(channel, o)
+            try:
+                await mark_missing_sightings(client, current)
+            except discord.HTTPException:
+                log.exception("Failed to mark missing sightings")
     except aiohttp.ClientError:
         log.exception("eBird request failed")
         return
