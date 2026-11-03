@@ -36,6 +36,15 @@ Each species/checklist message is tracked in the `groups` table together with th
 
 Existing databases get the `groups.thread_id` column added automatically with `ALTER TABLE` and backfilled from `posts`; no schema reset or data loss is needed.
 
+## No longer in RBA / removed
+
+When a sighting has been absent from eBird's `recent/notable` feed for `MISSING_POLLS` consecutive polls (default 3), the bot checks the checklist view to classify it:
+
+- Species still listed → `⚠️ No longer in RBA` (red). This usually means the record left the public RBA feed, for example because its rarity window changed or a reviewer hid it.
+- Species no longer listed, or the checklist was deleted → `🗑️ Removed from checklist` (red).
+
+The delay avoids false positives from temporary feed omissions; if the sighting reappears, the counter and status are cleared. If the checklist lookup fails, the status is left unchanged and retried on the next poll. The checklist API does not expose per-species review status, so these labels reflect the public data rather than a reviewer's decision.
+
 ## Regional setup
 
 Regional channels are managed separately from bot startup. Run this job to add missing tags, create or move channels, sync category permissions, and order categories and chats:
