@@ -54,7 +54,7 @@ The notable feed is not a complete index and can omit a record for a poll. After
 - Species still listed and the sighting is already reviewed (confirmed or rejected) → keep its review status; reviewed records are not downgraded by feed omissions.
 - Species no longer listed, or the checklist was deleted → `🗑️ Removed from checklist` (red).
 
-If the sighting reappears, the counter and status are cleared. Lookup failures leave the post unchanged and retry next poll. Reviewed records are only re-checked once per absence, and a one-time backlog of older labels is processed gradually. If eBird returns a partial notable feed (more than a 30% drop), the bot refetches once and skips missing-status updates for that poll when the response still looks short. Feed rows are deduplicated by checklist + species (rich-media observations arrive once per photo), and the first poll after startup fetches twice so a partial first response is not accepted.
+If the sighting reappears, the counter and status are cleared. Lookup failures leave the post unchanged and retry next poll. Reviewed records are only re-checked once per absence, and a one-time backlog of older labels is processed gradually. Feed rows are deduplicated by checklist + species (rich-media observations arrive once per photo), and the last good feed size is stored as `meta.last_feed_size`. If a poll comes in more than 30% smaller, the bot merges up to two retries and pauses missing-status updates when the response still looks short; the first poll after startup also pauses them while it captures a baseline.
 
 ## Regional setup
 

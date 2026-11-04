@@ -28,7 +28,7 @@ MISSING_POLLS = max(1, int(os.environ.get("MISSING_POLLS", "3")))
 MISSING_CHECK_LIMIT = 20
 MISSING_STATUS = "⚠️ No longer in RBA"
 REMOVED_STATUS = "🗑️ Removed from checklist"
-BOT_VERSION = "2026-11-04.4"
+BOT_VERSION = "2026-11-04.5"
 last_feed_size: int | None = None
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
@@ -247,6 +247,27 @@ db.execute(
     ("bot_started_at", datetime.now(timezone.utc).isoformat(timespec="seconds")),
 )
 db.commit()
+
+
+def load_last_feed_size() -> int | None:
+    row = db.execute("SELECT value FROM meta WHERE key='last_feed_size'").fetchone()
+    if row is None:
+        return None
+    try:
+        return int(row[0])
+    except (TypeError, ValueError):
+        return None
+
+
+def persist_last_feed_size(size: int) -> None:
+    db.execute(
+        "INSERT OR REPLACE INTO meta (key, value, updated_at) VALUES (?,?,CURRENT_TIMESTAMP)",
+        ("last_feed_size", str(size)),
+    )
+    db.commit()
+
+
+last_feed_size = load_last_feed_size()
 
 async def get_json(session: aiohttp.ClientSession, path: str, **params):
     for attempt in range(MAX_RETRIES):
@@ -1248,70 +1269,70 @@ async def archive_inactive_posts() -> set[tuple[str, str]]:
     return failed
 
 
-async def fetch_notable(session: aiohttp.ClientSession) -> tuple[list[dict], bool]:
-    """Fetch the notable feed, retrying once if the response looks truncated.
-
-    eBird occasionally returns a partial 200 response (for example ~700 rows instead
-    of ~1,800), which would otherwise look like every omitted sighting disappeared.
-    Returns (observations, suspect); suspect means the feed still looks short.
-    """
-    global last_feed_size
-    obs = await get_json(
+async def _fetch_notable_rows(session: aiohttp.ClientSession) -> list[dict]:
+    rows = await get_json(
         session,
         f"/data/obs/{REGION}/recent/notable",
         detail="full",
         back=BACK_DAYS,
     )
-    # Rich-media observations come back as one row per photo; dedupe to one row per
-    # checklist + species so feed sizes are comparable and work is not repeated.
-    obs = list({(o["subId"], o["speciesCode"]): o for o in obs}.values())
+    # Rich-media observations arrive as one row per photo; keep one per species/checklist.
+    return list({(o["subId"], o["speciesCode"]): o for o in rows}.values())
+
+
+def _merge_notable(*batches: list[dict]) -> list[dict]:
+    combined: dict[tuple[str, str], dict] = {}
+    for batch in batches:
+        combined.update({(o["subId"], o["speciesCode"]): o for o in batch})
+    return list(combined.values())
+
+
+async def fetch_notable(session: aiohttp.ClientSession) -> tuple[list[dict], bool]:
+    """Fetch the notable feed, retrying when the response looks truncated.
+
+    eBird occasionally returns a partial 200 response (for example ~530 or ~730
+    unique observations instead of ~1,200). A partial response would make omitted
+    sightings look missing, so compare against the last good size persisted in
+    `meta.last_feed_size` and merge retries before marking anything.
+    """
+    global last_feed_size
+    obs = await _fetch_notable_rows(session)
+
     if last_feed_size is None:
-        # No baseline yet after startup: a partial first response would otherwise slip
-        # through, so fetch once more and keep the union of both responses.
-        retry = await get_json(
-            session,
-            f"/data/obs/{REGION}/recent/notable",
-            detail="full",
-            back=BACK_DAYS,
-        )
-        combined = {(o["subId"], o["speciesCode"]): o for o in obs}
-        combined.update(
-            {
-                (o["subId"], o["speciesCode"]): o
-                for o in retry
-            }
-        )
-        if len(combined) > len(obs):
-            obs = list(combined.values())
-    feed_suspect = False
-    if last_feed_size is not None and len(obs) < last_feed_size * 0.7:
+        # First run after this build: take a second sample, remember the union, and
+        # pause missing-status updates for one poll so a partial first response cannot
+        # affect any statuses.
+        obs = _merge_notable(obs, await _fetch_notable_rows(session))
+        last_feed_size = len(obs)
+        persist_last_feed_size(last_feed_size)
         log.warning(
-            "Notable feed shrank from %d to %d rows; refetching before updating statuses",
+            "No feed baseline yet; captured %d observation(s) and pausing missing-status updates",
+            last_feed_size,
+        )
+        return obs, True
+
+    for attempt in range(2):
+        if len(obs) >= last_feed_size * 0.7:
+            break
+        log.warning(
+            "Notable feed shrank from %d to %d row(s); refetching (%d/2)",
             last_feed_size,
             len(obs),
+            attempt + 1,
         )
-        retry = await get_json(
-            session,
-            f"/data/obs/{REGION}/recent/notable",
-            detail="full",
-            back=BACK_DAYS,
+        obs = _merge_notable(obs, await _fetch_notable_rows(session))
+
+    if len(obs) < last_feed_size * 0.7:
+        log.warning(
+            "Notable feed still looks incomplete (%d vs %d row(s)); skipping missing-status updates",
+            len(obs),
+            last_feed_size,
         )
-        retry = list(
-            {(o["subId"], o["speciesCode"]): o for o in retry}.values()
-        )
-        combined = {(o["subId"], o["speciesCode"]): o for o in obs}
-        combined.update({(o["subId"], o["speciesCode"]): o for o in retry})
-        if len(combined) > len(obs):
-            obs = list(combined.values())
-        if len(retry) < last_feed_size * 0.7:
-            feed_suspect = True
-            log.warning(
-                "Notable feed still looks incomplete (%d vs %d rows); skipping missing-status updates",
-                len(retry),
-                last_feed_size,
-            )
+        return obs, True
+
     last_feed_size = len(obs)
-    return obs, feed_suspect
+    persist_last_feed_size(last_feed_size)
+    return obs, False
 
 
 async def poll_once():
@@ -1322,7 +1343,7 @@ async def poll_once():
             log.info(
                 "Fetched %d notable observation(s)%s",
                 len(obs),
-                " (partial feed; missing-status updates paused)" if feed_suspect else "",
+                " (missing-status updates paused)" if feed_suspect else "",
             )
 
             current = {(o["subId"], o["speciesCode"]) for o in obs}
