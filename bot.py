@@ -28,7 +28,7 @@ MISSING_POLLS = max(1, int(os.environ.get("MISSING_POLLS", "3")))
 MISSING_CHECK_LIMIT = 20
 MISSING_STATUS = "⚠️ No longer in RBA"
 REMOVED_STATUS = "🗑️ Removed from checklist"
-BOT_VERSION = "2026-11-04.3"
+BOT_VERSION = "2026-11-04.4"
 last_feed_size: int | None = None
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
@@ -1262,6 +1262,27 @@ async def fetch_notable(session: aiohttp.ClientSession) -> tuple[list[dict], boo
         detail="full",
         back=BACK_DAYS,
     )
+    # Rich-media observations come back as one row per photo; dedupe to one row per
+    # checklist + species so feed sizes are comparable and work is not repeated.
+    obs = list({(o["subId"], o["speciesCode"]): o for o in obs}.values())
+    if last_feed_size is None:
+        # No baseline yet after startup: a partial first response would otherwise slip
+        # through, so fetch once more and keep the union of both responses.
+        retry = await get_json(
+            session,
+            f"/data/obs/{REGION}/recent/notable",
+            detail="full",
+            back=BACK_DAYS,
+        )
+        combined = {(o["subId"], o["speciesCode"]): o for o in obs}
+        combined.update(
+            {
+                (o["subId"], o["speciesCode"]): o
+                for o in retry
+            }
+        )
+        if len(combined) > len(obs):
+            obs = list(combined.values())
     feed_suspect = False
     if last_feed_size is not None and len(obs) < last_feed_size * 0.7:
         log.warning(
@@ -1274,6 +1295,9 @@ async def fetch_notable(session: aiohttp.ClientSession) -> tuple[list[dict], boo
             f"/data/obs/{REGION}/recent/notable",
             detail="full",
             back=BACK_DAYS,
+        )
+        retry = list(
+            {(o["subId"], o["speciesCode"]): o for o in retry}.values()
         )
         combined = {(o["subId"], o["speciesCode"]): o for o in obs}
         combined.update({(o["subId"], o["speciesCode"]): o for o in retry})
