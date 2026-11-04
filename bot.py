@@ -24,6 +24,7 @@ BACK_DAYS = int(os.environ.get("EBIRD_BACK_DAYS", "14"))
 RECENT_OBSERVATION_CUTOFF_DAYS = max(0, BACK_DAYS - 1)
 POLL_MINUTES = int(os.environ.get("POLL_MINUTES", "15"))
 MISSING_POLLS = max(1, int(os.environ.get("MISSING_POLLS", "3")))
+MISSING_CHECK_LIMIT = 20
 MISSING_STATUS = "⚠️ No longer in RBA"
 REMOVED_STATUS = "🗑️ Removed from checklist"
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
@@ -822,6 +823,7 @@ async def update_existing_sightings(
         merged.pop("missing", None)
         merged.pop("missing_polls", None)
         merged.pop("missing_label", None)
+        merged.pop("rba_checked", None)
         scope = scope_of(merged)
         group = (row[1], row[2], scope)
         groups.setdefault(group, []).append(merged)
@@ -878,10 +880,11 @@ async def mark_missing_sightings(
 ) -> None:
     """Classify sightings that have been absent from the notable feed for several polls.
 
-    The feed can transiently omit a record, so a single absence is ignored. After
-    MISSING_POLLS consecutive polls, the checklist view decides the label: still listed
-    means "No longer in RBA"; missing means "Removed from checklist". If any member
-    reappears, update_existing_sightings clears the state.
+    The feed is not a complete index and can transiently omit a record, so a single
+    absence is ignored. After MISSING_POLLS consecutive polls the checklist view decides:
+    still listed means the record is valid (reviewed sightings keep their Confirmed or
+    Rejected status; unreviewed ones become "No longer in RBA"); missing means
+    "Removed from checklist". Reviewed sightings are only checked once per absence.
     """
     members_by_group: dict[tuple[str, str], list[tuple[str, dict]]] = {}
     for sub_id, species_code, checklist_id, data in db.execute(
@@ -907,6 +910,8 @@ async def mark_missing_sightings(
     }
     checklist_cache: dict[str, dict | None] = {}
     marked = 0
+    restored = 0
+    checks = 0
     for species_code, checklist_id, scope, message_id, thread_id in db.execute(
         "SELECT species_code, checklist_id, scope, message_id, thread_id FROM groups"
     ).fetchall():
@@ -920,12 +925,14 @@ async def mark_missing_sightings(
                 record.get("missing")
                 or record.get("missing_polls")
                 or record.get("missing_label")
+                or record.get("rba_checked")
                 for _, record in members
             ):
                 for sub_id, record in members:
                     record.pop("missing", None)
                     record.pop("missing_polls", None)
                     record.pop("missing_label", None)
+                    record.pop("rba_checked", None)
                     db.execute(
                         "UPDATE sightings SET data=? WHERE sub_id=? AND species_code=?",
                         (json.dumps(record), sub_id, species_code),
@@ -933,28 +940,44 @@ async def mark_missing_sightings(
                 db.commit()
             continue
 
-        if all(
+        all_reviewed = all(record.get("obsReviewed") for _, record in members)
+        all_labeled = all(
             record.get("missing") and record.get("missing_label")
             for _, record in members
-        ):
+        )
+        if all_labeled:
+            labels = {record.get("missing_label") for _, record in members}
+            if REMOVED_STATUS in labels:
+                continue
+            # Reviewed records labeled "No longer in RBA" by an earlier pass need a
+            # one-time re-check; they should normally keep their review status.
+            if not (labels == {MISSING_STATUS} and all_reviewed):
+                continue
+            above_threshold = True
+        elif all_reviewed and all(record.get("rba_checked") for _, record in members):
             continue
+        else:
+            above_threshold = True
+            for _, record in members:
+                if record.get("missing"):
+                    record["missing_polls"] = MISSING_POLLS
+                else:
+                    record["missing_polls"] = int(record.get("missing_polls") or 0) + 1
+                if record["missing_polls"] < MISSING_POLLS:
+                    above_threshold = False
+            for sub_id, record in members:
+                db.execute(
+                    "UPDATE sightings SET data=? WHERE sub_id=? AND species_code=?",
+                    (json.dumps(record), sub_id, species_code),
+                )
+            db.commit()
+            if not above_threshold:
+                continue
 
-        above_threshold = True
-        for _, record in members:
-            if record.get("missing"):
-                record["missing_polls"] = MISSING_POLLS
-            else:
-                record["missing_polls"] = int(record.get("missing_polls") or 0) + 1
-            if record["missing_polls"] < MISSING_POLLS:
-                above_threshold = False
-        for sub_id, record in members:
-            db.execute(
-                "UPDATE sightings SET data=? WHERE sub_id=? AND species_code=?",
-                (json.dumps(record), sub_id, species_code),
-            )
-        db.commit()
-        if not above_threshold:
+        if checks >= MISSING_CHECK_LIMIT:
+            # Spread the one-time backlog of checklist lookups across polls.
             continue
+        checks += 1
 
         message = None
         for candidate in dict.fromkeys(
@@ -990,18 +1013,42 @@ async def mark_missing_sightings(
             elif present:
                 still_listed = True
                 break
-        if still_listed:
-            status = MISSING_STATUS
-        elif unknown:
+        if not still_listed and unknown:
             log.warning(
                 "Skipping status update for %s %s: checklist lookup failed",
                 species_code,
                 checklist_id,
             )
             continue
-        else:
-            status = REMOVED_STATUS
 
+        if still_listed and all_reviewed:
+            # Valid, reviewed record: the notable feed just stopped listing it.
+            had_missing = any(record.get("missing") for _, record in members)
+            for sub_id, record in members:
+                record.pop("missing", None)
+                record.pop("missing_polls", None)
+                record.pop("missing_label", None)
+                record["rba_checked"] = True
+                db.execute(
+                    "UPDATE sightings SET data=? WHERE sub_id=? AND species_code=?",
+                    (json.dumps(record), sub_id, species_code),
+                )
+            db.commit()
+            if had_missing:
+                try:
+                    await message.edit(
+                        embed=format_sighting([record for _, record in members])
+                    )
+                    restored += 1
+                except discord.HTTPException:
+                    log.warning(
+                        "Could not restore %s %s after a false missing mark",
+                        species_code,
+                        checklist_id,
+                    )
+            continue
+
+        status = MISSING_STATUS if still_listed else REMOVED_STATUS
         try:
             await message.edit(
                 embed=format_sighting(
@@ -1019,6 +1066,7 @@ async def mark_missing_sightings(
         for sub_id, record in members:
             record["missing"] = True
             record["missing_label"] = status
+            record.pop("rba_checked", None)
             db.execute(
                 "UPDATE sightings SET data=? WHERE sub_id=? AND species_code=?",
                 (json.dumps(record), sub_id, species_code),
@@ -1027,6 +1075,8 @@ async def mark_missing_sightings(
         marked += 1
     if marked:
         log.info("Updated %d sighting group(s) that left the RBA feed", marked)
+    if restored:
+        log.info("Restored %d reviewed sighting group(s) from a false missing status", restored)
 
 
 def newest_observation_age_days() -> dict[tuple[str, str], int]:

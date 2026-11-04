@@ -38,12 +38,13 @@ Existing databases get the `groups.thread_id` column added automatically with `A
 
 ## No longer in RBA / removed
 
-When a sighting has been absent from eBird's `recent/notable` feed for `MISSING_POLLS` consecutive polls (default 3), the bot checks the checklist view to classify it:
+The notable feed is not a complete index and can omit a record for a poll. After `MISSING_POLLS` consecutive misses (default 3), the bot checks the checklist view once:
 
-- Species still listed → `⚠️ No longer in RBA` (red). This usually means the record left the public RBA feed, for example because its rarity window changed or a reviewer hid it.
+- Species still listed and the sighting is unreviewed → `⚠️ No longer in RBA` (red).
+- Species still listed and the sighting is already reviewed (confirmed or rejected) → keep its review status; reviewed records are not downgraded by feed omissions.
 - Species no longer listed, or the checklist was deleted → `🗑️ Removed from checklist` (red).
 
-The delay avoids false positives from temporary feed omissions; if the sighting reappears, the counter and status are cleared. If the checklist lookup fails, the status is left unchanged and retried on the next poll. The checklist API does not expose per-species review status, so these labels reflect the public data rather than a reviewer's decision.
+If the sighting reappears, the counter and status are cleared. Lookup failures leave the post unchanged and retry next poll. Reviewed records are only re-checked once per absence, and a one-time backlog of older labels is processed gradually.
 
 ## Regional setup
 
