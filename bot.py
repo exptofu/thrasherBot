@@ -28,7 +28,7 @@ MISSING_POLLS = max(1, int(os.environ.get("MISSING_POLLS", "3")))
 MISSING_CHECK_LIMIT = 20
 MISSING_STATUS = "⚠️ No longer in RBA"
 REMOVED_STATUS = "🗑️ Removed from checklist"
-BOT_VERSION = "2026-11-04.5"
+BOT_VERSION = "2026-11-04.6"
 last_feed_size: int | None = None
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
@@ -941,6 +941,46 @@ async def checklist_still_has_species(
     )
 
 
+async def restore_group_embed(
+    client: discord.Client,
+    species_code: str,
+    checklist_id: str,
+    scope: str,
+    message_id: int,
+    thread_id: int | None,
+    members: list[tuple[str, dict]],
+    thread_by_scope: dict[tuple[str, str], int],
+) -> bool:
+    """Refresh a group's message to its normal status after clearing a false Missing mark."""
+    for candidate in dict.fromkeys(
+        candidate
+        for candidate in (thread_id, thread_by_scope.get((species_code, scope)))
+        if candidate
+    ):
+        try:
+            thread = await get_thread(client, candidate)
+            if thread is None:
+                continue
+            message = await thread.fetch_message(message_id)
+        except discord.HTTPException:
+            continue
+        try:
+            await message.edit(
+                embed=format_sighting([record for _, record in members])
+            )
+            return True
+        except discord.HTTPException:
+            log.warning("Could not restore %s %s", species_code, checklist_id)
+            return False
+    log.debug(
+        "Could not find message %s for %s %s",
+        message_id,
+        species_code,
+        checklist_id,
+    )
+    return False
+
+
 async def mark_missing_sightings(
     client: discord.Client,
     session: aiohttp.ClientSession,
@@ -980,11 +1020,60 @@ async def mark_missing_sightings(
     marked = 0
     restored = 0
     checks = 0
+    edits = 0
     for species_code, checklist_id, scope, message_id, thread_id in db.execute(
         "SELECT species_code, checklist_id, scope, message_id, thread_id FROM groups"
     ).fetchall():
         members = members_by_group.get((species_code, checklist_id))
         if not members:
+            continue
+
+        # A sighting older than BACK_DAYS can no longer appear in the notable feed.
+        # It has simply aged out, so keep its last status instead of calling it missing.
+        ages = [observation_age_days(record) for _, record in members]
+        if all(age is not None and age > BACK_DAYS for age in ages):
+            had_missing = any(
+                record.get("missing") or record.get("missing_label")
+                for _, record in members
+            )
+            has_state = any(
+                record.get("missing")
+                or record.get("missing_polls")
+                or record.get("missing_label")
+                or record.get("rba_checked")
+                for _, record in members
+            )
+            if not has_state:
+                continue
+            if had_missing and edits >= MISSING_CHECK_LIMIT:
+                continue
+            if had_missing:
+                edits += 1
+            for _, record in members:
+                record.pop("missing", None)
+                record.pop("missing_polls", None)
+                record.pop("missing_label", None)
+                record.pop("rba_checked", None)
+            if had_missing and not await restore_group_embed(
+                client,
+                species_code,
+                checklist_id,
+                scope,
+                message_id,
+                thread_id,
+                members,
+                thread_by_scope,
+            ):
+                # Leave the label in place and retry next poll if the edit failed.
+                continue
+            for sub_id, record in members:
+                db.execute(
+                    "UPDATE sightings SET data=? WHERE sub_id=? AND species_code=?",
+                    (json.dumps(record), sub_id, species_code),
+                )
+            db.commit()
+            if had_missing:
+                restored += 1
             continue
 
         if any((sub_id, species_code) in current for sub_id, _ in members):
@@ -1013,37 +1102,17 @@ async def mark_missing_sightings(
                 # Normally update_existing_sightings() already refreshed the embed. If that
                 # edit failed, the stale Missing status would otherwise be stuck forever.
                 if had_missing:
-                    message = None
-                    for candidate in dict.fromkeys(
-                        candidate
-                        for candidate in (
-                            thread_id,
-                            thread_by_scope.get((species_code, scope)),
-                        )
-                        if candidate
+                    if await restore_group_embed(
+                        client,
+                        species_code,
+                        checklist_id,
+                        scope,
+                        message_id,
+                        thread_id,
+                        members,
+                        thread_by_scope,
                     ):
-                        try:
-                            candidate_thread = await get_thread(client, candidate)
-                            if candidate_thread is None:
-                                continue
-                            message = await candidate_thread.fetch_message(message_id)
-                        except discord.HTTPException:
-                            continue
-                        break
-                    if message is not None:
-                        try:
-                            await message.edit(
-                                embed=format_sighting(
-                                    [record for _, record in members]
-                                )
-                            )
-                            restored += 1
-                        except discord.HTTPException:
-                            log.warning(
-                                "Could not restore %s %s after a false missing mark",
-                                species_code,
-                                checklist_id,
-                            )
+                        restored += 1
             continue
 
         all_reviewed = all(record.get("obsReviewed") for _, record in members)
@@ -1141,17 +1210,17 @@ async def mark_missing_sightings(
                 )
             db.commit()
             if had_missing:
-                try:
-                    await message.edit(
-                        embed=format_sighting([record for _, record in members])
-                    )
+                if await restore_group_embed(
+                    client,
+                    species_code,
+                    checklist_id,
+                    scope,
+                    message_id,
+                    thread_id,
+                    members,
+                    thread_by_scope,
+                ):
                     restored += 1
-                except discord.HTTPException:
-                    log.warning(
-                        "Could not restore %s %s after a false missing mark",
-                        species_code,
-                        checklist_id,
-                    )
             continue
 
         status = MISSING_STATUS if still_listed else REMOVED_STATUS
