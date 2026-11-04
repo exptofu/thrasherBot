@@ -1,9 +1,10 @@
 import asyncio
+import hashlib
 import json
 import logging
 import os
 import sqlite3
-from datetime import date
+from datetime import date, datetime, timezone
 
 import aiohttp
 import discord
@@ -27,6 +28,8 @@ MISSING_POLLS = max(1, int(os.environ.get("MISSING_POLLS", "3")))
 MISSING_CHECK_LIMIT = 20
 MISSING_STATUS = "⚠️ No longer in RBA"
 REMOVED_STATUS = "🗑️ Removed from checklist"
+BOT_VERSION = "2026-11-04.1"
+last_feed_size: int | None = None
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
 PRUNE_OLD_SIGHTINGS = os.environ.get("PRUNE_OLD_SIGHTINGS", "true").strip().lower() not in {"0", "false", "no", "off"}
@@ -201,6 +204,12 @@ db.executescript(
         message_id INTEGER,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    -- Build metadata so a synced database shows which bot version wrote it.
+    CREATE TABLE IF NOT EXISTS meta (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
     PRAGMA user_version = {SCHEMA_VERSION};
     """
 )
@@ -212,6 +221,30 @@ db.execute(
            SELECT thread_id FROM posts
            WHERE posts.species_code = groups.species_code AND posts.scope = groups.scope)
        WHERE thread_id IS NULL"""
+)
+
+
+def source_hash() -> str:
+    """SHA-256 of the running bot.py, for comparing deployments."""
+    try:
+        with open(os.path.abspath(__file__), "rb") as source:
+            return hashlib.sha256(source.read()).hexdigest()
+    except OSError:
+        return "unknown"
+
+
+BOT_SOURCE_HASH = source_hash()
+db.execute(
+    "INSERT OR REPLACE INTO meta (key, value, updated_at) VALUES (?,?,CURRENT_TIMESTAMP)",
+    ("bot_version", BOT_VERSION),
+)
+db.execute(
+    "INSERT OR REPLACE INTO meta (key, value, updated_at) VALUES (?,?,CURRENT_TIMESTAMP)",
+    ("bot_source_hash", BOT_SOURCE_HASH),
+)
+db.execute(
+    "INSERT OR REPLACE INTO meta (key, value, updated_at) VALUES (?,?,CURRENT_TIMESTAMP)",
+    ("bot_started_at", datetime.now(timezone.utc).isoformat(timespec="seconds")),
 )
 db.commit()
 
@@ -921,6 +954,10 @@ async def mark_missing_sightings(
 
         if any((sub_id, species_code) in current for sub_id, _ in members):
             # The group is still active; clear absence state accumulated while it was out.
+            had_missing = any(
+                record.get("missing") or record.get("missing_label")
+                for _, record in members
+            )
             if any(
                 record.get("missing")
                 or record.get("missing_polls")
@@ -938,6 +975,40 @@ async def mark_missing_sightings(
                         (json.dumps(record), sub_id, species_code),
                     )
                 db.commit()
+                # Normally update_existing_sightings() already refreshed the embed. If that
+                # edit failed, the stale Missing status would otherwise be stuck forever.
+                if had_missing:
+                    message = None
+                    for candidate in dict.fromkeys(
+                        candidate
+                        for candidate in (
+                            thread_id,
+                            thread_by_scope.get((species_code, scope)),
+                        )
+                        if candidate
+                    ):
+                        try:
+                            candidate_thread = await get_thread(client, candidate)
+                            if candidate_thread is None:
+                                continue
+                            message = await candidate_thread.fetch_message(message_id)
+                        except discord.HTTPException:
+                            continue
+                        break
+                    if message is not None:
+                        try:
+                            await message.edit(
+                                embed=format_sighting(
+                                    [record for _, record in members]
+                                )
+                            )
+                            restored += 1
+                        except discord.HTTPException:
+                            log.warning(
+                                "Could not restore %s %s after a false missing mark",
+                                species_code,
+                                checklist_id,
+                            )
             continue
 
         all_reviewed = all(record.get("obsReviewed") for _, record in members)
@@ -1161,16 +1232,53 @@ async def archive_inactive_posts() -> set[tuple[str, str]]:
     return failed
 
 
+async def fetch_notable(session: aiohttp.ClientSession) -> tuple[list[dict], bool]:
+    """Fetch the notable feed, retrying once if the response looks truncated.
+
+    eBird occasionally returns a partial 200 response (for example ~700 rows instead
+    of ~1,800), which would otherwise look like every omitted sighting disappeared.
+    Returns (observations, suspect); suspect means the feed still looks short.
+    """
+    global last_feed_size
+    obs = await get_json(
+        session,
+        f"/data/obs/{REGION}/recent/notable",
+        detail="full",
+        back=BACK_DAYS,
+    )
+    feed_suspect = False
+    if last_feed_size is not None and len(obs) < last_feed_size * 0.7:
+        log.warning(
+            "Notable feed shrank from %d to %d rows; refetching before updating statuses",
+            last_feed_size,
+            len(obs),
+        )
+        retry = await get_json(
+            session,
+            f"/data/obs/{REGION}/recent/notable",
+            detail="full",
+            back=BACK_DAYS,
+        )
+        combined = {(o["subId"], o["speciesCode"]): o for o in obs}
+        combined.update({(o["subId"], o["speciesCode"]): o for o in retry})
+        if len(combined) > len(obs):
+            obs = list(combined.values())
+        if len(retry) < last_feed_size * 0.7:
+            feed_suspect = True
+            log.warning(
+                "Notable feed still looks incomplete (%d vs %d rows); skipping missing-status updates",
+                len(retry),
+                last_feed_size,
+            )
+    last_feed_size = len(obs)
+    return obs, feed_suspect
+
+
 async def poll_once():
     channel = client.get_channel(CHANNEL_ID) or await client.fetch_channel(CHANNEL_ID)
     try:
         async with aiohttp.ClientSession() as session:
-            obs = await get_json(
-                session,
-                f"/data/obs/{REGION}/recent/notable",
-                detail="full",
-                back=BACK_DAYS,
-            )
+            obs, feed_suspect = await fetch_notable(session)
 
             current = {(o["subId"], o["speciesCode"]) for o in obs}
             known = await update_existing_sightings(channel, obs)
@@ -1208,7 +1316,12 @@ async def poll_once():
                     continue
                 await process_sighting(channel, o)
             try:
-                await mark_missing_sightings(client, session, current)
+                if feed_suspect:
+                    log.warning(
+                        "Skipping missing-status updates because the notable feed looks incomplete"
+                    )
+                else:
+                    await mark_missing_sightings(client, session, current)
             except (discord.HTTPException, aiohttp.ClientError):
                 log.exception("Failed to update missing sightings")
     except aiohttp.ClientError:
@@ -1607,4 +1720,5 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
     )
+    log.info("Starting thrasherBot %s (source %s)", BOT_VERSION, BOT_SOURCE_HASH[:12])
     client.run(DISCORD_TOKEN)

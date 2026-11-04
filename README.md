@@ -17,6 +17,16 @@ Set `EBIRD_API_KEY`, `DISCORD_TOKEN`, and `DISCORD_CHANNEL_ID` in `.env`. The ch
 python bot.py
 ```
 
+## Deployment version
+
+On startup the bot records `bot_version`, `bot_source_hash` (SHA-256 of `bot.py`), and `bot_started_at` in the `meta` table of `sightings.db`. Query it on the VPC or a synced copy:
+
+```powershell
+sqlite3 sightings.db "SELECT key, value FROM meta;"
+```
+
+Compare `bot_source_hash` with `sha256sum bot.py` on the server to confirm it is running the same source as the working copy.
+
 ## Regions
 
 Georgia's 159 counties are grouped into 16 regions in the `REGIONS` dict in `bot.py`. The bot:
@@ -44,7 +54,7 @@ The notable feed is not a complete index and can omit a record for a poll. After
 - Species still listed and the sighting is already reviewed (confirmed or rejected) → keep its review status; reviewed records are not downgraded by feed omissions.
 - Species no longer listed, or the checklist was deleted → `🗑️ Removed from checklist` (red).
 
-If the sighting reappears, the counter and status are cleared. Lookup failures leave the post unchanged and retry next poll. Reviewed records are only re-checked once per absence, and a one-time backlog of older labels is processed gradually.
+If the sighting reappears, the counter and status are cleared. Lookup failures leave the post unchanged and retry next poll. Reviewed records are only re-checked once per absence, and a one-time backlog of older labels is processed gradually. If eBird returns a partial notable feed (more than a 30% drop in rows), the bot refetches once and skips missing-status updates for that poll when the response still looks short.
 
 ## Regional setup
 
