@@ -28,7 +28,7 @@ MISSING_POLLS = max(1, int(os.environ.get("MISSING_POLLS", "3")))
 MISSING_CHECK_LIMIT = 20
 MISSING_STATUS = "⚠️ No longer in RBA"
 REMOVED_STATUS = "🗑️ Removed from checklist"
-BOT_VERSION = "2026-11-04.1"
+BOT_VERSION = "2026-11-04.3"
 last_feed_size: int | None = None
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
@@ -841,6 +841,11 @@ async def update_existing_sightings(
     rows = db.execute(
         "SELECT sub_id, species_code, checklist_id, scope, data FROM sightings"
     ).fetchall()
+    log.info(
+        "Sighting refresh: checking %d stored sighting(s) against %d notable observation(s)",
+        len(rows),
+        len(observations),
+    )
     known = {(row[0], row[1]) for row in rows}
     groups: dict[tuple[str, str, str], list[dict]] = {}
     changed_groups = set()
@@ -863,12 +868,15 @@ async def update_existing_sightings(
         if merged != saved or scope != row[3]:
             changed_groups.add(group)
 
+    refreshed = 0
+    failed = 0
     for group in changed_groups:
         species, checklist_id, scope = group
         members = groups[group]
         try:
             await send_group(client, channel, species, checklist_id, scope, members)
         except discord.HTTPException:
+            failed += 1
             log.exception("Failed to update %s %s", species, checklist_id)
             continue
         for member in members:
@@ -877,6 +885,12 @@ async def update_existing_sightings(
                 (scope, json.dumps(member), member["subId"], species),
             )
         db.commit()
+        refreshed += 1
+    log.info(
+        "Sighting refresh complete: %d group(s) updated, %d failed",
+        refreshed,
+        failed,
+    )
     return known
 
 
@@ -1144,10 +1158,12 @@ async def mark_missing_sightings(
             )
         db.commit()
         marked += 1
-    if marked:
-        log.info("Updated %d sighting group(s) that left the RBA feed", marked)
-    if restored:
-        log.info("Restored %d reviewed sighting group(s) from a false missing status", restored)
+    log.info(
+        "Missing-status refresh complete: %d checklist lookup(s), %d marked, %d restored",
+        checks,
+        marked,
+        restored,
+    )
 
 
 def newest_observation_age_days() -> dict[tuple[str, str], int]:
@@ -1279,6 +1295,11 @@ async def poll_once():
     try:
         async with aiohttp.ClientSession() as session:
             obs, feed_suspect = await fetch_notable(session)
+            log.info(
+                "Fetched %d notable observation(s)%s",
+                len(obs),
+                " (partial feed; missing-status updates paused)" if feed_suspect else "",
+            )
 
             current = {(o["subId"], o["speciesCode"]) for o in obs}
             known = await update_existing_sightings(channel, obs)
@@ -1382,10 +1403,14 @@ async def poll_once():
 @tasks.loop(minutes=POLL_MINUTES)
 async def poll():
     log.info("Polling cycle started")
+    started = asyncio.get_running_loop().time()
     try:
         await poll_once()
     finally:
-        log.info("Polling cycle completed")
+        log.info(
+            "Polling cycle completed in %.1fs",
+            asyncio.get_running_loop().time() - started,
+        )
 
 
 REQUIRED_PERMS = discord.Permissions(
