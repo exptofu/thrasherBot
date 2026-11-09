@@ -1786,6 +1786,39 @@ class Bot(discord.Client):
             log.exception("Could not post the nickname welcome panel in #%s", WELCOME_CHANNEL)
             return False
 
+    async def on_member_join(self, member: discord.Member):
+        if member.bot:
+            return
+
+        role = next(
+            (role for role in member.guild.roles if role.name.casefold() == UNREGISTERED_ROLE_NAME),
+            None,
+        )
+        if role is None:
+            log.warning(
+                "Could not assign unregistered role: role not found in guild %s",
+                member.guild.id,
+            )
+            return
+        if role in member.roles:
+            return
+
+        try:
+            await member.add_roles(role, reason="New member has not completed registration")
+            log.info("Assigned unregistered role to member %s in guild %s", member.id, member.guild.id)
+        except discord.Forbidden:
+            log.warning(
+                "Could not assign unregistered role to member %s in guild %s: missing permission or role hierarchy",
+                member.id,
+                member.guild.id,
+            )
+        except discord.HTTPException:
+            log.exception(
+                "Could not assign unregistered role to member %s in guild %s",
+                member.id,
+                member.guild.id,
+            )
+
     async def on_message(self, message):
         # Webhook posts (e.g. GroupMe -> Discord bridges) arrive with author.bot set but
         # carry a webhook_id; they still need GPS processing. Skip real bot users so the
@@ -1851,6 +1884,7 @@ class Bot(discord.Client):
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True
 client = Bot(intents=intents)
 
 if __name__ == "__main__":
