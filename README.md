@@ -86,6 +86,16 @@ python utils/archive_orphaned_posts.py --apply
 
 It opens the database read-only, needs Manage Threads, and leaves a thread open when its newest stored sighting or its last message is inside `EBIRD_BACK_DAYS * 2` days. `--days` overrides the window, `--db` points at another database file, `--allow-empty-posts` permits `--apply` when the `posts` table is empty (for example after a schema reset), and `--include-pinned` also archives pinned bot posts.
 
+### Active thread count
+
+`utils/count_active_threads.py` reports the number of active threads across the guild, grouped by parent channel, including the configured alert forum. Archived forum posts are excluded.
+
+```powershell
+python utils/count_active_threads.py
+```
+
+Pass `--guild-id` to check a different guild that the bot is in.
+
 ## Region map
 
 ```powershell

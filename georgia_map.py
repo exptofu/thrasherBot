@@ -13,13 +13,14 @@ from xml.sax.saxutils import escape
 
 GEOJSON_URL = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"
 GEORGIA_FIPS = "13"
+SOUTH_CAROLINA_FIPS = "45"  # For Aiken and Edgefield counties
+ALABAMA_FIPS = "01"  # For Russell County
 MAP_WIDTH = 620
 PAD = 40
 
 # Keep these county assignments and categories synchronized with bot.py.
 REGIONS = {
-    "greater-athens": ["Barrow", "Walton", "Greene", "Morgan", "Oglethorpe", "Jackson", "Madison"],
-    "athens": ["Clarke","Oconee"],
+    "greater-athens": ["Barrow", "Walton", "Greene", "Morgan", "Oglethorpe", "Jackson", "Madison", "Clarke", "Oconee"],
     "greater-savannah": ["Chatham", "Bryan", "Liberty", "Effingham"],
     "gwinnett-county": ["Gwinnett"],
     "cobb-county": ["Cobb"],
@@ -52,10 +53,9 @@ REGIONS = {
         "Toombs", "Appling", "Tattnall", "Long", "Wayne",
     ],
     "broad-river-watershed": ["Elbert", "Hart", "Stephens", "Franklin", "Banks"],
-    "greater-columbus": ["Talbot", "Marion", "Stewart", "Webster", "Quitman", "Harris", "Muscogee", "Chattahoochee","Troup", "Meriwether"],
+    "greater-columbus": ["Talbot", "Marion", "Stewart", "Webster", "Quitman", "Harris", "Muscogee", "Chattahoochee","Troup", "Meriwether", "Russell"],
     "golden-isles": ["McIntosh", "Glynn", "Camden"],
-    "greater-augusta": ["Taliaferro", "Warren", "Glascock", "Jenkins", "Burke", "Jefferson", "McDuffie", "Lincoln", "Wilkes"],
-    "augusta": ["Richmond", "Columbia",],
+    "greater-augusta": ["Taliaferro", "Warren", "Glascock", "Jenkins", "Burke", "Jefferson", "McDuffie", "Lincoln", "Wilkes", "Richmond", "Columbia", "Aiken", "Edgefield"],
     "fulton-county": ["Fulton"],
     "ridge-and-valleys": ["Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray", "Polk"],
     "greater-statesboro": ["Emanuel", "Evans", "Candler", "Bulloch", "Screven"],
@@ -63,7 +63,6 @@ REGIONS = {
 
 REGION_LABELS = {
     "greater-athens": "Greater Athens",
-    "athens": "Athens",
     "greater-savannah": "Greater Savannah",
     "gwinnett-county": "Gwinnett",
     "metro-atlanta-north": "Metro Atlanta North",
@@ -82,7 +81,6 @@ REGION_LABELS = {
     "greater-columbus": "Greater Columbus",
     "golden-isles": "Golden Isles",
     "greater-augusta": "Greater Augusta",
-    "augusta": "Augusta",
     "fulton-county": "Fulton",
     "ridge-and-valleys": "Ridge and Valleys",
     "greater-statesboro": "Greater Statesboro",
@@ -105,8 +103,8 @@ REGION_GROUPS = {
     "Metro Atlanta": ["metro-atlanta-south", "metro-atlanta-north", "fulton-county", "dekalb-county", "gwinnett-county","cobb-county"],
     "Southeast Georgia": ["golden-isles"],
     "Savannah Area": ["greater-savannah"],
-    "Athens Area": ["greater-athens", "athens",],
-    "Augusta Area": ["greater-augusta", "augusta",],
+    "Athens Area": ["greater-athens"],
+    "Augusta Area": ["greater-augusta"],
     "Central Georgia": ["fall-line-sandhills", "greater-macon",],
     "West Georgia": ["west-piedmont", "greater-columbus"],
     "North Georgia": ["broad-river-watershed", "blue-ridge", "ridge-and-valleys"],
@@ -202,101 +200,7 @@ COLORS = build_region_colors(REGION_GROUPS, GROUP_COLORS)
 
 # Small offsets keep labels readable in the most crowded parts of the map.
 LABEL_OFFSETS = {"fulton-county": (-10, 14), "fall-line-sandhills": (45, 40), 
-                "metro-atlanta-north":(0,-20),"west-piedmont":(0,0),"greater-augusta":(30,30),"greater-athens":(0,30)}
-
-
-def load_ytd_county_data(path: Path | None = None) -> dict[str, int]:
-    """Load county YTD checklist counts from the generated county report HTML."""
-    report_path = path or Path(__file__).with_name("county_info.html")
-    if not report_path.exists():
-        raise SystemExit(f"YTD data not found: {report_path}")
-    html = report_path.read_text(encoding="utf-8")
-    counts: dict[str, int] = {}
-    for row in re.findall(r"<tr>(.*?)</tr>", html, re.S):
-        county_match = re.search(r'<th scope="row">([^<]+)</th>', row)
-        count_match = re.search(r'<td class="numeric strong-number">([0-9,]+)</td>', row)
-        if county_match and count_match:
-            county = county_match.group(1).strip().lower()
-            counts[county] = int(count_match.group(1).replace(",", ""))
-    if not counts:
-        raise SystemExit(f"No YTD county counts found in {report_path}")
-    return counts
-
-
-def interpolate_color(start: tuple[int, int, int], end: tuple[int, int, int], t: float) -> tuple[int, int, int]:
-    t = max(0.0, min(1.0, t))
-    return tuple(
-        round(start[i] + (end[i] - start[i]) * t)
-        for i in range(3)
-    )
-
-
-def rgb_to_hex(rgb: tuple[int, int, int]) -> str:
-    return "#" + "".join(f"{value:02x}" for value in rgb)
-
-
-def viridis_color(t: float) -> str:
-    t = max(0.0, min(1.0, t))
-    stops = [
-        (0.00, (68, 1, 84)),
-        (0.10, (48, 103, 141)),
-        (0.25, (53, 183, 121)),
-        (0.50, (138, 211, 84)),
-        (0.75, (251, 206, 82)),
-        (1.00, (253, 231, 37)),
-    ]
-    for index, (stop, color) in enumerate(stops[:-1]):
-        next_stop, next_color = stops[index + 1]
-        if t <= stop:
-            return rgb_to_hex(color)
-        if t <= next_stop:
-            local_t = (t - stop) / (next_stop - stop)
-            mixed = interpolate_color(color, next_color, local_t)
-            return rgb_to_hex(mixed)
-    return rgb_to_hex(stops[-1][1])
-
-
-def heatmap_color(value: int, min_value: int = 1, max_value: int = 10000) -> str:
-    if value <= 0:
-        return "#111111"
-    min_log = math.log10(min_value)
-    max_log = math.log10(max_value)
-    if max_log <= min_log:
-        scaled = 1.0
-    else:
-        scaled = (math.log10(value) - min_log) / (max_log - min_log)
-    return viridis_color(scaled)
-
-
-def build_ytd_heatmap() -> dict[str, str]:
-    counts = load_ytd_county_data()
-    min_value = min(counts.values())
-    max_value = max(counts.values())
-    return {county.lower(): heatmap_color(value, min_value, max_value) for county, value in counts.items()}
-
-
-def format_ytd_count(value: int) -> str:
-    if value >= 1000:
-        compact = value / 1000
-        return f"{compact:.2f}k".rstrip("0").rstrip(".")
-    return str(value)
-
-
-def legend_values(min_value: int, max_value: int) -> list[int]:
-    values = []
-    start_power = max(0, math.floor(math.log10(min_value)))
-    end_power = max(start_power, math.ceil(math.log10(max_value)))
-    for powered in range(start_power, end_power + 1):
-        value = 10 ** powered
-        if min_value <= value <= max_value:
-            values.append(value)
-    if not values:
-        values = [min_value, max_value]
-    elif values[0] != min_value:
-        values.insert(0, min_value)
-    if values[-1] != max_value:
-        values.append(max_value)
-    return values
+                "metro-atlanta-north":(0,-20),"west-piedmont":(0,0),"greater-augusta":(0,0)}
 
 
 def load_counties() -> list[dict]:
@@ -305,7 +209,14 @@ def load_counties() -> list[dict]:
         cache.parent.mkdir(exist_ok=True)
         urllib.request.urlretrieve(GEOJSON_URL, cache)
     data = json.loads(cache.read_text(encoding="utf-8"))
-    return [f for f in data["features"] if f["properties"]["STATE"] == GEORGIA_FIPS]
+    sc_counties_needed = {"aiken", "edgefield"}
+    al_counties_needed = {"russell"}
+    return [
+        f for f in data["features"] 
+        if f["properties"]["STATE"] == GEORGIA_FIPS 
+        or (f["properties"]["STATE"] == SOUTH_CAROLINA_FIPS and f["properties"]["NAME"].lower() in sc_counties_needed)
+        or (f["properties"]["STATE"] == ALABAMA_FIPS and f["properties"]["NAME"].lower() in al_counties_needed)
+    ]
 
 
 def rings(geometry: dict):
@@ -315,37 +226,97 @@ def rings(geometry: dict):
 
 
 def normalize_segment(p1: tuple[float, float], p2: tuple[float, float]) -> tuple[tuple[float, float], tuple[float, float]]:
-    left, right = sorted(((round(p1[0], 2), round(p1[1], 2)), (round(p2[0], 2), round(p2[1], 2))))
+    left, right = sorted(((round(p1[0], 1), round(p1[1], 1)), (round(p2[0], 1), round(p2[1], 1))))
     return left, right
 
 
+def segments_to_path_d(segments: list[tuple[float, float, float, float]]) -> str:
+    """Stitch unordered (x1, y1, x2, y2) segments into continuous SVG polylines."""
+    if not segments:
+        return ""
+
+    # Build adjacency graph using rounded coordinate tuples as keys
+    adj: dict[tuple[float, float], list[tuple[float, float]]] = {}
+    edge_counts: dict[tuple[tuple[float, float], tuple[float, float]], int] = {}
+
+    for x1, y1, x2, y2 in segments:
+        p1 = (round(x1, 1), round(y1, 1))
+        p2 = (round(x2, 1), round(y2, 1))
+        if p1 == p2:
+            continue
+        adj.setdefault(p1, []).append(p2)
+        adj.setdefault(p2, []).append(p1)
+        edge = (p1, p2) if p1 < p2 else (p2, p1)
+        edge_counts[edge] = edge_counts.get(edge, 0) + 1
+
+    def take_edge(u: tuple[float, float], v: tuple[float, float]) -> bool:
+        edge = (u, v) if u < v else (v, u)
+        if edge_counts.get(edge, 0) > 0:
+            edge_counts[edge] -= 1
+            return True
+        return False
+
+    polylines: list[list[tuple[float, float]]] = []
+
+    # 1. Start chains from junction/endpoint nodes (degree != 2)
+    for node, neighbors in adj.items():
+        if len(neighbors) != 2:
+            for nxt in neighbors:
+                if take_edge(node, nxt):
+                    chain = [node, nxt]
+                    curr = nxt
+                    while len(adj.get(curr, [])) == 2:
+                        n1, n2 = adj[curr]
+                        candidate = n1 if take_edge(curr, n1) else (n2 if take_edge(curr, n2) else None)
+                        if candidate is None:
+                            break
+                        chain.append(candidate)
+                        curr = candidate
+                    polylines.append(chain)
+
+    # 2. Catch any remaining closed loops (all nodes degree == 2)
+    for node, neighbors in adj.items():
+        for nxt in neighbors:
+            if take_edge(node, nxt):
+                chain = [node, nxt]
+                curr = nxt
+                while True:
+                    moved = False
+                    for candidate in adj.get(curr, []):
+                        if take_edge(curr, candidate):
+                            chain.append(candidate)
+                            curr = candidate
+                            moved = True
+                            break
+                    if not moved:
+                        break
+                polylines.append(chain)
+
+    # Format chains as SVG path commands (use Z if closed loop)
+    d_parts = []
+    for chain in polylines:
+        is_closed = len(chain) > 2 and chain[0] == chain[-1]
+        pts = chain[:-1] if is_closed else chain
+        cmd = "M " + " L ".join(f"{x:.1f} {y:.1f}" for x, y in pts)
+        if is_closed:
+            cmd += " Z"
+        d_parts.append(cmd)
+
+    return " ".join(d_parts)
+
+
 def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[str, str],
-          title: str, y0: int, labels: dict[str, str] | None = None,
-          county_fill_colors: dict[str, str] | None = None,
-          legend_scale_values: list[int] | None = None,
-          county_labels: dict[str, str] | None = None) -> tuple[str, int]:
+          title: str, y0: int, labels: dict[str, str] | None = None) -> tuple[str, int]:
     """Return an SVG group for the map placed at y0 and its height."""
     regions = categories
-    if title == "Categories":
-        region_to_group = {region: group for group, region_names in REGION_GROUPS.items() for region in region_names}
-        county_region = {
-            county.lower(): region_to_group[COUNTY_REGION[county.lower()]]
-            for county in COUNTY_REGION
-        }
-    else:
-        county_region = {c.lower(): r for r, cs in regions.items() for c in cs}
+    county_region = {c.lower(): r for r, cs in regions.items() for c in cs}
 
     names = {f["properties"]["NAME"].lower() for f in features}
     if names != set(county_region):
         raise SystemExit(f"County mismatch: {sorted(names ^ set(county_region))}")
-    if county_fill_colors is None:
-        missing = [r for r in regions if r not in colors]
-        if missing:
-            raise SystemExit(f"Add colors for: {missing}")
-    else:
-        missing = [county for county in county_region if county not in county_fill_colors]
-        if missing:
-            raise SystemExit(f"Add county colors for: {missing[:5]}")
+    missing = [r for r in regions if r not in colors]
+    if missing:
+        raise SystemExit(f"Add colors for: {missing}")
 
     lons = [p[0] for f in features for r in rings(f["geometry"]) for p in r]
     lats = [p[1] for f in features for r in rings(f["geometry"]) for p in r]
@@ -359,160 +330,192 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
 
     paths = []
     centroids = {region: [0.0, 0.0, 0.0] for region in regions}
-    county_centroids: dict[str, tuple[float, float]] = {}
     county_segments: dict[str, set[tuple[tuple[float, float], tuple[float, float]]]] = {}
-    county_group = {}
-    if title in {"Regions", "YTD Checklists"}:
-        region_to_group = {region: group for group, region_names in REGION_GROUPS.items() for region in region_names}
-        county_group = {county.lower(): region_to_group[COUNTY_REGION[county.lower()]] for county in COUNTY_REGION}
+    sc_counties = {"aiken", "edgefield"}
+    al_counties = {"russell"}
+    
+    # Count counties per region for detecting multi-county regions
+    region_county_count = {}
+    for county_name, region in county_region.items():
+        region_county_count[region] = region_county_count.get(region, 0) + 1
+    
+    # Track region-to-region segments for lower opacity
+    # Using a list of regions for each segment to detect same-region internal borders
+    region_segment_map_list = {}
 
     for f in sorted(features, key=lambda f: f["properties"]["NAME"]):
         name = f["properties"]["NAME"]
         region = county_region[name.lower()]
         projected = [[project(p) for p in r] for r in rings(f["geometry"])]
         county_segments[name.lower()] = set()
-        polygon_points = [pt for ring in projected for pt in ring]
-        if polygon_points:
-            county_centroids[name.lower()] = (
-                sum(pt[0] for pt in polygon_points) / len(polygon_points),
-                sum(pt[1] for pt in polygon_points) / len(polygon_points),
-            )
         for ring in projected:
             for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1]):
                 cross = x1 * y2 - x2 * y1
                 centroids[region][0] += cross
                 centroids[region][1] += (x1 + x2) * cross
                 centroids[region][2] += (y1 + y2) * cross
-                county_segments[name.lower()].add(normalize_segment((x1, y1), (x2, y2)))
+                segment = normalize_segment((x1, y1), (x2, y2))
+                county_segments[name.lower()].add(segment)
+                # Track segments by region (use list to detect same-region internal borders)
+                if segment not in region_segment_map_list:
+                    region_segment_map_list[segment] = []
+                region_segment_map_list[segment].append(region)
         d = " ".join(
             "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in r) + "Z" for r in projected
         )
-        label = (labels or {}).get(region, region)
-        if title == "Categories":
-            stroke_color = "#fff"
-            stroke_width = "2.5"
-        elif title in {"Regions", "YTD Checklists"}:
-            stroke_color = "#f2f2f2"
-            stroke_width = "0.8"
+        
+        # Use pattern fill for out-of-state counties, solid color for Georgia
+        fill_color = colors[region]
+        if name.lower() in sc_counties:
+            # For SC counties: base color + black striped pattern overlay
+            paths.append(
+                f'<path d="{d}" fill="{fill_color}" stroke="#f2f2f2" stroke-width="0.8" stroke-linejoin="round"><title>{escape(name)}</title></path>'
+            )
+            # Striped overlay with inset to avoid border overlap
+            paths.append(
+                f'<path d="{d}" fill="url(#oos-stripes)" stroke="none" opacity="0.85"><title>{escape(name)} (South Carolina)</title></path>'
+            )
+        elif name.lower() in al_counties:
+            # For AL counties: base color + black striped pattern overlay
+            paths.append(
+                f'<path d="{d}" fill="{fill_color}" stroke="#f2f2f2" stroke-width="0.8" stroke-linejoin="round"><title>{escape(name)}</title></path>'
+            )
+            # Striped overlay with inset to avoid border overlap
+            paths.append(
+                f'<path d="{d}" fill="url(#oos-stripes)" stroke="none" opacity="0.85"><title>{escape(name)} (Alabama)</title></path>'
+            )
         else:
-            stroke_color = "#fff"
-            stroke_width = "0.6"
-        fill_color = county_fill_colors.get(name.lower()) if county_fill_colors is not None else colors[region]
+            paths.append(
+                f'<path d="{d}" fill="{fill_color}" stroke="none"><title>{escape(name)}</title></path>'
+            )
+
+    # Build segment map to determine which borders should be drawn and with what opacity
+    segment_map: dict[tuple[tuple[float, float], tuple[float, float]], set[str]] = {}
+    for county_name, segments in county_segments.items():
+        for segment in segments:
+            segment_map.setdefault(segment, set()).add(county_name)
+
+    # Categorize segments into different types
+    state_boundary_segments: list[tuple[float, float, float, float]] = []
+    ga_to_oos_segments: list[tuple[float, float, float, float]] = []
+    region_boundary_segments: list[tuple[float, float, float, float]] = []
+    internal_region_segments: list[tuple[float, float, float, float]] = []
+    
+    oos_counties = sc_counties | al_counties
+    
+    for segment, counties in segment_map.items():
+        (x1, y1), (x2, y2) = segment
+        
+        if len(counties) == 1:
+            # External boundary (state edge)
+            county_name = list(counties)[0]
+            if county_name not in oos_counties:
+                state_boundary_segments.append((x1, y1, x2, y2))
+        elif len(counties) == 2:
+            county1, county2 = list(counties)
+            region1 = county_region[county1]
+            region2 = county_region[county2]
+            is_oos_1 = county1 in oos_counties
+            is_oos_2 = county2 in oos_counties
+            
+            # Check if border is between GA and out-of-state
+            if is_oos_1 != is_oos_2:
+                ga_to_oos_segments.append((x1, y1, x2, y2))
+            # Check if it's an internal region border
+            elif region1 == region2 and region_county_count.get(region1, 1) > 1:
+                internal_region_segments.append((x1, y1, x2, y2))
+            # Otherwise it's a border between different regions
+            else:
+                region_boundary_segments.append((x1, y1, x2, y2))
+
+    # 1. Internal county borders (thin, subtle, butt caps so tripoints stay clean)
+    if internal_region_segments:
+        internal_d = segments_to_path_d(internal_region_segments)
         paths.append(
-            f'<path d="{d}" fill="{fill_color}" stroke="{stroke_color}" stroke-width="{stroke_width}" stroke-linejoin="round"><title>{escape(name)} - {escape(label)}</title></path>'
+            f'<path d="{internal_d}" fill="none" stroke="#f2f2f2" stroke-width="0.8" '
+            f'stroke-linecap="butt" stroke-linejoin="round" opacity="0.5"/>'
         )
 
-    if title in {"Regions", "YTD Checklists"}:
-        segment_map: dict[tuple[tuple[float, float], tuple[float, float]], set[str]] = {}
-        for county_name, segments in county_segments.items():
-            for segment in segments:
-                segment_map.setdefault(segment, set()).add(county_name)
+    # 2. Region borders (continuous polylines with round joins and butt caps)
+    if region_boundary_segments:
+        region_d = segments_to_path_d(region_boundary_segments)
+        paths.append(
+            f'<path d="{region_d}" fill="none" stroke="#f2f2f2" stroke-width="1.2" '
+            f'stroke-linecap="butt" stroke-linejoin="round"/>'
+        )
 
-        state_boundary_segments: list[tuple[float, float, float, float]] = []
-        category_boundary_segments: list[tuple[float, float, float, float]] = []
-        seen: set[tuple[tuple[float, float], tuple[float, float]]] = set()
-        for segment, counties in segment_map.items():
-            if len(counties) == 1:
-                (x1, y1), (x2, y2) = segment
-                state_boundary_segments.append((x1, y1, x2, y2))
-                continue
-            groups = {county_group.get(county, "") for county in counties if county in county_group}
-            if len(groups) <= 1:
-                continue
-            if segment in seen:
-                continue
-            seen.add(segment)
-            (x1, y1), (x2, y2) = segment
-            category_boundary_segments.append((x1, y1, x2, y2))
-
-        if state_boundary_segments:
-            state_d = " ".join(
-                f"M {x1:.1f} {y1:.1f} L {x2:.1f} {y2:.1f}"
-                for x1, y1, x2, y2 in state_boundary_segments
-            )
-            paths.append(
-                f'<path d="{state_d}" fill="none" stroke="#fff" stroke-width="3.2" stroke-linecap="butt" stroke-linejoin="miter" opacity="0.95"/>'
-            )
-
-        if category_boundary_segments:
-            boundary_d = " ".join(
-                f"M {x1:.1f} {y1:.1f} L {x2:.1f} {y2:.1f}"
-                for x1, y1, x2, y2 in category_boundary_segments
-            )
-            paths.append(
-                f'<path d="{boundary_d}" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="butt" stroke-linejoin="miter" opacity="0.9"/>'
-            )
+    # 3. Thick outer state & GA-to-OOS borders combined into one continuous path
+    all_state_segments = state_boundary_segments + ga_to_oos_segments
+    if all_state_segments:
+        state_d = segments_to_path_d(all_state_segments)
+        paths.append(
+            f'<path d="{state_d}" fill="none" stroke="#fff" stroke-width="3.2" '
+            f'stroke-linecap="round" stroke-linejoin="round" opacity="0.95"/>'
+        )
 
     map_labels = []
-    if title != "YTD Checklists":
-        for region, (area2, x_moment, y_moment) in centroids.items():
-            if not area2:
-                continue
-            label = (labels or {}).get(region, region)
-            font_size = 12 if title == "Categories" else 12
-            offset_key = region.lower().replace(" ", "-")
-            offset_x, offset_y = LABEL_OFFSETS.get(offset_key, (0, 0))
-            map_labels.append(
-                f'<text x="{x_moment / (3 * area2) + offset_x:.1f}" '
-                f'y="{y_moment / (3 * area2) + offset_y:.1f}" '
-                f'text-anchor="middle" dominant-baseline="central" font-size="{font_size}" '
-                f'font-weight="bold" fill="#fff" stroke="#000" stroke-width="4" '
-                f'stroke-linejoin="round" paint-order="stroke">{escape(label)}</text>'
-            )
-
-    county_label_items = []
-    if title == "YTD Checklists" and county_labels:
-        for county_name, label in county_labels.items():
-            center = county_centroids.get(county_name)
-            if center is None:
-                continue
-            x, y = center
-            county_label_items.append(
-                f'<text x="{x:.1f}" y="{y:.1f}" text-anchor="middle" dominant-baseline="central" '
-                f'font-size="8" font-weight="bold" fill="#fff" stroke="#000" stroke-width="3" '
-                f'paint-order="stroke">{escape(label)}</text>'
-            )
-
-    legend = ""
-    if title == "Regions":
-        legend_items = []
-        legend_x = MAP_WIDTH - 100
-        legend_y = 52
-        legend_title = (
-            f'<text x="{legend_x}" y="{legend_y - 12}" font-size="13" font-weight="bold" fill="#fff">'
-            f'{escape("RBA Areas")}</text>'
+    for region, (area2, x_moment, y_moment) in centroids.items():
+        if not area2:
+            continue
+        label = (labels or {}).get(region, region)
+        offset_key = region.lower().replace(" ", "-")
+        offset_x, offset_y = LABEL_OFFSETS.get(offset_key, (0, 0))
+        map_labels.append(
+            f'<text x="{x_moment / (3 * area2) + offset_x:.1f}" '
+            f'y="{y_moment / (3 * area2) + offset_y:.1f}" '
+            f'text-anchor="middle" dominant-baseline="central" font-size="12" '
+            f'font-weight="bold" fill="#fff" stroke="#000" stroke-width="4" '
+            f'stroke-linejoin="round" paint-order="stroke">{escape(label)}</text>'
         )
-        for index, (category, color) in enumerate(GROUP_COLORS.items()):
-            item_y = legend_y + index * 22
-            legend_items.append(
-                f'<rect x="{legend_x}" y="{item_y}" width="18" height="18" fill="{color}" stroke="#fff" stroke-width="1"/>'
-            )
-            legend_items.append(
-                f'<text x="{legend_x + 24}" y="{item_y + 13}" font-size="12" fill="#fff">{escape(category)}</text>'
-            )
-        legend = "\n".join([legend_title, *legend_items])
-    elif title == "YTD Checklists" and legend_scale_values:
-        legend_items = []
-        legend_x = MAP_WIDTH - 145
-        legend_y = 52
-        for index, value in enumerate(legend_scale_values):
-            item_y = legend_y + index * 22
-            color = heatmap_color(value, min(legend_scale_values), max(legend_scale_values))
-            legend_items.append(
-                f'<rect x="{legend_x}" y="{item_y}" width="18" height="18" fill="{color}" stroke="#fff" stroke-width="1"/>'
-            )
-            legend_items.append(
-                f'<text x="{legend_x + 24}" y="{item_y + 13}" font-size="12" fill="#fff">{escape(str(value))}</text>'
-            )
-        legend = "\n".join(legend_items)
+
+    # Position legend on the right side with background box
+    legend_items = []
+    legend_x = MAP_WIDTH + PAD - 20
+    legend_y = PAD + 20
+    
+    # Calculate legend dimensions for background box
+    legend_title_text = "RBA Areas"
+    legend_box_width = 155
+    legend_box_height = 24 + len(GROUP_COLORS) * 22 + 10
+    legend_box_x = legend_x - 10
+    legend_box_y = legend_y - 5
+    
+    # Add background rectangle for legend
+    legend_items.append(
+        f'<rect x="{legend_box_x}" y="{legend_box_y}" width="{legend_box_width}" height="{legend_box_height}" '
+        f'fill="#000" opacity="0.75" />'
+    )
+    
+    legend_title = (
+        f'<text x="{legend_x}" y="{legend_y+16}" font-size="16" font-weight="bold" fill="#fff">'
+        f'{escape(legend_title_text)}</text>'
+    )
+    legend_items.append(legend_title)
+    
+    for index, (category, color) in enumerate(GROUP_COLORS.items()):
+        item_y = legend_y + 28 + index * 22
+        legend_items.append(
+            f'<rect x="{legend_x}" y="{item_y}" width="16" height="16" fill="{color}" stroke="#fff" stroke-width="1"/>'
+        )
+        legend_items.append(
+            f'<text x="{legend_x + 22}" y="{item_y + 12}" font-size="12" fill="#fff">{escape(category)}</text>'
+        )
+    legend = "\n".join(legend_items)
 
     panel_height = height
+    defs_svg = (
+        '<defs>'
+        '<pattern id="oos-stripes" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(-45)">'
+        '<line x1="0" y1="0" x2="0" y2="6" stroke="#262127" opacity="0.5" stroke-width="4"/>'
+        '</pattern>'
+        '</defs>'
+    )
     svg = (
         f'<g transform="translate(0,{y0})">\n'
+        f'{defs_svg}\n'
         f'<text x="{PAD}" y="26" font-size="18" font-weight="bold">{escape(title)}</text>\n'
         f'<g>\n' + "\n".join(paths) + "\n</g>\n"
         + "\n".join(map_labels) + "\n"
-        + "\n".join(county_label_items) + "\n"
         + legend
         + "\n</g>\n"
     )
@@ -521,41 +524,19 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
 
 def main():
     regions = REGIONS
-    groups = {g: [c for r in rs for c in regions[r]] for g, rs in REGION_GROUPS.items()}
     features = load_counties()
-    raw_counts = load_ytd_county_data()
-    chart_min = min(raw_counts.values())
-    chart_max = max(raw_counts.values())
-    ytd_heatmap = {county.lower(): heatmap_color(value, chart_min, chart_max) for county, value in raw_counts.items()}
-    ytd_count_labels = {county.lower(): format_ytd_count(value) for county, value in raw_counts.items()}
-    ytd_scale = legend_values(chart_min, chart_max)
 
     output_dir = Path(__file__).parent
-    for filename, categories, colors, title, labels, county_fill_colors, legend_values_for_map in (
-        ("georgia_regions.svg", regions, COLORS, "Regions", REGION_LABELS, None, None),
-        ("georgia_ytd.svg", regions, {}, "YTD Checklists", REGION_LABELS, ytd_heatmap, ytd_scale),
-    ):
-        county_labels = ytd_count_labels if title == "YTD Checklists" else None
-        svg, height = panel(
-            features,
-            categories,
-            colors,
-            title,
-            0,
-            labels,
-            county_fill_colors=county_fill_colors,
-            legend_scale_values=legend_values_for_map,
-            county_labels=county_labels,
-        )
-        width = MAP_WIDTH + 2 * PAD
-        out = output_dir / filename
-        out.write_text(
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
-            f'width="{width}" font-family="sans-serif" font-size="13" fill="#fff">\n'
-            f'<rect width="100%" height="100%" fill="#000"/>\n' + svg + "</svg>\n",
-            encoding="utf-8",
-        )
-        print(f"Wrote {out} ({len(features)} counties, {len(categories)} {title.lower()})")
+    svg, height = panel(features, regions, COLORS, "GA Birding Discord Regions", 0, REGION_LABELS)
+    width = MAP_WIDTH + 2 * PAD + 120
+    out = output_dir / "georgia_regions.svg"
+    out.write_text(
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
+        f'width="{width}" font-family="sans-serif" font-size="13" fill="#fff">\n'
+        f'<rect width="100%" height="100%" fill="#262127"/>\n' + svg + "</svg>\n",
+        encoding="utf-8",
+    )
+    print(f"Wrote {out} ({len(regions)} regions)")
 
 
 if __name__ == "__main__":
