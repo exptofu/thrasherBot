@@ -4,6 +4,7 @@ let COUNTY_TO_REGION = {};
 let COUNTY_TO_CATEGORY = {};
 let COUNTY_GEOID_BY_NAME = {};
 let countyGeoJson = null;
+let countyGeoJsonPromise = null;
 
 async function loadRegionData() {
   const response = await fetch('regions.json', { cache: 'no-cache' });
@@ -809,45 +810,61 @@ function pointInPolygon(point, coordinates) {
   return false;
 }
 
-async function loadCountyGeodata() {
-  if (countyGeoJson) return countyGeoJson;
+async function fetchCountyBoundaryData() {
+  if (typeof DecompressionStream === 'function') {
+    const response = await fetch('county-boundaries.geojson.gz');
+    if (!response.ok) {
+      throw new Error(`Compressed county geography request failed: ${response.status}`);
+    }
 
-  const response = await fetch('https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json');
+    const compressed = await response.arrayBuffer();
+    const stream = new Blob([compressed]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return new Response(stream).json();
+  }
+
+  const response = await fetch('county-boundaries.geojson');
   if (!response.ok) {
     throw new Error(`County geography request failed: ${response.status}`);
   }
+  return response.json();
+}
 
-  const data = await response.json();
-  const configuredGeoids = new Set(Object.keys(COUNTY_TO_REGION));
-  countyGeoJson = data.features.flatMap((feature) => {
-    const properties = feature.properties || {};
-    const rawGeoid = feature.id || properties.GEOID || properties.GEO_ID;
-    const match = String(rawGeoid || '').match(/(\d{5})$/);
-    const state = properties.STATE || properties.STATEFP;
-    const county = properties.COUNTY || properties.COUNTYFP;
-    const geoid = match
-      ? match[1]
-      : state && county
-        ? `${String(state).padStart(2, '0')}${String(county).padStart(3, '0')}`
-        : '';
-    if (!configuredGeoids.has(geoid)) return [];
-    return [{
-      ...feature,
-      properties: {
-        ...properties,
-        GEOID: geoid,
-        NAME: properties.NAME
+async function loadCountyGeodata() {
+  if (countyGeoJson) return countyGeoJson;
+  if (!countyGeoJsonPromise) {
+    countyGeoJsonPromise = (async () => {
+      const data = await fetchCountyBoundaryData();
+      const configuredGeoids = new Set(Object.keys(COUNTY_TO_REGION));
+      const features = (data.features || []).flatMap((feature) => {
+        const properties = feature.properties || {};
+        const geoid = String(properties.GEOID || '');
+        if (!configuredGeoids.has(geoid)) return [];
+        return [{
+          ...feature,
+          properties: {
+            ...properties,
+            GEOID: geoid,
+            NAME: String(properties.NAME || '').replace(/ County$/i, '')
+          }
+        }];
+      });
+
+      const loadedGeoids = new Set(features.map((feature) => feature.properties.GEOID));
+      const missingGeoids = [...configuredGeoids].filter((geoid) => !loadedGeoids.has(geoid));
+      if (missingGeoids.length) {
+        throw new Error(`County geography is missing configured GEOIDs: ${missingGeoids.join(', ')}`);
       }
-    }];
-  });
-
-  const loadedGeoids = new Set(countyGeoJson.map((feature) => feature.properties.GEOID));
-  const missingGeoids = [...configuredGeoids].filter((geoid) => !loadedGeoids.has(geoid));
-  if (missingGeoids.length) {
-    countyGeoJson = null;
-    throw new Error(`County geography is missing configured GEOIDs: ${missingGeoids.join(', ')}`);
+      countyGeoJson = features;
+      return countyGeoJson;
+    })();
   }
-  return countyGeoJson;
+
+  try {
+    return await countyGeoJsonPromise;
+  } catch (error) {
+    countyGeoJsonPromise = null;
+    throw error;
+  }
 }
 
 function countyCentroid(feature) {

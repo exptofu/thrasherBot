@@ -7,6 +7,7 @@ on:
       - ".github/workflows/deploy-pages.yml"
       - "regions.json"
       - "region_data.py"
+      - "utils/download_county_boundaries.py"
       - "site/**"
   workflow_dispatch:
 
@@ -33,6 +34,7 @@ jobs:
           mkdir _site
           cp -R site/. _site/
           cp regions.json _site/regions.json
+          python utils/download_county_boundaries.py --output _site/county-boundaries.geojson
           touch _site/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:

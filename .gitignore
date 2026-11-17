@@ -3,3 +3,5 @@
 *.db
 __pycache__/
 .cache/
+site/county-boundaries.geojson
+site/county-boundaries.geojson.gz
