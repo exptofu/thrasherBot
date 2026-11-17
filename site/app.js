@@ -282,11 +282,15 @@ function createGpsPositionMarker() {
   };
 }
 
+function gpsCalibrationWindowOpen() {
+  return Boolean(gpsTrackingStartedAt && gpsAutoCenterUntil && Date.now() < gpsAutoCenterUntil);
+}
+
 function applyMapCenterLocation() {
-  // Ignore the map center while GPS tracking is actively refining a fix. Once that
-  // calibration window ends, user-dragged repositioning should update the recorded
-  // latitude/longitude immediately.
-  if (!gpsMap || gpsTrackingActive || gpsTrackingStartedAt) return;
+  // Ignore the map center only while the GPS auto-center calibration is still active.
+  // A stale startedAt value can otherwise leave desktop browsers locked forever even
+  // after the calibration window has expired.
+  if (!gpsMap || gpsCalibrationWindowOpen()) return;
   const center = gpsMap.getCenter();
   setLocation(center.lat, center.lng, 25);
 }
@@ -472,7 +476,7 @@ function updateGpsTrackingMarker(position) {
 function updateGpsRecenterButton() {
   const button = document.getElementById('gpsRecenterBtn');
   if (!button) return;
-  if (!gpsMap || !gpsAnchor || gpsTrackingStartedAt) {
+  if (!gpsMap || !gpsAnchor || gpsCalibrationWindowOpen()) {
     button.hidden = true;
     return;
   }
