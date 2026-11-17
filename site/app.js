@@ -283,7 +283,10 @@ function createGpsPositionMarker() {
 }
 
 function applyMapCenterLocation() {
-  if (!gpsMap || gpsTrackingStartedAt) return;
+  // Ignore the map center while GPS tracking is actively refining a fix. Once that
+  // calibration window ends, user-dragged repositioning should update the recorded
+  // latitude/longitude immediately.
+  if (!gpsMap || gpsTrackingActive || gpsTrackingStartedAt) return;
   const center = gpsMap.getCenter();
   setLocation(center.lat, center.lng, 25);
 }
@@ -740,6 +743,7 @@ function useMyGps() {
         gpsMap.setView([latitude, longitude], Math.max(gpsMap.getZoom(), 14), { animate: false });
         gpsMap.dragPan.enable(MAP_DRAG_PAN_INERTIA);
       }
+      gpsTrackingActive = false;
       setGpsLocatingOverlayVisible(false);
       gpsAutoCenterUntil = 0;
       gpsTrackingStartedAt = 0;
