@@ -12,7 +12,7 @@ from discord import app_commands
 from discord.ext import tasks
 from dotenv import load_dotenv
 
-from georgia_map import REGION_GROUPS, REGIONS
+from region_data import REGION_GROUPS, REGIONS
 from gps import build_georgia_coordinates_embed, find_georgia_coordinates
 
 load_dotenv()

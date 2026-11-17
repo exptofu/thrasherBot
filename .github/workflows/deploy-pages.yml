@@ -1,0 +1,53 @@
+name: Deploy Pages
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/deploy-pages.yml"
+      - "regions.json"
+      - "region_data.py"
+      - "site/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shared region data
+        run: python -c "from region_data import COUNTY_REGION; print(f'Validated {len(COUNTY_REGION)} county GEOIDs')"
+      - name: Check Python syntax
+        run: python -m py_compile bot.py georgia_map.py region_data.py
+      - name: Check website JavaScript syntax
+        run: node --check site/app.js
+      - name: Assemble Pages artifact
+        run: |
+          mkdir _site
+          cp -R site/. _site/
+          cp regions.json _site/regions.json
+          touch _site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

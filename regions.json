@@ -1,0 +1,779 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "region_labels": {
+      "greater-athens": "Greater Athens",
+      "greater-savannah": "Greater Savannah",
+      "gwinnett-county": "Gwinnett",
+      "metro-atlanta-north": "Metro Atlanta North",
+      "dekalb-county": "Dekalb",
+      "cobb-county": "Cobb",
+      "metro-atlanta-south": "Metro Atlanta South",
+      "greater-macon": "Greater Macon",
+      "fall-line-sandhills": "Fall Line Sandhills",
+      "west-piedmont": "West Piedmont",
+      "blue-ridge": "Blue Ridge",
+      "okefenokee-basin": "Okefenokee Basin",
+      "greater-valdosta": "Greater Valdosta",
+      "lake-seminole-watershed": "Lake Seminole Watershed",
+      "three-rivers-basin": "Three Rivers Basin",
+      "broad-river-watershed": "Broad River Watershed",
+      "greater-columbus": "Greater Columbus",
+      "golden-isles": "Golden Isles",
+      "greater-augusta": "Greater Augusta",
+      "fulton-county": "Fulton",
+      "ridge-and-valleys": "Ridge and Valleys",
+      "greater-statesboro": "Greater Statesboro"
+    },
+    "region_groups": {
+      "Metro Atlanta": [
+        "metro-atlanta-south",
+        "metro-atlanta-north",
+        "fulton-county",
+        "dekalb-county",
+        "gwinnett-county",
+        "cobb-county"
+      ],
+      "Southeast Georgia": [
+        "golden-isles"
+      ],
+      "Savannah Area": [
+        "greater-savannah"
+      ],
+      "Athens Area": [
+        "greater-athens"
+      ],
+      "Augusta Area": [
+        "greater-augusta"
+      ],
+      "Central Georgia": [
+        "fall-line-sandhills",
+        "greater-macon"
+      ],
+      "West Georgia": [
+        "west-piedmont",
+        "greater-columbus"
+      ],
+      "North Georgia": [
+        "broad-river-watershed",
+        "blue-ridge",
+        "ridge-and-valleys"
+      ],
+      "South Georgia": [
+        "okefenokee-basin",
+        "lake-seminole-watershed",
+        "three-rivers-basin",
+        "greater-valdosta"
+      ],
+      "Statesboro Area": [
+        "greater-statesboro"
+      ]
+    },
+    "group_colors": {
+      "North Georgia": "#1a6aa3",
+      "Metro Atlanta": "#ba5e74",
+      "Athens Area": "#2da172",
+      "Augusta Area": "#ba845e",
+      "West Georgia": "#b63ec7",
+      "Central Georgia": "#4f4ea3",
+      "Statesboro Area": "#2b7a8a",
+      "Savannah Area": "#b6323d",
+      "South Georgia": "#4d7f2d",
+      "Southeast Georgia": "#EFBF04"
+    }
+  },
+  "regions": {
+    "greater-athens": [
+      {
+        "geoid": "13013",
+        "name": "Barrow"
+      },
+      {
+        "geoid": "13297",
+        "name": "Walton"
+      },
+      {
+        "geoid": "13133",
+        "name": "Greene"
+      },
+      {
+        "geoid": "13211",
+        "name": "Morgan"
+      },
+      {
+        "geoid": "13221",
+        "name": "Oglethorpe"
+      },
+      {
+        "geoid": "13157",
+        "name": "Jackson"
+      },
+      {
+        "geoid": "13195",
+        "name": "Madison"
+      },
+      {
+        "geoid": "13059",
+        "name": "Clarke"
+      },
+      {
+        "geoid": "13219",
+        "name": "Oconee"
+      }
+    ],
+    "greater-savannah": [
+      {
+        "geoid": "13051",
+        "name": "Chatham"
+      },
+      {
+        "geoid": "13029",
+        "name": "Bryan"
+      },
+      {
+        "geoid": "13179",
+        "name": "Liberty"
+      },
+      {
+        "geoid": "13103",
+        "name": "Effingham"
+      }
+    ],
+    "gwinnett-county": [
+      {
+        "geoid": "13135",
+        "name": "Gwinnett"
+      }
+    ],
+    "cobb-county": [
+      {
+        "geoid": "13067",
+        "name": "Cobb"
+      }
+    ],
+    "metro-atlanta-north": [
+      {
+        "geoid": "13117",
+        "name": "Forsyth"
+      },
+      {
+        "geoid": "13097",
+        "name": "Douglas"
+      },
+      {
+        "geoid": "13057",
+        "name": "Cherokee"
+      },
+      {
+        "geoid": "13139",
+        "name": "Hall"
+      },
+      {
+        "geoid": "13015",
+        "name": "Bartow"
+      },
+      {
+        "geoid": "13223",
+        "name": "Paulding"
+      }
+    ],
+    "dekalb-county": [
+      {
+        "geoid": "13089",
+        "name": "DeKalb"
+      }
+    ],
+    "metro-atlanta-south": [
+      {
+        "geoid": "13077",
+        "name": "Coweta"
+      },
+      {
+        "geoid": "13151",
+        "name": "Henry"
+      },
+      {
+        "geoid": "13247",
+        "name": "Rockdale"
+      },
+      {
+        "geoid": "13217",
+        "name": "Newton"
+      },
+      {
+        "geoid": "13063",
+        "name": "Clayton"
+      },
+      {
+        "geoid": "13113",
+        "name": "Fayette"
+      },
+      {
+        "geoid": "13255",
+        "name": "Spalding"
+      },
+      {
+        "geoid": "13035",
+        "name": "Butts"
+      }
+    ],
+    "greater-macon": [
+      {
+        "geoid": "13021",
+        "name": "Bibb"
+      },
+      {
+        "geoid": "13169",
+        "name": "Jones"
+      },
+      {
+        "geoid": "13289",
+        "name": "Twiggs"
+      },
+      {
+        "geoid": "13153",
+        "name": "Houston"
+      },
+      {
+        "geoid": "13225",
+        "name": "Peach"
+      },
+      {
+        "geoid": "13079",
+        "name": "Crawford"
+      },
+      {
+        "geoid": "13207",
+        "name": "Monroe"
+      }
+    ],
+    "fall-line-sandhills": [
+      {
+        "geoid": "13231",
+        "name": "Pike"
+      },
+      {
+        "geoid": "13293",
+        "name": "Upson"
+      },
+      {
+        "geoid": "13171",
+        "name": "Lamar"
+      },
+      {
+        "geoid": "13319",
+        "name": "Wilkinson"
+      },
+      {
+        "geoid": "13009",
+        "name": "Baldwin"
+      },
+      {
+        "geoid": "13159",
+        "name": "Jasper"
+      },
+      {
+        "geoid": "13237",
+        "name": "Putnam"
+      },
+      {
+        "geoid": "13141",
+        "name": "Hancock"
+      },
+      {
+        "geoid": "13303",
+        "name": "Washington"
+      },
+      {
+        "geoid": "13235",
+        "name": "Pulaski"
+      },
+      {
+        "geoid": "13023",
+        "name": "Bleckley"
+      },
+      {
+        "geoid": "13175",
+        "name": "Laurens"
+      },
+      {
+        "geoid": "13167",
+        "name": "Johnson"
+      },
+      {
+        "geoid": "13269",
+        "name": "Taylor"
+      },
+      {
+        "geoid": "13193",
+        "name": "Macon"
+      },
+      {
+        "geoid": "13093",
+        "name": "Dooly"
+      },
+      {
+        "geoid": "13249",
+        "name": "Schley"
+      },
+      {
+        "geoid": "13091",
+        "name": "Dodge"
+      },
+      {
+        "geoid": "13283",
+        "name": "Treutlen"
+      }
+    ],
+    "west-piedmont": [
+      {
+        "geoid": "13045",
+        "name": "Carroll"
+      },
+      {
+        "geoid": "13149",
+        "name": "Heard"
+      },
+      {
+        "geoid": "13143",
+        "name": "Haralson"
+      }
+    ],
+    "blue-ridge": [
+      {
+        "geoid": "13123",
+        "name": "Gilmer"
+      },
+      {
+        "geoid": "13227",
+        "name": "Pickens"
+      },
+      {
+        "geoid": "13085",
+        "name": "Dawson"
+      },
+      {
+        "geoid": "13291",
+        "name": "Union"
+      },
+      {
+        "geoid": "13111",
+        "name": "Fannin"
+      },
+      {
+        "geoid": "13187",
+        "name": "Lumpkin"
+      },
+      {
+        "geoid": "13311",
+        "name": "White"
+      },
+      {
+        "geoid": "13281",
+        "name": "Towns"
+      },
+      {
+        "geoid": "13241",
+        "name": "Rabun"
+      },
+      {
+        "geoid": "13137",
+        "name": "Habersham"
+      }
+    ],
+    "okefenokee-basin": [
+      {
+        "geoid": "13003",
+        "name": "Atkinson"
+      },
+      {
+        "geoid": "13299",
+        "name": "Ware"
+      },
+      {
+        "geoid": "13005",
+        "name": "Bacon"
+      },
+      {
+        "geoid": "13229",
+        "name": "Pierce"
+      },
+      {
+        "geoid": "13025",
+        "name": "Brantley"
+      },
+      {
+        "geoid": "13065",
+        "name": "Clinch"
+      },
+      {
+        "geoid": "13049",
+        "name": "Charlton"
+      }
+    ],
+    "greater-valdosta": [
+      {
+        "geoid": "13071",
+        "name": "Colquitt"
+      },
+      {
+        "geoid": "13075",
+        "name": "Cook"
+      },
+      {
+        "geoid": "13027",
+        "name": "Brooks"
+      },
+      {
+        "geoid": "13185",
+        "name": "Lowndes"
+      },
+      {
+        "geoid": "13019",
+        "name": "Berrien"
+      },
+      {
+        "geoid": "13173",
+        "name": "Lanier"
+      },
+      {
+        "geoid": "13101",
+        "name": "Echols"
+      }
+    ],
+    "lake-seminole-watershed": [
+      {
+        "geoid": "13261",
+        "name": "Sumter"
+      },
+      {
+        "geoid": "13081",
+        "name": "Crisp"
+      },
+      {
+        "geoid": "13243",
+        "name": "Randolph"
+      },
+      {
+        "geoid": "13273",
+        "name": "Terrell"
+      },
+      {
+        "geoid": "13177",
+        "name": "Lee"
+      },
+      {
+        "geoid": "13321",
+        "name": "Worth"
+      },
+      {
+        "geoid": "13287",
+        "name": "Turner"
+      },
+      {
+        "geoid": "13061",
+        "name": "Clay"
+      },
+      {
+        "geoid": "13037",
+        "name": "Calhoun"
+      },
+      {
+        "geoid": "13095",
+        "name": "Dougherty"
+      },
+      {
+        "geoid": "13277",
+        "name": "Tift"
+      },
+      {
+        "geoid": "13099",
+        "name": "Early"
+      },
+      {
+        "geoid": "13201",
+        "name": "Miller"
+      },
+      {
+        "geoid": "13007",
+        "name": "Baker"
+      },
+      {
+        "geoid": "13205",
+        "name": "Mitchell"
+      },
+      {
+        "geoid": "13253",
+        "name": "Seminole"
+      },
+      {
+        "geoid": "13087",
+        "name": "Decatur"
+      },
+      {
+        "geoid": "13131",
+        "name": "Grady"
+      },
+      {
+        "geoid": "13275",
+        "name": "Thomas"
+      }
+    ],
+    "three-rivers-basin": [
+      {
+        "geoid": "13315",
+        "name": "Wilcox"
+      },
+      {
+        "geoid": "13271",
+        "name": "Telfair"
+      },
+      {
+        "geoid": "13017",
+        "name": "Ben Hill"
+      },
+      {
+        "geoid": "13155",
+        "name": "Irwin"
+      },
+      {
+        "geoid": "13069",
+        "name": "Coffee"
+      },
+      {
+        "geoid": "13161",
+        "name": "Jeff Davis"
+      },
+      {
+        "geoid": "13309",
+        "name": "Wheeler"
+      },
+      {
+        "geoid": "13209",
+        "name": "Montgomery"
+      },
+      {
+        "geoid": "13279",
+        "name": "Toombs"
+      },
+      {
+        "geoid": "13001",
+        "name": "Appling"
+      },
+      {
+        "geoid": "13267",
+        "name": "Tattnall"
+      },
+      {
+        "geoid": "13183",
+        "name": "Long"
+      },
+      {
+        "geoid": "13305",
+        "name": "Wayne"
+      }
+    ],
+    "broad-river-watershed": [
+      {
+        "geoid": "13105",
+        "name": "Elbert"
+      },
+      {
+        "geoid": "13147",
+        "name": "Hart"
+      },
+      {
+        "geoid": "13257",
+        "name": "Stephens"
+      },
+      {
+        "geoid": "13119",
+        "name": "Franklin"
+      },
+      {
+        "geoid": "13011",
+        "name": "Banks"
+      }
+    ],
+    "greater-columbus": [
+      {
+        "geoid": "13263",
+        "name": "Talbot"
+      },
+      {
+        "geoid": "13197",
+        "name": "Marion"
+      },
+      {
+        "geoid": "13259",
+        "name": "Stewart"
+      },
+      {
+        "geoid": "13307",
+        "name": "Webster"
+      },
+      {
+        "geoid": "13239",
+        "name": "Quitman"
+      },
+      {
+        "geoid": "13145",
+        "name": "Harris"
+      },
+      {
+        "geoid": "13215",
+        "name": "Muscogee"
+      },
+      {
+        "geoid": "13053",
+        "name": "Chattahoochee"
+      },
+      {
+        "geoid": "13285",
+        "name": "Troup"
+      },
+      {
+        "geoid": "13199",
+        "name": "Meriwether"
+      },
+      {
+        "geoid": "01113",
+        "name": "Russell"
+      }
+    ],
+    "golden-isles": [
+      {
+        "geoid": "13191",
+        "name": "McIntosh"
+      },
+      {
+        "geoid": "13127",
+        "name": "Glynn"
+      },
+      {
+        "geoid": "13039",
+        "name": "Camden"
+      }
+    ],
+    "greater-augusta": [
+      {
+        "geoid": "13265",
+        "name": "Taliaferro"
+      },
+      {
+        "geoid": "13301",
+        "name": "Warren"
+      },
+      {
+        "geoid": "13125",
+        "name": "Glascock"
+      },
+      {
+        "geoid": "13165",
+        "name": "Jenkins"
+      },
+      {
+        "geoid": "13033",
+        "name": "Burke"
+      },
+      {
+        "geoid": "13163",
+        "name": "Jefferson"
+      },
+      {
+        "geoid": "13189",
+        "name": "McDuffie"
+      },
+      {
+        "geoid": "13181",
+        "name": "Lincoln"
+      },
+      {
+        "geoid": "13317",
+        "name": "Wilkes"
+      },
+      {
+        "geoid": "13245",
+        "name": "Richmond"
+      },
+      {
+        "geoid": "13073",
+        "name": "Columbia"
+      },
+      {
+        "geoid": "45003",
+        "name": "Aiken"
+      },
+      {
+        "geoid": "45037",
+        "name": "Edgefield"
+      }
+    ],
+    "fulton-county": [
+      {
+        "geoid": "13121",
+        "name": "Fulton"
+      }
+    ],
+    "ridge-and-valleys": [
+      {
+        "geoid": "13115",
+        "name": "Floyd"
+      },
+      {
+        "geoid": "13055",
+        "name": "Chattooga"
+      },
+      {
+        "geoid": "13295",
+        "name": "Walker"
+      },
+      {
+        "geoid": "13083",
+        "name": "Dade"
+      },
+      {
+        "geoid": "13047",
+        "name": "Catoosa"
+      },
+      {
+        "geoid": "13313",
+        "name": "Whitfield"
+      },
+      {
+        "geoid": "13129",
+        "name": "Gordon"
+      },
+      {
+        "geoid": "13213",
+        "name": "Murray"
+      },
+      {
+        "geoid": "13233",
+        "name": "Polk"
+      }
+    ],
+    "greater-statesboro": [
+      {
+        "geoid": "13107",
+        "name": "Emanuel"
+      },
+      {
+        "geoid": "13109",
+        "name": "Evans"
+      },
+      {
+        "geoid": "13043",
+        "name": "Candler"
+      },
+      {
+        "geoid": "13031",
+        "name": "Bulloch"
+      },
+      {
+        "geoid": "13251",
+        "name": "Screven"
+      }
+    ]
+  }
+}

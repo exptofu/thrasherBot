@@ -6,125 +6,22 @@ Usage: python georgia_map.py
 import json
 import math
 import re
-import sys
 import urllib.request
 from pathlib import Path
 from xml.sax.saxutils import escape
 
+from region_data import (
+    COUNTY_REGION,
+    GROUP_COLORS,
+    REGION_COUNTIES,
+    REGION_GROUPS,
+    REGION_LABELS,
+    REGIONS,
+)
+
 GEOJSON_URL = "https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json"
-GEORGIA_FIPS = "13"
-SOUTH_CAROLINA_FIPS = "45"  # For Aiken and Edgefield counties
-ALABAMA_FIPS = "01"  # For Russell County
 MAP_WIDTH = 620
 PAD = 60
-
-# Keep these county assignments and categories synchronized with bot.py.
-REGIONS = {
-    "greater-athens": ["Barrow", "Walton", "Greene", "Morgan", "Oglethorpe", "Jackson", "Madison", "Clarke", "Oconee"],
-    "greater-savannah": ["Chatham", "Bryan", "Liberty", "Effingham"],
-    "gwinnett-county": ["Gwinnett"],
-    "cobb-county": ["Cobb"],
-    "metro-atlanta-north": ["Forsyth", "Douglas", "Cherokee", "Hall", "Bartow", "Paulding"],
-    "dekalb-county": ["DeKalb"],
-    "metro-atlanta-south": ["Coweta", "Henry", "Rockdale", "Newton", "Clayton", "Fayette", "Spalding", "Butts"],
-    "greater-macon": [
-        "Bibb", "Jones", "Twiggs", "Houston", "Peach", "Crawford", "Monroe",
-    ],
-    "fall-line-sandhills": [
-        "Pike", "Upson", "Lamar", "Wilkinson", "Baldwin", "Jasper", "Putnam", "Hancock", "Washington", "Pulaski",
-        "Bleckley", "Laurens", "Johnson", "Taylor", "Macon", "Dooly", "Schley", "Dodge", "Treutlen",
-    ],
-    "west-piedmont": ["Carroll", "Heard", "Haralson"],
-    "blue-ridge": [
-        "Gilmer", "Pickens", "Dawson", "Union", "Fannin", "Lumpkin", "White", "Towns", "Rabun", "Habersham",
-    ],
-    "okefenokee-basin": [
-        "Atkinson", "Ware", "Bacon", "Pierce", "Brantley", "Clinch", "Charlton",
-    ],
-    "greater-valdosta": [
-        "Colquitt", "Cook", "Brooks", "Lowndes", "Berrien", "Lanier", "Echols",
-    ],
-    "lake-seminole-watershed": [
-        "Sumter", "Crisp", "Randolph", "Terrell", "Lee", "Worth", "Turner", "Clay", "Calhoun",
-        "Dougherty", "Tift", "Early", "Miller", "Baker", "Mitchell", "Seminole", "Decatur", "Grady", "Thomas",
-    ],
-    "three-rivers-basin": [
-        "Wilcox", "Telfair", "Ben Hill", "Irwin", "Coffee", "Jeff Davis", "Wheeler", "Montgomery",
-        "Toombs", "Appling", "Tattnall", "Long", "Wayne",
-    ],
-    "broad-river-watershed": ["Elbert", "Hart", "Stephens", "Franklin", "Banks"],
-    "greater-columbus": ["Talbot", "Marion", "Stewart", "Webster", "Quitman", "Harris", "Muscogee", "Chattahoochee","Troup", "Meriwether", "Russell"],
-    "golden-isles": ["McIntosh", "Glynn", "Camden"],
-    "greater-augusta": ["Taliaferro", "Warren", "Glascock", "Jenkins", "Burke", "Jefferson", "McDuffie", "Lincoln", "Wilkes", "Richmond", "Columbia", "Aiken", "Edgefield"],
-    "fulton-county": ["Fulton"],
-    "ridge-and-valleys": ["Floyd", "Chattooga", "Walker", "Dade", "Catoosa", "Whitfield", "Gordon", "Murray", "Polk"],
-    "greater-statesboro": ["Emanuel", "Evans", "Candler", "Bulloch", "Screven"],
-}
-
-REGION_LABELS = {
-    "greater-athens": "Greater Athens",
-    "greater-savannah": "Greater Savannah",
-    "gwinnett-county": "Gwinnett",
-    "metro-atlanta-north": "Metro Atlanta North",
-    "dekalb-county": "Dekalb",
-    "cobb-county": "Cobb",
-    "metro-atlanta-south": "Metro Atlanta South",
-    "greater-macon": "Greater Macon",
-    "fall-line-sandhills": "Fall Line Sandhills",
-    "west-piedmont": "West Piedmont",
-    "blue-ridge": "Blue Ridge",
-    "okefenokee-basin": "Okefenokee Basin",
-    "greater-valdosta": "Greater Valdosta",
-    "lake-seminole-watershed": "Lake Seminole Watershed",
-    "three-rivers-basin": "Three Rivers Basin",
-    "broad-river-watershed": "Broad River Watershed",
-    "greater-columbus": "Greater Columbus",
-    "golden-isles": "Golden Isles",
-    "greater-augusta": "Greater Augusta",
-    "fulton-county": "Fulton",
-    "ridge-and-valleys": "Ridge and Valleys",
-    "greater-statesboro": "Greater Statesboro",
-}
-
-def validate_unique_counties() -> dict[str, str]:
-    assigned: dict[str, str] = {}
-    for region_name, counties in REGIONS.items():
-        for county in counties:
-            key = county.lower()
-            if key in assigned:
-                raise ValueError(f"County '{county}' is assigned to multiple regions: {assigned[key]} and {region_name}")
-            assigned[key] = region_name
-    return assigned
-
-
-COUNTY_REGION = validate_unique_counties()
-
-REGION_GROUPS = {
-    "Metro Atlanta": ["metro-atlanta-south", "metro-atlanta-north", "fulton-county", "dekalb-county", "gwinnett-county","cobb-county"],
-    "Southeast Georgia": ["golden-isles"],
-    "Savannah Area": ["greater-savannah"],
-    "Athens Area": ["greater-athens"],
-    "Augusta Area": ["greater-augusta"],
-    "Central Georgia": ["fall-line-sandhills", "greater-macon",],
-    "West Georgia": ["west-piedmont", "greater-columbus"],
-    "North Georgia": ["broad-river-watershed", "blue-ridge", "ridge-and-valleys"],
-    "South Georgia": ["okefenokee-basin", "lake-seminole-watershed", "three-rivers-basin", "greater-valdosta"],
-    "Statesboro Area": ["greater-statesboro"],
-}
-
-GROUP_COLORS = {
-    "North Georgia": "#1a6aa3", 
-    "Metro Atlanta": "#ba5e74", 
-    "Athens Area": "#2da172", 
-    "Augusta Area": "#ba845e", 
-    "West Georgia": "#b63ec7", 
-    "Central Georgia": "#4f4ea3",
-    "Statesboro Area": "#2b7a8a",
-    "Savannah Area": "#b6323d",
-    "South Georgia": "#4d7f2d",
-    "Southeast Georgia": "#EFBF04",
-}
-
 
 def hex_to_rgb(value: str) -> tuple[int, int, int]:
     value = value.lstrip("#")
@@ -209,14 +106,32 @@ def load_counties() -> list[dict]:
         cache.parent.mkdir(exist_ok=True)
         urllib.request.urlretrieve(GEOJSON_URL, cache)
     data = json.loads(cache.read_text(encoding="utf-8"))
-    sc_counties_needed = {"aiken", "edgefield"}
-    al_counties_needed = {"russell"}
-    return [
-        f for f in data["features"] 
-        if f["properties"]["STATE"] == GEORGIA_FIPS 
-        or (f["properties"]["STATE"] == SOUTH_CAROLINA_FIPS and f["properties"]["NAME"].lower() in sc_counties_needed)
-        or (f["properties"]["STATE"] == ALABAMA_FIPS and f["properties"]["NAME"].lower() in al_counties_needed)
-    ]
+    features_by_geoid = {
+        feature_geoid(feature): feature
+        for feature in data["features"]
+        if feature_geoid(feature) is not None
+    }
+    missing = set(COUNTY_REGION) - set(features_by_geoid)
+    if missing:
+        raise ValueError(f"Configured county GEOIDs missing from GeoJSON: {sorted(missing)}")
+    return [features_by_geoid[geoid] for geoid in COUNTY_REGION]
+
+
+def feature_geoid(feature: dict) -> str | None:
+    """Return a feature's five-digit Census county GEOID."""
+    properties = feature.get("properties", {})
+    value = feature.get("id") or properties.get("GEOID")
+    if value is not None and str(value).isdigit():
+        return str(value).zfill(5)
+    census_id = properties.get("GEO_ID", "")
+    match = re.search(r"(\d{5})$", str(census_id))
+    if match:
+        return match.group(1)
+    state = properties.get("STATE") or properties.get("STATEFP")
+    county = properties.get("COUNTY") or properties.get("COUNTYFP")
+    if state is not None and county is not None:
+        return f"{str(state).zfill(2)}{str(county).zfill(3)}"
+    return None
 
 
 def rings(geometry: dict):
@@ -309,11 +224,17 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
           title: str, y0: int, labels: dict[str, str] | None = None) -> tuple[str, int]:
     """Return an SVG group for the map placed at y0 and its height."""
     regions = categories
-    county_region = {c.lower(): r for r, cs in regions.items() for c in cs}
+    county_region = {
+        county["geoid"]: region
+        for region, counties in REGION_COUNTIES.items()
+        for county in counties
+    }
 
-    names = {f["properties"]["NAME"].lower() for f in features}
-    if names != set(county_region):
-        raise SystemExit(f"County mismatch: {sorted(names ^ set(county_region))}")
+    feature_geoids = [feature_geoid(feature) for feature in features]
+    if None in feature_geoids or len(feature_geoids) != len(set(feature_geoids)):
+        raise SystemExit("County features have missing or duplicate GEOIDs")
+    if set(feature_geoids) != set(county_region):
+        raise SystemExit(f"County GEOID mismatch: {sorted(set(feature_geoids) ^ set(county_region))}")
     missing = [r for r in regions if r not in colors]
     if missing:
         raise SystemExit(f"Add colors for: {missing}")
@@ -331,12 +252,11 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
     paths = []
     centroids = {region: [0.0, 0.0, 0.0] for region in regions}
     county_segments: dict[str, set[tuple[tuple[float, float], tuple[float, float]]]] = {}
-    sc_counties = {"aiken", "edgefield"}
-    al_counties = {"russell"}
+    oos_counties = {geoid for geoid in county_region if not geoid.startswith("13")}
     
     # Count counties per region for detecting multi-county regions
     region_county_count = {}
-    for county_name, region in county_region.items():
+    for geoid, region in county_region.items():
         region_county_count[region] = region_county_count.get(region, 0) + 1
     
     # Track region-to-region segments for lower opacity
@@ -345,9 +265,10 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
 
     for f in sorted(features, key=lambda f: f["properties"]["NAME"]):
         name = f["properties"]["NAME"]
-        region = county_region[name.lower()]
+        geoid = feature_geoid(f)
+        region = county_region[geoid]
         projected = [[project(p) for p in r] for r in rings(f["geometry"])]
-        county_segments[name.lower()] = set()
+        county_segments[geoid] = set()
         for ring in projected:
             for (x1, y1), (x2, y2) in zip(ring, ring[1:] + ring[:1]):
                 cross = x1 * y2 - x2 * y1
@@ -355,7 +276,7 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
                 centroids[region][1] += (x1 + x2) * cross
                 centroids[region][2] += (y1 + y2) * cross
                 segment = normalize_segment((x1, y1), (x2, y2))
-                county_segments[name.lower()].add(segment)
+                county_segments[geoid].add(segment)
                 # Track segments by region (use list to detect same-region internal borders)
                 if segment not in region_segment_map_list:
                     region_segment_map_list[segment] = []
@@ -366,23 +287,12 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         
         # Use pattern fill for out-of-state counties, solid color for Georgia
         fill_color = colors[region]
-        if name.lower() in sc_counties:
-            # For SC counties: base color + black striped pattern overlay
+        if geoid in oos_counties:
             paths.append(
                 f'<path d="{d}" fill="{fill_color}" stroke="#f2f2f2" stroke-width="0.8" stroke-linejoin="round"><title>{escape(name)}</title></path>'
             )
-            # Striped overlay with inset to avoid border overlap
             paths.append(
-                f'<path d="{d}" fill="url(#oos-stripes)" stroke="none" opacity="0.85"><title>{escape(name)} (South Carolina)</title></path>'
-            )
-        elif name.lower() in al_counties:
-            # For AL counties: base color + black striped pattern overlay
-            paths.append(
-                f'<path d="{d}" fill="{fill_color}" stroke="#f2f2f2" stroke-width="0.8" stroke-linejoin="round"><title>{escape(name)}</title></path>'
-            )
-            # Striped overlay with inset to avoid border overlap
-            paths.append(
-                f'<path d="{d}" fill="url(#oos-stripes)" stroke="none" opacity="0.85"><title>{escape(name)} (Alabama)</title></path>'
+                f'<path d="{d}" fill="url(#oos-stripes)" stroke="none" opacity="0.85"><title>{escape(name)} (Out of state)</title></path>'
             )
         else:
             paths.append(
@@ -391,9 +301,9 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
 
     # Build segment map to determine which borders should be drawn and with what opacity
     segment_map: dict[tuple[tuple[float, float], tuple[float, float]], set[str]] = {}
-    for county_name, segments in county_segments.items():
+    for geoid, segments in county_segments.items():
         for segment in segments:
-            segment_map.setdefault(segment, set()).add(county_name)
+            segment_map.setdefault(segment, set()).add(geoid)
 
     # Categorize segments into different types
     state_boundary_segments: list[tuple[float, float, float, float]] = []
@@ -401,22 +311,20 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
     region_boundary_segments: list[tuple[float, float, float, float]] = []
     internal_region_segments: list[tuple[float, float, float, float]] = []
     
-    oos_counties = sc_counties | al_counties
-    
     for segment, counties in segment_map.items():
         (x1, y1), (x2, y2) = segment
         
         if len(counties) == 1:
             # External boundary (state edge)
-            county_name = list(counties)[0]
-            if county_name not in oos_counties:
+            geoid = list(counties)[0]
+            if geoid not in oos_counties:
                 state_boundary_segments.append((x1, y1, x2, y2))
         elif len(counties) == 2:
-            county1, county2 = list(counties)
-            region1 = county_region[county1]
-            region2 = county_region[county2]
-            is_oos_1 = county1 in oos_counties
-            is_oos_2 = county2 in oos_counties
+            geoid1, geoid2 = list(counties)
+            region1 = county_region[geoid1]
+            region2 = county_region[geoid2]
+            is_oos_1 = geoid1 in oos_counties
+            is_oos_2 = geoid2 in oos_counties
             
             # Check if border is between GA and out-of-state
             if is_oos_1 != is_oos_2:

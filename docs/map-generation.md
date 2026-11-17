@@ -1,61 +1,51 @@
-# Map Generation
+# Region Data and Map Generation
 
-The `georgia_map.py` script generates both SVG and PNG visualizations of the Georgia regions configuration.
+## Shared Source of Truth
 
-## Generating the Map
+`regions.json` is the canonical county-to-region configuration for the bot, map
+generator, and Pages app. County records use five-digit Census GEOIDs, so county
+names shared by different states cannot collide. Each region stores its counties
+as `{ "geoid": "13001", "name": "Appling" }` records; category membership,
+labels, and colors are in `metadata`.
 
-After updating region configurations in `REGIONS`, `REGION_LABELS`, or `REGION_GROUPS`:
+The Python bot and SVG generator load this file through `region_data.py`. The
+website in `site/` fetches the same JSON and matches county geometry by GEOID.
+There is no longer a separate region list to sync into JavaScript.
 
-1. **Generate SVG from region data:**
+When changing regions or adding counties:
+
+1. Edit `regions.json`. Use five-digit GEOIDs and preserve each county's display
+   name. Add a new region to exactly one `metadata.region_groups` category and
+   give it a `metadata.region_labels` entry.
+2. Verify the shared data and generate the SVG:
    ```powershell
+   python -c "from region_data import COUNTY_REGION; print(f'Validated {len(COUNTY_REGION)} county GEOIDs')"
    python georgia_map.py
    ```
-   This produces `georgia_regions.svg` with all 23 regions and out-of-state border counties.
-
-2. **Convert SVG to PNG at 200 DPI using Inkscape:**
+3. Export the PNG at 200 DPI if needed:
    ```powershell
    & "C:\Program Files\Inkscape\bin\inkscape.exe" .\georgia_regions.svg -o georgia_regions.png --export-dpi=200
    ```
 
-Both steps are required when region definitions change.
+`region_data.py` rejects duplicate/invalid GEOIDs and incomplete category
+assignments. The map generator also checks that every configured GEOID exists
+in the downloaded county GeoJSON.
 
 ## Out-of-State Counties
 
-Some regions include counties from neighboring states to better represent birding areas:
-- **Greater Augusta**: Aiken and Edgefield counties (South Carolina)
-- **Greater Columbus**: Russell County (Alabama)
+The current out-of-state counties are:
 
-These out-of-state counties are rendered with:
-- A diagonal striped pattern fill (darker lines at -45°) to visually distinguish them from Georgia counties
-- Thin internal borders (no thick white edge)
-- A thick white border on the Georgia side of the state boundary
+- Greater Augusta: Aiken (`45003`) and Edgefield (`45037`), South Carolina
+- Greater Columbus: Russell (`01113`), Alabama
 
-This makes the Georgia border explicit while still showing the regional coverage.
+The SVG uses a striped fill for any configured county whose GEOID is not in
+Georgia (`13`). Add another county by adding its GEOID and name to the relevant
+region in `regions.json`; no state-specific code changes are needed.
 
-## SVG Structure
+## GitHub Pages Deployment
 
-The generated `georgia_regions.svg` includes:
-- **Defs**: A diagonal stripe pattern (`oos-stripes`) applied to out-of-state counties
-- **County paths**: Colored by region, with striped pattern overlay for out-of-state counties
-- **State boundary**: Thick white border (3.2px) on all external GA edges and state boundaries
-- **Region labels**: Center-of-mass text labels with black outline for readability
-- **Legend**: RBA category colors positioned on the right side
-
-## Coordinates and Scaling
-
-The map uses:
-- **GeoJSON source**: Public plotly/datasets US counties with FIPS codes
-- **Georgia FIPS code**: "13"
-- **South Carolina FIPS code**: "45" (Aiken, Edgefield)
-- **Alabama FIPS code**: "01" (Russell)
-- **Map width**: 700px (configurable `MAP_WIDTH`)
-- **Padding**: 40px on all sides
-- **Legend position**: Far right (MAP_WIDTH + PAD + 20)
-
-## Syncing Regions
-
-Keep the following synchronized across files:
-- `bot.py`: `REGIONS`, `REGION_GROUPS`, `REGION_LABELS`
-- `georgia_map.py`: `REGIONS`, `REGION_LABELS`, `REGION_GROUPS`, `GROUP_COLORS`
-
-The `load_counties()` function loads only Georgia counties plus the configured out-of-state counties (Aiken, Edgefield, Russell). All other counties are excluded.
+The Pages source files are in `site/`. The `Deploy Pages` GitHub Actions workflow
+copies `regions.json` into the Pages artifact and deploys it when the site or
+shared region data changes on `master`. Configure **Settings → Pages → Build
+and deployment → Source → GitHub Actions** once; the `gh-pages` branch is no
+longer used for deployments.
