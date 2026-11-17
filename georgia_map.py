@@ -16,7 +16,7 @@ GEORGIA_FIPS = "13"
 SOUTH_CAROLINA_FIPS = "45"  # For Aiken and Edgefield counties
 ALABAMA_FIPS = "01"  # For Russell County
 MAP_WIDTH = 620
-PAD = 40
+PAD = 60
 
 # Keep these county assignments and categories synchronized with bot.py.
 REGIONS = {
@@ -326,7 +326,7 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
     height = round((max_y - min(lats)) * scale) + 2 * PAD
 
     def project(p):
-        return (p[0] * kx - min_x) * scale + PAD, (max_y - p[1]) * scale + PAD
+        return (p[0] * kx - min_x) * scale + PAD*.7, (max_y - p[1]) * scale + PAD*1.2
 
     paths = []
     centroids = {region: [0.0, 0.0, 0.0] for region in regions}
@@ -433,7 +433,7 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
         internal_d = segments_to_path_d(internal_region_segments)
         paths.append(
             f'<path d="{internal_d}" fill="none" stroke="#f2f2f2" stroke-width="0.8" '
-            f'stroke-linecap="butt" stroke-linejoin="round" opacity="0.5"/>'
+            f'stroke-linecap="butt" stroke-linejoin="round" opacity="0.7"/>'
         )
 
     # 2. Region borders (continuous polylines with round joins and butt caps)
@@ -470,7 +470,7 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
 
     # Position legend on the right side with background box
     legend_items = []
-    legend_x = MAP_WIDTH + PAD - 20
+    legend_x = MAP_WIDTH + PAD - 40
     legend_y = PAD + 20
     
     # Calculate legend dimensions for background box
@@ -513,7 +513,7 @@ def panel(features: list[dict], categories: dict[str, list[str]], colors: dict[s
     svg = (
         f'<g transform="translate(0,{y0})">\n'
         f'{defs_svg}\n'
-        f'<text x="{PAD}" y="26" font-size="18" font-weight="bold">{escape(title)}</text>\n'
+        f'<text x="{PAD*.7}" y="45" font-size="24" font-weight="bold">{escape(title)}</text>\n'
         f'<g>\n' + "\n".join(paths) + "\n</g>\n"
         + "\n".join(map_labels) + "\n"
         + legend
@@ -528,7 +528,7 @@ def main():
 
     output_dir = Path(__file__).parent
     svg, height = panel(features, regions, COLORS, "GA Birding Discord Regions", 0, REGION_LABELS)
-    width = MAP_WIDTH + 2 * PAD + 120
+    width = MAP_WIDTH + 1 * PAD + 120
     out = output_dir / "georgia_regions.svg"
     out.write_text(
         f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {width} {height}" '
