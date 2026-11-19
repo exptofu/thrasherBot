@@ -37,6 +37,7 @@ Georgia's 159 counties are grouped into 16 regions in the `REGIONS` dict in `bot
 
 The bot needs View Channel, Send Messages, Send Messages in Threads, Read Message History, and Manage Threads in the alert forum. Its invite link on a permission error includes these permissions.
 
+
 ## Checklist location edits
 
 Each species/checklist message is tracked in the `groups` table together with the thread it was posted in. If a submitter edits an eBird checklist's location after the bot has posted it, the bot treats the sighting as moved:

@@ -28,7 +28,7 @@ MISSING_POLLS = max(1, int(os.environ.get("MISSING_POLLS", "3")))
 MISSING_CHECK_LIMIT = 20
 MISSING_STATUS = "⚠️ No longer in RBA"
 REMOVED_STATUS = "🗑️ Removed from checklist"
-BOT_VERSION = "2026-11-04.6"
+BOT_VERSION = "2026-11-19.4"
 last_feed_size: int | None = None
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
@@ -105,8 +105,18 @@ RARE_BIRDS = set(load_rare_birds()) | set(CODED_RARE_BIRDS)
 RARE_SPECIES_CODES = {code for code in RARE_BIRD_CODES.values()}
 
 
+def is_potentially_rare(o: dict) -> bool:
+    species = o.get("speciesCode", "")
+    name = normalize_species(o.get("comName", ""))
+    return species in RARE_SPECIES_CODES or name in RARE_BIRDS
+
+
 def county_slug(county: str) -> str:
     return county.lower().removesuffix(" county").replace(" ", "-")
+
+
+def county_key(county: str) -> str:
+    return " ".join(county.lower().removesuffix(" county").split())
 
 
 def channel_slug(name: str) -> str:
@@ -204,6 +214,13 @@ db.executescript(
         message_id INTEGER,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );
+    -- One rare-species relay per county while it remains active within the retention cutoff.
+    CREATE TABLE IF NOT EXISTS rare_relay (
+        species_code TEXT NOT NULL,
+        county TEXT NOT NULL,
+        last_seen TEXT NOT NULL,
+        PRIMARY KEY (species_code, county)
+    );
     -- Build metadata so a synced database shows which bot version wrote it.
     CREATE TABLE IF NOT EXISTS meta (
         key TEXT PRIMARY KEY,
@@ -222,6 +239,30 @@ db.execute(
            WHERE posts.species_code = groups.species_code AND posts.scope = groups.scope)
        WHERE thread_id IS NULL"""
 )
+
+# Backfill county/species relay state from sightings already in a live database.
+# This prevents the deployment that adds county-level relaying from reposting
+# rare sightings that the bot had already relayed before the state table existed.
+for species_code, data in db.execute(
+    "SELECT species_code, data FROM sightings"
+).fetchall():
+    try:
+        sighting = json.loads(data)
+        if not is_potentially_rare(sighting):
+            continue
+        county = sighting.get("subnational2Name", "")
+        obs_date = (sighting.get("obsDt") or "")[:10]
+        if county and obs_date:
+            county_name = county_key(county)
+            db.execute(
+                """INSERT INTO rare_relay (species_code, county, last_seen) VALUES (?,?,?)
+                   ON CONFLICT(species_code, county) DO UPDATE SET
+                   last_seen = max(last_seen, excluded.last_seen)""",
+                (species_code, county_name, obs_date),
+            )
+    except json.JSONDecodeError:
+        continue
+db.commit()
 
 
 def source_hash() -> str:
@@ -551,23 +592,46 @@ async def relay_rare_species_to_moderators(
     if channel.guild is None:
         return
 
+    county = first.get("subnational2Name", "Unknown county")
+    county = county.removesuffix(" County") if county.lower().endswith(" county") else county
+    county_name = county_key(county)
+    obs_date = (first.get("obsDt") or "")[:10]
+
+    existing = db.execute(
+        "SELECT last_seen FROM rare_relay WHERE species_code=? AND county=?",
+        (species, county_name),
+    ).fetchone()
+    if existing:
+        try:
+            existing_age = (date.today() - date.fromisoformat(existing[0])).days
+        except ValueError:
+            existing_age = RECENT_OBSERVATION_CUTOFF_DAYS + 1
+        if existing_age <= RECENT_OBSERVATION_CUTOFF_DAYS:
+            db.execute(
+                "INSERT OR REPLACE INTO rare_relay (species_code, county, last_seen) VALUES (?,?,?)",
+                (species, county_name, max(obs_date, existing[0]) if obs_date else existing[0]),
+            )
+            db.commit()
+            return
+
     rarity_channel = discord.utils.get(channel.guild.text_channels, name=RARITY_CHANNEL)
     if rarity_channel is None:
         log.warning("Rarity channel #%s was not found; rare bird thread %s will not be relayed.", RARITY_CHANNEL, thread.id)
         return
 
-    rare_name = next(
-        (name for name, code in RARE_BIRD_CODES.items() if code == species),
-        first.get("comName", "Rare bird"),
-    )
-    county = first.get("subnational2Name", "Unknown county")
-    obs_date = (first.get("obsDt") or "")[:10]
+    rare_name = first.get("comName", "Rare bird")
     message = (
         f"Potential rare sighting! {rare_name} in {county}"
         f"{f' on {obs_date}' if obs_date else ''} - {thread.jump_url}"
     )
     try:
         await rarity_channel.send(message)
+        if obs_date:
+            db.execute(
+                "INSERT OR REPLACE INTO rare_relay (species_code, county, last_seen) VALUES (?,?,?)",
+                (species, county_name, obs_date),
+            )
+            db.commit()
     except discord.HTTPException:
         log.exception("Failed to relay rare bird thread %s to #%s", thread.id, RARITY_CHANNEL)
 
@@ -726,9 +790,7 @@ async def send_group(
             )
     if should_notify_region and not thread and region:
         await notify_region_chat(client, channel, region, created.thread, first)
-    if should_notify_region and not thread and (
-        species in RARE_SPECIES_CODES or normalize_species(first["comName"]) in RARE_BIRDS
-    ):
+    if should_notify_region and not thread and is_potentially_rare(first):
         await relay_rare_species_to_moderators(channel, first, species, thread_obj)
 
 
