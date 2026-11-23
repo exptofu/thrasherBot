@@ -40,7 +40,7 @@ async def main() -> int:
     try:
         regions, _ = load_region_config()
     except (OSError, SyntaxError, ValueError) as error:
-        parser.error(f"Could not load region definitions from bot.py: {error}")
+        parser.error(f"Could not load region definitions from region_data.py: {error}")
 
     wanted = list(regions)
 

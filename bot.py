@@ -28,7 +28,7 @@ MISSING_POLLS = max(1, int(os.environ.get("MISSING_POLLS", "3")))
 MISSING_CHECK_LIMIT = 20
 MISSING_STATUS = "⚠️ No longer in RBA"
 REMOVED_STATUS = "🗑️ Removed from checklist"
-BOT_VERSION = "2026-11-19.4"
+BOT_VERSION = "2026-11-22.1"
 last_feed_size: int | None = None
 DB_PATH = os.environ.get("DB_PATH", "sightings.db")
 REQUEST_DELAY_SECONDS = float(os.environ.get("REQUEST_DELAY_SECONDS", "3"))
@@ -70,7 +70,7 @@ HEADERS = {"x-ebirdapitoken": EBIRD_KEY}
 log = logging.getLogger("thrasherbot")
 
 # Region slug -> eBird county names. Slugs are also forum tags and channel prefixes.
-# Keep this configuration synchronized with georgia_map.py.
+# Keep this configuration synchronized with region_data.py.
 COUNTY_REGION = {c.lower(): r for r, counties in REGIONS.items() for c in counties}
 REGION_TO_CATEGORY = {
     region: category
@@ -1898,7 +1898,10 @@ class Bot(discord.Client):
             return
 
         try:
-            await message.channel.send(embed=build_georgia_coordinates_embed(message, found_coords))
+            await message.channel.send(
+                embed=build_georgia_coordinates_embed(message, found_coords),
+                silent=True,
+            )
         except discord.Forbidden:
             log.warning("Cannot post GPS embed in #%s (%s): missing send permissions", getattr(message.channel, "name", "unknown"), message.channel.id)
 

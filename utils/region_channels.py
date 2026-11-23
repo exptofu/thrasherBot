@@ -1,6 +1,5 @@
 """Create, sync, and order regional Discord channels."""
 import argparse
-import ast
 import asyncio
 import os
 import sys
@@ -11,26 +10,15 @@ from dotenv import load_dotenv
 
 
 ROOT = Path(__file__).resolve().parent.parent
-MAP_CONFIG_PATH = ROOT / "georgia_map.py"
-
-
-def _literal_assignments(names: set[str], source_path: Path) -> dict:
-    tree = ast.parse(source_path.read_text(encoding="utf-8"))
-    found = {}
-    for node in tree.body:
-        if (isinstance(node, ast.Assign) and len(node.targets) == 1
-                and isinstance(node.targets[0], ast.Name)
-                and node.targets[0].id in names):
-            found[node.targets[0].id] = ast.literal_eval(node.value)
-    if set(found) != names:
-        raise ValueError(f"{source_path.name} must define literal {', '.join(sorted(names))}")
-    return found
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 
 def load_region_config() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
-    """Read the canonical region definitions from georgia_map.py without importing the bot."""
-    config = _literal_assignments({"REGIONS", "REGION_GROUPS"}, MAP_CONFIG_PATH)
-    return config["REGIONS"], config["REGION_GROUPS"]
+    """Load the canonical region definitions from the shared region data module."""
+    from region_data import REGION_GROUPS, REGIONS
+
+    return REGIONS, REGION_GROUPS
 
 
 def channel_slug(name: str) -> str:
@@ -286,15 +274,33 @@ async def ensure_region_channels(
         if item.name in planned_set and getattr(item, "category_id", None) == regional_category.id
     ]
     if current_names != planned_order:
-        for name in planned_order:
+        live_order = list(current_names)
+        for target_index, name in enumerate(planned_order):
+            if name not in live_order:
+                continue
+            current_index = live_order.index(name)
+            if current_index == target_index:
+                continue
             item = managed_channels[name]
             if moves_applied:
                 await asyncio.sleep(move_delay_seconds)
+            print(
+                f"Reordering #{name}: position {current_index + 1} "
+                f"to position {target_index + 1}"
+            )
             await _on(
                 f"channel #{name} ({item.id}): reordering",
-                item.move(end=True, category=regional_category),
+                item.move(
+                    beginning=target_index == 0,
+                    offset=target_index,
+                    category=regional_category,
+                ),
             )
             moves_applied += 1
+            live_order.pop(current_index)
+            live_order.insert(target_index, name)
+    if moves_applied == 0:
+        print("Channel ordering already matches the plan; no channels moved.")
 
 
 def regional_preview_plan(region_groups: dict[str, list[str]]) -> dict[str, list[str]]:
@@ -333,7 +339,7 @@ def planned_channel_names(region_groups: dict[str, list[str]]) -> list[str]:
 
 
 async def diff_live_channels(guild: discord.Guild, region_groups: dict[str, list[str]]) -> None:
-    """Print any category/channel names that are missing or extra compared to the planned setup."""
+    """Print missing channels and the exact category/channel positions that need reordering."""
     planned_names = planned_channel_names(region_groups)
     planned_set = set(planned_names)
     live = {
@@ -357,6 +363,80 @@ async def diff_live_channels(guild: discord.Guild, region_groups: dict[str, list
     else:
         print("Extra in Discord: none")
 
+    regional_category = discord.utils.get(guild.categories, name="Regional")
+    discussion_category = discord.utils.get(guild.categories, name="Discussions")
+    if regional_category is None:
+        print("Category order:")
+        print("  - Missing category 'Regional'")
+    else:
+        category_order = [
+            item
+            for item in sorted(guild.categories, key=lambda item: (item.position, item.id))
+        ]
+        category_names = [item.name for item in category_order]
+        regional_index = category_names.index("Regional")
+        category_issue = False
+        if discussion_category is not None:
+            discussion_index = category_names.index("Discussions")
+            if regional_index != discussion_index + 1:
+                category_issue = True
+        elif regional_index != len(category_names) - 1:
+            category_issue = True
+        print("Category order:")
+        if category_issue:
+            print(f"  - 'Regional' is at position {regional_index + 1}; expected immediately after 'Discussions'")
+        else:
+            print("  - 'Regional' is correctly positioned")
+
+        planned_order = regional_preview_plan(region_groups)["Regional"]
+        live_order = [
+            item.name
+            for item in sorted(
+                (
+                    item for item in guild.channels
+                    if getattr(item, "category_id", None) == regional_category.id
+                    and isinstance(item, (discord.TextChannel, discord.ForumChannel))
+                ),
+                key=lambda item: (item.position, item.id),
+            )
+        ]
+        out_of_place = [
+            (expected_index + 1, name, live_order.index(name) + 1)
+            for expected_index, name in enumerate(planned_order)
+            if name in live_order and live_order.index(name) != expected_index
+        ]
+        wrong_category = [
+            name
+            for name in planned_order
+            if name in live and not (
+                getattr(discord.utils.get(guild.channels, name=name), "category_id", None)
+                == regional_category.id
+            )
+        ]
+        extra_in_category = [
+            name for name in live_order
+            if name not in planned_set
+        ]
+        print("Channel order:")
+        if live_order == planned_order:
+            print("  - Regional channels are already in the planned order")
+        else:
+            if out_of_place:
+                print("  - Out of place:")
+                for expected_position, name, live_position in out_of_place:
+                    print(
+                        f"    - #{name}: currently position {live_position}, "
+                        f"expected position {expected_position}"
+                    )
+            if wrong_category:
+                print("  - Wrong category:")
+                for name in wrong_category:
+                    print(f"    - #{name}")
+            if extra_in_category:
+                print("  - Extra in Regional category:")
+                for name in extra_in_category:
+                    print(f"    - #{name}")
+
 
 async def main() -> int:
     parser = argparse.ArgumentParser(description="Create and order regional Discord channels.")
@@ -371,7 +451,7 @@ async def main() -> int:
     try:
         regions, region_groups = load_region_config()
     except (OSError, SyntaxError, ValueError) as error:
-        parser.error(f"Could not load region definitions from georgia_map.py: {error}")
+        parser.error(f"Could not load region definitions from region_data.py: {error}")
 
     region_counties = regions
 

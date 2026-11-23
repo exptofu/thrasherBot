@@ -28,4 +28,6 @@ python utils/region_channels.py --apply
 
 The setup adds missing forum tags and creates or moves the configured channels, syncing their permissions to the parent category. If a managed channel exists with the wrong type, rename or archive it and rerun setup; the job does not delete obsolete forum tags, categories, or text channels. Category-chat channels created by an earlier setup are left untouched and may be archived or deleted manually. Remove retired forum tags manually before applying if the forum is at Discord's 20-tag limit. Existing sighting posts and threads are not retagged or redistributed.
 
+`python utils/county_table.py --post` updates the bot's existing county-mapping messages without pinging roles, posts additional messages if needed, and deletes obsolete mapping messages. Other messages in the channel are left alone.
+
 `utils/sync_category_permissions.py` is a separate preview-first utility that applies category permissions to all categorized channels in the guild except the forum ID in `DISCORD_CHANNEL_ID`; it is not limited to regional channels. Review its complete preview before using `--apply`, since affected channel-specific overwrites are replaced by category permissions.
